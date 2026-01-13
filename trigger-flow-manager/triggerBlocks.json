@@ -1,0 +1,925 @@
+{
+    "blocks": {
+        "always": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Always"
+                },
+                {
+                    "name": "branch_to_block_name",
+                    "type": "string"
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.branch.always({{trigger_model_name}}, {{trigger_block_name}}, {{branch_to_block_name}})",
+            "shape": "conditional"
+        },
+        "counter": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Counter"
+                },
+                {
+                    "name": "branch_to_block_name",
+                    "type": "string"
+                },
+                {
+                    "name": "target_count",
+                    "type": "number"
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.branch.counter({{trigger_model_name}}, {{trigger_block_name}}, {{branch_to_block_name}}, {{target_count}})",
+            "shape": "conditional"
+        },
+        "reset counter": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Reset Counter"
+                },
+                {
+                    "name": "reset_branch_count_block_name",
+                    "type": "string"
+                },
+                {
+                    "name": "reset_count",
+                    "type": "number",
+                    "default": 0
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.reset.branch.counter({{trigger_model_name}}, {{trigger_block_name}}, {{reset_branch_count_block_name}})",
+            "shape": "conditional"
+        },
+        "event": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Event"
+                },
+                {
+                    "name": "branch_to_block_name",
+                    "type": "string"
+                },
+                {
+                    "name": "event_id",
+                    "type": "triggerEventType"
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.branch.event({{trigger_model_name}}, {{trigger_block_name}}, {{branch_to_block_name}}, {{event_id}})",
+            "shape": "conditional"
+        },
+        "once": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Once"
+                },
+                {
+                    "name": "branch_to_block_name",
+                    "type": "string"
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.branch.once({{trigger_model_name}}, {{trigger_block_name}}, {{branch_to_block_name}})",
+            "shape": "conditional"
+        },
+        "onceexcluded": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Once Excluded"
+                },
+                {
+                    "name": "branch_to_block_name",
+                    "type": "string"
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.branch.onceexcluded({{trigger_model_name}}, {{trigger_block_name}}, {{branch_to_block_name}})",
+            "shape": "conditional"
+        },
+        "configlist next": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Config List NEXT"
+                },
+                {
+                    "name": "channel_index",
+                    "type": "ChannelIndex"
+                },
+                {
+                    "name": "config_list_name",
+                    "type": "string"
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.configlist.next({{trigger_model_name}}, {{trigger_block_name}}, {{channel_index}}, {{config_list_name}})",
+            "shape": "conditional"
+        },
+        "configlist prev": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Config List PREV"
+                },
+                {
+                    "name": "channel_index",
+                    "type": "ChannelIndex"
+                },
+                {
+                    "name": "config_list_name",
+                    "type": "string"
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.configlist.prev({{trigger_model_name}}, {{trigger_block_name}}, {{channel_index}}, {{config_list_name}})",
+            "shape": "conditional"
+        },
+        "configlist recall": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Config List RECALL"
+                },
+                {
+                    "name": "channel_index",
+                    "type": "ChannelIndex"
+                },
+                {
+                    "name": "config_list_name",
+                    "type": "string"
+                },
+                {
+                    "name": "recall_index",
+                    "type": "number"
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.configlist.recall({{trigger_model_name}}, {{trigger_block_name}}, {{channel_index}}, {{config_list_name}}, {{recall_index}})",
+            "shape": "conditional"
+        },
+        "delay constant": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Delay"
+                },
+                {
+                    "name": "delay_time",
+                    "type": "number",
+                    "range": {
+                        "min": "0.000001",
+                        "max": "1000000"
+                    }
+                },
+                {
+                    "name": "reference_block_name",
+                    "type": "string"
+                },
+                {
+                    "name": "delay_list",
+                    "type": "DelayList"
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.delay.constant({{trigger_model_name}}, {{trigger_block_name}}, {{delay_time}}, {{reference_block_name}}, {{delay_list}})",
+            "shape": "conditional"
+        },
+        "log_event": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Log Event"
+                },
+                {
+                    "name": "event_type",
+                    "type": "LogEventType",
+                    "options": [
+                        {
+                            "label": "Information",
+                            "value": "slot[{{slot_index}}].trigger.model.LOG_INFO{{event_number}}"
+                        },
+                        {
+                            "label": "Warning",
+                            "value": "slot[{{slot_index}}].trigger.model.LOG_WARN{{event_number}}"
+                        },
+                        {
+                            "label": "Error",
+                            "value": "slot[{{slot_index}}].trigger.model.LOG_ERROR{{event_number}}"
+                        },
+                        {
+                            "label": "Abort",
+                            "value": "slot[{{slot_index}}].trigger.model.LOG_WARN_ABORT"
+                        }
+                    ]
+                },
+                {
+                    "name": "event_number",
+                    "type": "number",
+                    "options": [
+                        {
+                            "label": "1",
+                            "value": "1"
+                        },
+                        {
+                            "label": "2",
+                            "value": "2"
+                        },
+                        {
+                            "label": "3",
+                            "value": "3"
+                        },
+                        {
+                            "label": "4",
+                            "value": "4"
+                        }
+                    ]
+                },
+                {
+                    "name": "event_message",
+                    "type": "string"
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.logevent({{trigger_model_name}}, {{trigger_block_name}}, {{event_type}}, {{event_message}})",
+            "shape": "conditional"
+        },
+        "measure": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Measure"
+                },
+                {
+                    "name": "channel_index",
+                    "type": "ChannelIndex"
+                },
+                {
+                    "name": "measure_count",
+                    "type": "number"
+                },
+                {
+                    "name": "channel_list",
+                    "type": "ChannelList"
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.measure({{trigger_model_name}}, {{trigger_block_name}}, {{channel_index}}, {{measure_count}}, {{channel_list}})",
+            "shape": "conditional"
+        },
+        "measure overlapped": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Measure Overlapped"
+                },
+                {
+                    "name": "channel_index",
+                    "type": "ChannelIndex"
+                },
+                {
+                    "name": "measure_count",
+                    "type": "number"
+                },
+                {
+                    "name": "channel_list",
+                    "type": "ChannelList"
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.measureoverlapped({{trigger_model_name}}, {{trigger_block_name}}, {{channel_index}}, {{channel_list}}, {{measure_count}})",
+            "shape": "conditional"
+        },
+        "no operation": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "NOP"
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.nop({{trigger_model_name}}, {{trigger_block_name}})",
+            "shape": "conditional"
+        },
+        "notify": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Notify"
+                },
+                {
+                    "name": "event_id",
+                    "type": "notifyType"
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.notify({{trigger_model_name}}, {{trigger_block_name}}, {{event_id}})",
+            "shape": "conditional"
+        },
+        "source action bias": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Source Action BIAS"
+                },
+                {
+                    "name": "channel_index",
+                    "type": "ChannelIndex"
+                },
+                {
+                    "name": "channel_list",
+                    "type": "ChannelList"
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.source.action.bias({{trigger_model_name}}, {{trigger_block_name}}, {{channel_index}}, {{channel_list}})",
+            "shape": "conditional"
+        },
+        "source action set": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Source Action SET"
+                },
+                {
+                    "name": "channel_index",
+                    "type": "ChannelIndex"
+                },
+                {
+                    "name": "channel_list",
+                    "type": "ChannelList"
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.source.action.set({{trigger_model_name}}, {{trigger_block_name}}, {{channel_index}}, {{channel_list}})",
+            "shape": "conditional"
+        },
+        "source action skip": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Source Action SKIP"
+                },
+                {
+                    "name": "channel_index",
+                    "type": "ChannelIndex"
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.source.action.skip({{trigger_model_name}}, {{trigger_block_name}}, {{channel_index}})",
+            "shape": "conditional"
+        },
+        "source action step": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Source Action STEP"
+                },
+                {
+                    "name": "channel_index",
+                    "type": "ChannelIndex"
+                },
+                {
+                    "name": "channel_list",
+                    "type": "ChannelList"
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.source.action.step({{trigger_model_name}}, {{trigger_block_name}}, {{channel_index}}, {{channel_list}})",
+            "shape": "conditional"
+        },
+        "source output": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Source OUTPUT"
+                },
+                {
+                    "name": "channel_index",
+                    "type": "ChannelIndex"
+                },
+                {
+                    "name": "channel_list",
+                    "type": "ChannelList"
+                },
+                {
+                    "name": "state",
+                    "type": "SourceState",
+                    "options": [
+                        {
+                            "label": "ON",
+                            "value": "ON"
+                        },
+                        {
+                            "label": "OFF",
+                            "value": "OFF"
+                        }
+                    ]
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.source.output({{trigger_model_name}}, {{trigger_block_name}}, {{channel_list}}, {{state}})",
+            "shape": "conditional"
+        },
+        "wait": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Wait"
+                },
+                {
+                    "name": "event",
+                    "type": "triggerEventType"
+                },
+                {
+                    "name": "clear",
+                    "type": "ClearType",
+                    "options": [
+                        {
+                            "label": "Enter",
+                            "value": "slot[{{slot_index}}].trigger.model.CLEAR_ENTER"
+                        },
+                        {
+                            "label": "Never",
+                            "value": "slot[{{slot_index}}].trigger.model.CLEAR_NEVER"
+                        }
+                    ]
+                },
+                {
+                    "name": "logic",
+                    "type": "LogicType",
+                    "options": [
+                        {
+                            "label": "AND",
+                            "value": "slot[{{slot_index}}].trigger.model.WAIT_AND"
+                        },
+                        {
+                            "label": "OR",
+                            "value": "slot[{{slot_index}}].trigger.model.WAIT_OR"
+                        }
+                    ]
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.wait({{trigger_model_name}}, {{trigger_block_name}}, {{event}}, {{clear}}, {{logic}}, {{event}})",
+            "shape": "conditional"
+        }
+    },
+    "trigger_events": {
+        "event_notify_in": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "notify_event_number",
+                    "type": "notifyEventNumber",
+                    "default": "1",
+                    "constraints": {
+                        "SMU": {
+                            "options": [
+                                { "label": "1", "value": "1" },
+                                { "label": "2", "value": "2" },
+                                { "label": "3", "value": "3" },
+                                { "label": "4", "value": "4" },
+                                { "label": "5", "value": "5" },
+                                { "label": "6", "value": "6" },
+                                { "label": "7", "value": "7" },
+                                { "label": "8", "value": "8" }
+                            ]
+                        },
+                        "PSU": {
+                            "options": [
+                                { "label": "1", "value": "1" },
+                                { "label": "2", "value": "2" },
+                                { "label": "3", "value": "3" },
+                                { "label": "4", "value": "4" },
+                                { "label": "5", "value": "5" },
+                                { "label": "6", "value": "6" },
+                                { "label": "7", "value": "7" },
+                                { "label": "8", "value": "8" },
+                                { "label": "9", "value": "9" },
+                                { "label": "10", "value": "10" },
+                                { "label": "11", "value": "11" },
+                                { "label": "12", "value": "12" },
+                                { "label": "13", "value": "13" },
+                                { "label": "14", "value": "14" },
+                                { "label": "15", "value": "15" },
+                                { "label": "16", "value": "16" }
+                            ]
+                        }
+                    }
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.EVENT_NOTIFY{{notify_event_number}}",
+            "shape": "circle"
+        },
+        "event_digio": {
+            "parameters": [
+                {
+                    "name": "digio_trigger_line",
+                    "type": "digioTriggerLine",
+                    "default": "1",
+                    "options": [
+                        {
+                            "label": "1",
+                            "value": "1"
+                        },
+                        {
+                            "label": "2",
+                            "value": "2"
+                        },
+                        {
+                            "label": "3",
+                            "value": "3"
+                        },
+                        {
+                            "label": "4",
+                            "value": "4"
+                        },
+                        {
+                            "label": "5",
+                            "value": "5"
+                        },
+                        {
+                            "label": "6",
+                            "value": "6"
+                        },
+                        {
+                            "label": "7",
+                            "value": "7"
+                        },
+                        {
+                            "label": "8",
+                            "value": "8"
+                        },
+                        {
+                            "label": "9",
+                            "value": "9"
+                        },
+                        {
+                            "label": "10",
+                            "value": "10"
+                        },
+                        {
+                            "label": "11",
+                            "value": "11"
+                        },
+                        {
+                            "label": "12",
+                            "value": "12"
+                        },
+                        {
+                            "label": "13",
+                            "value": "13"
+                        },
+                        {
+                            "label": "14",
+                            "value": "14"
+                        },
+                        {
+                            "label": "15",
+                            "value": "15"
+                        },
+                        {
+                            "label": "16",
+                            "value": "16"
+                        },
+                        {
+                            "label": "17",
+                            "value": "17"
+                        },
+                        {
+                            "label": "18",
+                            "value": "18"
+                        }
+                    ]
+                }
+            ],
+            "syntax": "digio.trigger[{{digio_trigger_line}}].EVENT_ID",
+            "shape": "undefined"
+        },
+        "event_at_limit": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "channel_index",
+                    "type": "ChannelIndex"
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].smu[{{channel_index}}].trigger.EVENT_AT_LIMIT",
+            "shape": "undefined"
+        },
+        "event_generator": {
+            "parameters": [
+                {
+                    "name": "generator_number",
+                    "type": "generatorNumber",
+                    "options": [
+                        {
+                            "label": "1",
+                            "value": "1"
+                        },
+                        {
+                            "label": "2",
+                            "value": "2"
+                        },
+                        {
+                            "label": "3",
+                            "value": "3"
+                        },
+                        {
+                            "label": "4",
+                            "value": "4"
+                        },
+                        {
+                            "label": "5",
+                            "value": "5"
+                        },
+                        {
+                            "label": "6",
+                            "value": "6"
+                        },
+                        {
+                            "label": "7",
+                            "value": "7"
+                        },
+                        {
+                            "label": "8",
+                            "value": "8"
+                        }
+                    ]
+                }
+            ],
+            "syntax": "trigger.generator[{{generator_number}}].EVENT_ID",
+            "shape": "undefined"
+        },
+        "event_timer": {
+            "parameters": [
+                {
+                    "name": "trigger_timer_number",
+                    "type": "triggerTimerNumber",
+                    "options": [
+                        {
+                            "label": "1",
+                            "value": "1"
+                        },
+                        {
+                            "label": "2",
+                            "value": "2"
+                        },
+                        {
+                            "label": "3",
+                            "value": "3"
+                        },
+                        {
+                            "label": "4",
+                            "value": "4"
+                        },
+                        {
+                            "label": "5",
+                            "value": "5"
+                        },
+                        {
+                            "label": "6",
+                            "value": "6"
+                        },
+                        {
+                            "label": "7",
+                            "value": "7"
+                        },
+                        {
+                            "label": "8",
+                            "value": "8"
+                        }
+                    ]
+                }
+            ],
+            "syntax": "trigger.timer[{{trigger_timer_number}}].EVENT_ID",
+            "shape": "undefined"
+        },
+        "event_tsplink": {
+            "parameters": [
+                {
+                    "name": "trigger_line",
+                    "type": "triggerLine",
+                    "options": [
+                        {
+                            "label": "1",
+                            "value": "1"
+                        },
+                        {
+                            "label": "2",
+                            "value": "2"
+                        },
+                        {
+                            "label": "3",
+                            "value": "3"
+                        }
+                    ]
+                }
+            ],
+            "syntax": "tsplink.trigger[{{trigger_line}}].EVENT_ID",
+            "shape": "circle"
+        }
+    }
+}
