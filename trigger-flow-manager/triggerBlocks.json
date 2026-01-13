@@ -22,6 +22,7 @@
                 }
             ],
             "syntax": "slot[{{slot_index}}].trigger.model.addblock.branch.always({{trigger_model_name}}, {{trigger_block_name}}, {{branch_to_block_name}})",
+            "description": "When the trigger model reaches a branch-always block, it always proceeds to the block that you specified.",
             "shape": "conditional"
         },
         "counter": {
@@ -50,6 +51,7 @@
                 }
             ],
             "syntax": "slot[{{slot_index}}].trigger.model.addblock.branch.counter({{trigger_model_name}}, {{trigger_block_name}}, {{branch_to_block_name}}, {{target_count}})",
+            "description": "When trigger model execution reaches a loop counter block, it goes to a specified block until the count value is reached.",
             "shape": "conditional"
         },
         "reset counter": {
@@ -79,6 +81,7 @@
                 }
             ],
             "syntax": "slot[{{slot_index}}].trigger.model.addblock.reset.branch.counter({{trigger_model_name}}, {{trigger_block_name}}, {{reset_branch_count_block_name}})",
+            "description": "When this block is encountered in the trigger model, the specified branch counter resets to 0.",
             "shape": "conditional"
         },
         "event": {
@@ -107,6 +110,7 @@
                 }
             ],
             "syntax": "slot[{{slot_index}}].trigger.model.addblock.branch.event({{trigger_model_name}}, {{trigger_block_name}}, {{branch_to_block_name}}, {{event_id}})",
+            "description": "The branch-on-event block branches to a specified block when a specified trigger event occurs",
             "shape": "conditional"
         },
         "once": {
@@ -131,6 +135,7 @@
                 }
             ],
             "syntax": "slot[{{slot_index}}].trigger.model.addblock.branch.once({{trigger_model_name}}, {{trigger_block_name}}, {{branch_to_block_name}})",
+            "description": "When the trigger model reaches a branch-once block, it goes to a specified block the first time it is encountered in the trigger model.",
             "shape": "conditional"
         },
         "onceexcluded": {
@@ -155,6 +160,7 @@
                 }
             ],
             "syntax": "slot[{{slot_index}}].trigger.model.addblock.branch.onceexcluded({{trigger_model_name}}, {{trigger_block_name}}, {{branch_to_block_name}})",
+            "description": "The branch-once-excluded block branches to a specified trigger model block every time it is encountered in the trigger model except for the first time.",
             "shape": "conditional"
         },
         "configlist next": {
@@ -183,6 +189,7 @@
                 }
             ],
             "syntax": "slot[{{slot_index}}].trigger.model.addblock.configlist.next({{trigger_model_name}}, {{trigger_block_name}}, {{channel_index}}, {{config_list_name}})",
+            "description": "When trigger model execution reaches a configuration recall next block, the settings stored at the next index of a configuration list are recalled.",
             "shape": "conditional"
         },
         "configlist prev": {
@@ -211,6 +218,7 @@
                 }
             ],
             "syntax": "slot[{{slot_index}}].trigger.model.addblock.configlist.prev({{trigger_model_name}}, {{trigger_block_name}}, {{channel_index}}, {{config_list_name}})",
+            "description": "When trigger model execution reaches a configuration recall previous block, the settings at the previous index in the specified configuration list are restored.",
             "shape": "conditional"
         },
         "configlist recall": {
@@ -243,6 +251,7 @@
                 }
             ],
             "syntax": "slot[{{slot_index}}].trigger.model.addblock.configlist.recall({{trigger_model_name}}, {{trigger_block_name}}, {{channel_index}}, {{config_list_name}}, {{recall_index}})",
+            "description": "When the trigger model reaches a configuration recall block, the settings in the specified configuration list are recalled.",
             "shape": "conditional"
         },
         "delay constant": {
@@ -279,6 +288,7 @@
                 }
             ],
             "syntax": "slot[{{slot_index}}].trigger.model.addblock.delay.constant({{trigger_model_name}}, {{trigger_block_name}}, {{delay_time}}, {{reference_block_name}}, {{delay_list}})",
+            "description": "When trigger model execution reaches a delay block, it stops the trigger model operation for the time set by the delay.",
             "shape": "conditional"
         },
         "log_event": {
@@ -347,6 +357,7 @@
                 }
             ],
             "syntax": "slot[{{slot_index}}].trigger.model.addblock.logevent({{trigger_model_name}}, {{trigger_block_name}}, {{event_type}}, {{event_message}})",
+            "description": "The log event block allows you to log an event in the event log when trigger model execution reaches this block.",
             "shape": "conditional"
         },
         "measure": {
@@ -379,6 +390,7 @@
                 }
             ],
             "syntax": "slot[{{slot_index}}].trigger.model.addblock.measure({{trigger_model_name}}, {{trigger_block_name}}, {{channel_index}}, {{measure_count}}, {{channel_list}})",
+            "description": "The measure block triggers measurements based on the measurement function that is selected when the trigger model is initiated.",
             "shape": "conditional"
         },
         "measure overlapped": {
@@ -411,6 +423,7 @@
                 }
             ],
             "syntax": "slot[{{slot_index}}].trigger.model.addblock.measureoverlapped({{trigger_model_name}}, {{trigger_block_name}}, {{channel_index}}, {{channel_list}}, {{measure_count}})",
+            "description": "The measure overlapped block starts a measurement in an overlap state (in the background), allowing the trigger model to continue execution without waiting for the measurement to complete.",
             "shape": "conditional"
         },
         "no operation": {
@@ -431,6 +444,7 @@
                 }
             ],
             "syntax": "slot[{{slot_index}}].trigger.model.addblock.nop({{trigger_model_name}}, {{trigger_block_name}})",
+            "description": "The no operation block acts as a placeholder in a trigger model. No action is taken when this block is executed.",
             "shape": "conditional"
         },
         "notify": {
@@ -455,6 +469,7 @@
                 }
             ],
             "syntax": "slot[{{slot_index}}].trigger.model.addblock.notify({{trigger_model_name}}, {{trigger_block_name}}, {{event_id}})",
+            "description": "The notify block generates a trigger event in the system.",
             "shape": "conditional"
         },
         "source action bias": {
@@ -483,6 +498,7 @@
                 }
             ],
             "syntax": "slot[{{slot_index}}].trigger.model.addblock.source.action.bias({{trigger_model_name}}, {{trigger_block_name}}, {{channel_index}}, {{channel_list}})",
+            "description": "The source action bias block sets the source output level to the bias level set before the start of the trigger model.",
             "shape": "conditional"
         },
         "source action set": {
@@ -511,6 +527,7 @@
                 }
             ],
             "syntax": "slot[{{slot_index}}].trigger.model.addblock.source.action.set({{trigger_model_name}}, {{trigger_block_name}}, {{channel_index}}, {{channel_list}})",
+            "description": "The source action set block sets the source output level to the value at the present index in the list of sweep values without advancing the index.",
             "shape": "conditional"
         },
         "source action skip": {
@@ -535,6 +552,7 @@
                 }
             ],
             "syntax": "slot[{{slot_index}}].trigger.model.addblock.source.action.skip({{trigger_model_name}}, {{trigger_block_name}}, {{channel_index}})",
+            "description": "The source action skip block advances the index in the list of sweep values with no change to the source level.",
             "shape": "conditional"
         },
         "source action step": {
@@ -563,6 +581,7 @@
                 }
             ],
             "syntax": "slot[{{slot_index}}].trigger.model.addblock.source.action.step({{trigger_model_name}}, {{trigger_block_name}}, {{channel_index}}, {{channel_list}})",
+            "description": "The source action step block advances the index in the list of sweep values for the specified channel and then sets the source value to the value at that index.",
             "shape": "conditional"
         },
         "source output": {
@@ -605,6 +624,7 @@
                 }
             ],
             "syntax": "slot[{{slot_index}}].trigger.model.addblock.source.output({{trigger_model_name}}, {{trigger_block_name}}, {{channel_list}}, {{state}})",
+            "description": "The source output block turns the output of the source on or off.",
             "shape": "conditional"
         },
         "wait": {
@@ -657,6 +677,7 @@
                 }
             ],
             "syntax": "slot[{{slot_index}}].trigger.model.addblock.wait({{trigger_model_name}}, {{trigger_block_name}}, {{event}}, {{clear}}, {{logic}}, {{event}})",
+            "description": "The wait block causes the trigger model to stop and wait for an event or set of events to occur before continuing.",
             "shape": "conditional"
         }
     },

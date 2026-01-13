@@ -15,6 +15,7 @@ pub struct TriggerBlocks {
 pub struct BlockDefinition {
     pub parameters: Vec<Parameter>,
     pub syntax: String,
+    pub description: Option<String>,
     pub shape: String,
 }
 /// Definition of a single event type with its parameters and syntaxs
