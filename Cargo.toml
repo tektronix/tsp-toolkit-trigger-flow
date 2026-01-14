@@ -1,0 +1,20 @@
+[workspace]
+members = ["kic-trigger-flow", "trigger-flow-manager"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+
+[workspace.lints.rust]
+warnings = "deny"
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)', 'cfg(coverage)'] }
+
+[workspace.lints.clippy]
+pedantic = { level = "deny", priority = -1 }
+nursery = { level = "deny", priority = -1 }
+undocumented_unsafe_blocks = "deny"
+arithmetic_side_effects = "deny"
+
+[workspace.lints.rustdoc]
+all = "warn"
+missing_doc_code_examples = "warn"

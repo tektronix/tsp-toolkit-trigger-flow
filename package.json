@@ -1,0 +1,28 @@
+{
+    "name": "@tektronix/trigger-flow",
+    "version": "0.1.0",
+    "main": "index.js",
+    "bin": {
+        "windows-kic-trigger-flow": "./bin/kic-trigger-flow.exe",
+        "linux-kic-trigger-flow": "./bin/kic-trigger-flow"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/tektronix/tsp-toolkit-trigger-flow.git"
+    },
+    "typings": "index.d.ts",
+    "files": [
+        "index.d.ts",
+        "index.js",
+        "bin/*"
+    ],
+    "scripts": {},
+    "devDependencies": {
+        "@cyclonedx/cyclonedx-npm": "^4.1.2",
+        "@types/vscode": "^1.87.0",
+        "license-checker": "^25.0.1",
+        "source-map-support": "^0.5.21",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.3.3"
+    }
+}

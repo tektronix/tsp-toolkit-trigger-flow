@@ -1,6 +1,6 @@
+use super::param_types::ParamTypeName;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use super::param_types::ParamTypeName;
 
 /// The root structure representing all available trigger blocks
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -33,7 +33,7 @@ pub struct Parameter {
     pub param_type: ParamTypeName,
     pub options: Option<Vec<ParameterOptions>>,
     pub default: Option<String>,
-    pub range: Option<ParameterRange>
+    pub range: Option<ParameterRange>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -47,7 +47,6 @@ pub struct ParameterRange {
     pub min: Option<f64>,
     pub max: Option<f64>,
 }
-
 
 impl TriggerBlocks {
     /// Initialize trigger blocks from our JSON
@@ -86,8 +85,6 @@ impl TriggerBlocks {
     pub fn contains(&self, name: &str) -> bool {
         self.blocks.contains_key(name) || self.trigger_events.contains_key(name)
     }
-
-
 }
 
 impl BlockDefinition {
@@ -117,16 +114,18 @@ impl EventDefinition {
 impl Parameter {
     /// Get the option value template for a given label
     pub fn get_option_value(&self, label: &str) -> Option<&str> {
-        self.options.as_ref()?.iter()
+        self.options
+            .as_ref()?
+            .iter()
             .find(|opt| opt.label == label)
             .map(|opt| opt.value.as_str())
     }
 
     /// Get all option labels (for UI dropdown)
     pub fn get_option_labels(&self) -> Vec<&str> {
-        self.options.as_ref()
+        self.options
+            .as_ref()
             .map(|opts| opts.iter().map(|o| o.label.as_str()).collect())
             .unwrap_or_default()
     }
 }
-
