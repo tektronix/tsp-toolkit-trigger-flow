@@ -112,7 +112,8 @@ jobs:
         run: |
           git config --global credential.helper store
           echo "https://${{vars.SERVICE_ACCOUNT_USER}}:${{secrets.SERVICE_ACCOUNT_PAT}}@github.com" > ~/.git-credentials
-          just test-cov # need to wait for https://github.com/rust-lang/rust/issues/140677 to get coverage
+          echo "NO TESTS!"
+          #just test-cov # need to wait for https://github.com/rust-lang/rust/issues/140677 to get coverage
       - name: Run Tests without Coverage
         if: false
         run: |
@@ -133,13 +134,13 @@ jobs:
           path: |
             ${{env.TEST_DIR}}
 
-  code_coverage: #TODO Re-enable when we can do coverage
+  code_coverage:
     name: Code Coverage
     runs-on: ubuntu-latest
     env:
       TEST_DIR: "test-results"
     needs: test
-    if: true
+    if: false # TODO Re-enable when we have tests!
     strategy:
       matrix:
         include:
