@@ -77,6 +77,7 @@ jobs:
 
   test:
     name: Test
+    if: false # TODO Re-enable when we have tests.
     strategy:
       matrix:
         include:
@@ -112,8 +113,7 @@ jobs:
         run: |
           git config --global credential.helper store
           echo "https://${{vars.SERVICE_ACCOUNT_USER}}:${{secrets.SERVICE_ACCOUNT_PAT}}@github.com" > ~/.git-credentials
-          echo "NO TESTS!"
-          #just test-cov # need to wait for https://github.com/rust-lang/rust/issues/140677 to get coverage
+          just test-cov # need to wait for https://github.com/rust-lang/rust/issues/140677 to get coverage
       - name: Run Tests without Coverage
         if: false
         run: |
@@ -318,7 +318,7 @@ jobs:
       - build
       - lint
       - style
-      - test
+      # - test
       #- code_coverage
       - package
       - sbom
