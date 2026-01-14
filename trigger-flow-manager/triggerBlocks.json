@@ -272,7 +272,7 @@
                 },
                 {
                     "name": "delay_time",
-                    "type": "number",
+                    "type": "DelayTime",
                     "range": {
                         "min": "0.000001",
                         "max": "1000000"
@@ -309,7 +309,7 @@
                 },
                 {
                     "name": "event_type",
-                    "type": "LogEventType",
+                    "type": "LogEvent",
                     "options": [
                         {
                             "label": "Information",

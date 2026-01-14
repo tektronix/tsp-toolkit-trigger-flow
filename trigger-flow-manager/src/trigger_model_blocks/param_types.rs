@@ -2,8 +2,6 @@ use std::ops::Not;
 
 use serde::{Deserialize, Serialize};
 
-
-
 /// Enum representing parameter type names (for schema/catalog definitions)
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub enum ParamTypeName {
@@ -12,6 +10,7 @@ pub enum ParamTypeName {
     EventID,
     ChannelIndex,
     DelayList,
+    DelayTime,
     LogEventType,
     ChannelList,
     SourceState,
@@ -24,32 +23,46 @@ pub enum ParamTypeName {
 #[derive(Debug, Clone)]
 pub enum ParamType {
     String(String),
-    SlotIndex(u8),
+    SlotIndex(SlotIndex),
     ChannelIndex(u8),
     DelayList(DelayList),
-    LogEventType(LogEventType), 
+    DelayTime(DelayTime),
+    LogEvent(LogEvent),
     ChannelList(ChannelList),
     SourceState(SourceState),
     ClearType(ClearType),
-    LogicType(LogicType), 
+    LogicType(LogicType),
     TriggerEventType(TriggerEventType),
+}
 
+#[derive(Debug, Clone)]
+pub struct SlotIndex {
+    slot_index: u8,
+}
+impl SlotIndex {
+    pub fn new(slot_index: u8) -> Self {
+        SlotIndex { slot_index }
+    }
 }
 #[derive(Debug, Clone)]
 pub struct DelayList {
     pub delays: Vec<u32>,
 }
-impl DelayList { //i dont know if we need this here
+impl DelayList {
     pub fn new(delays: Vec<u32>) -> Self {
         DelayList { delays }
     }
 }
 #[derive(Debug, Clone)]
-pub enum LogEventType {
-    Information(InformationType),
-    Warning,
-    Error, 
-    Abort,
+pub struct DelayTime {
+    pub delay_time: f64,
+}
+#[derive(Debug, Clone)]
+pub enum LogEvent {
+    Information(LogEventType),
+    Warning(LogEventType),
+    Error(LogEventType),
+    Abort(LogEventType),
 }
 
 #[derive(Debug, Clone)]
@@ -74,26 +87,101 @@ pub enum SourceState {
     On,
     Off,
 }
+
 #[derive(Debug, Clone)]
-pub struct InformationType {
-    pub slot_index: u8,
-    pub event_number: u8,
+pub struct LogEventType {
+    pub slot_index: SlotIndex,
+    pub event_number: Option<u8>,
+}
+
+impl LogEventType {
+    pub fn new(slot_index: SlotIndex, event_number: Option<u8>) -> Self {
+        LogEventType {
+            slot_index,
+            event_number,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct NotifyEvent {
-    pub slot_index: u8,
-    pub event_number: u8,
+    pub slot_index: SlotIndex,
+    pub event_number: Option<u8>,
+}
+
+impl NotifyEvent {
+    pub fn new(slot_index: SlotIndex, event_number: Option<u8>) -> Self {
+        NotifyEvent {
+            slot_index,
+            event_number,
+        }
+    }
+}
+#[derive(Debug, Clone)]
+pub struct DigioEventType {
+    pub trigger_line: u8,
+}
+impl DigioEventType {
+    pub fn new(trigger_line: u8) -> Self {
+        DigioEventType { trigger_line }
+    }
+}
+#[derive(Debug, Clone)]
+pub struct SmuAtLimitType {
+    pub slot_index: SlotIndex,
+    pub channel_index: u8,
+}
+
+impl SmuAtLimitType {
+    pub fn new(slot_index: SlotIndex, channel_index: u8) -> Self {
+        SmuAtLimitType {
+            slot_index,
+            channel_index,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct GeneratorEventType {
+    pub generator_number: u8,
+}
+
+impl GeneratorEventType {
+    pub fn new(generator_number: u8) -> Self {
+        GeneratorEventType { generator_number }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TimerEventType {
+    pub trigger_timer_number: u8,
+}
+
+impl TimerEventType {
+    pub fn new(trigger_timer_number: u8) -> Self {
+        TimerEventType {
+            trigger_timer_number,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TsplinkEventType {
+    pub trigger_line: u8,
+}
+
+impl TsplinkEventType {
+    pub fn new(trigger_line: u8) -> Self {
+        TsplinkEventType { trigger_line }
+    }
 }
 
 #[derive(Debug, Clone)]
 pub enum TriggerEventType {
-    DigioEvent,
-    SmuAtLimit,
+    DigioEvent(DigioEventType),
+    SmuAtLimit(SmuAtLimitType),
     NotifyEvent(NotifyEvent),
-    GeneratorEvent,
-    TimerEvent,
-    TsplinkEvent,
+    GeneratorEvent(GeneratorEventType),
+    TimerEvent(TimerEventType),
+    TsplinkEvent(TsplinkEventType),
 }
-
-
