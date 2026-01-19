@@ -1,0 +1,4 @@
+[package]
+name = "kic-trigger-flow"
+version = {workspace = true}
+edition = "2021"
