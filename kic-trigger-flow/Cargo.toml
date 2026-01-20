@@ -2,3 +2,7 @@
 name = "kic-trigger-flow"
 version = {workspace = true}
 edition = "2021"
+
+[dependencies]
+serde = "1.0.228"
+trigger-flow-manager = { workspace = true }
