@@ -1,16 +1,16 @@
 <div class="trigger-flow-container">
   <aside class="accordion-sidebar" [class.collapsed]="sidebarCollapsed">
-    <button class="collapse-btn" (click)="toggleSidebar()">
-      <mat-icon>{{ sidebarCollapsed ? 'chevron_right' : 'chevron_left' }}</mat-icon>
+    <div class="collapse-btn-header">
+      <button class="collapse-btn" (click)="toggleSidebar()">
+        <mat-icon>{{ sidebarCollapsed ? 'chevron_right' : 'chevron_left' }}</mat-icon>
         <!-- <mat-icon>{{ sidebarCollapsed ? 'chevron_left' : 'chevron_right' }}</mat-icon> -->
       </button>
-      <div>
-        <span>
-        </span>
-      </div>
-    <ng-container *ngIf="!sidebarCollapsed">
-      <app-side-panel-accordian></app-side-panel-accordian>
-    </ng-container>
+    </div>
+    <div>
+      <ng-container *ngIf="!sidebarCollapsed">
+        <app-side-panel-accordian></app-side-panel-accordian>
+      </ng-container>
+    </div>
   </aside>
   <main class="canvas-area">
     <app-flow-canvas></app-flow-canvas>

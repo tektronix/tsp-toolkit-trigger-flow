@@ -36,20 +36,23 @@
 
 .collapse-btn {
   position: absolute;
-  top: 10px;
-  right: -16px;
-  width: 32px;
-  height: 32px;
+  /* top: 10px; */
+  right: 1rem;
+  /* width: 32px; */
+  /* height: 32px; */
   background: #fafbfc;
-  border: 1px solid #e0e0e0;
-  border-radius: 50%;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  border: none;
+  /* border-radius: 50%; */
+  /* box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08); */
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: 20;
-  transition: right 0.2s;
+}
+
+.collapse-btn-header {
+  display: flex;
+  padding-bottom: 1rem;
 }
 
 .accordion-sidebar.collapsed .collapse-btn {
@@ -62,6 +65,6 @@
 }
 
 .mat-icon {
-  height: 1rem;
-  width: 1.5rem;
+  height: 1.5rem;
+  width: 1rem;
 }
