@@ -33,3 +33,9 @@ f-canvas {
   font-weight: 600;
   color: #333;
 }
+
+.node-svg {
+  width: 80px;
+  height: 50px;
+  object-fit: contain;
+}
