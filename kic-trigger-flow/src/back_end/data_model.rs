@@ -1,6 +1,6 @@
-use trigger_flow_manager::{TriggerBlocks, IpcData, handle_ipc_request};
-use std::sync::Arc;
 use anyhow::Result;
+use std::sync::Arc;
+use trigger_flow_manager::{handle_ipc_request, IpcData, TriggerBlocks};
 pub struct DataModel {
     catalog: Arc<TriggerBlocks>,
 }

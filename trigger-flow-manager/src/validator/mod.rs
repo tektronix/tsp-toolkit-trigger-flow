@@ -1,4 +1,4 @@
-use crate::{model::{trigger_model::TriggerModel}};
+use crate::model::trigger_model::TriggerModel;
 use anyhow::Result;
 pub trait Validator {
     fn validate(&self, model: &TriggerModel) -> Result<()>;
@@ -10,10 +10,9 @@ pub struct ValidationChain {
 impl ValidationChain {
     pub fn new() -> Self {
         Self {
-            validators: Vec::new()
+            validators: Vec::new(),
         }
     }
-
 
     pub fn add_validator(mut self, validator: Box<dyn Validator>) -> Self {
         self.validators.push(validator);

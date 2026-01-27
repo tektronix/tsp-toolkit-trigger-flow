@@ -37,8 +37,8 @@ pub enum ChannelIndex {
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SystemConfiguration {
-    pub instrument_type: InstrumentType, 
-    pub slot_index: SlotIndex, 
+    pub instrument_type: InstrumentType,
+    pub slot_index: SlotIndex,
     pub channels: Vec<ChannelIndex>,
     pub(crate) available_channels: Vec<ChannelIndex>,
 }

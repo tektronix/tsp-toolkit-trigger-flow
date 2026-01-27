@@ -1,6 +1,6 @@
-use std::sync::Arc;
+use crate::{model::trigger_model::TriggerModel, validator::Validator, TriggerBlocks};
 use anyhow::Result;
-use crate::{TriggerBlocks, model::trigger_model::TriggerModel, validator::Validator};
+use std::sync::Arc;
 
 pub struct CatalogValidator {
     catalog: Arc<TriggerBlocks>,
@@ -13,21 +13,24 @@ impl CatalogValidator {
 }
 
 impl Validator for CatalogValidator {
-    fn validate (&self, model: &TriggerModel) -> Result<()> {
+    fn validate(&self, model: &TriggerModel) -> Result<()> {
         for (block_id, block) in &model.model_blocks {
-             let definition = self.catalog.get_block(&block.block_type)
-                .ok_or_else(|| anyhow::anyhow!(
-                    "Block ID {} has invalid type '{}' not found in catalog", 
-                    block_id, block.block_type
-                ))?;
+            let definition = self.catalog.get_block(&block.block_type).ok_or_else(|| {
+                anyhow::anyhow!(
+                    "Block ID {} has invalid type '{}' not found in catalog",
+                    block_id,
+                    block.block_type
+                )
+            })?;
 
             for param_def in &definition.parameters {
                 // Check required parameters
                 if param_def.default.is_none() {
                     if !block.block_parameters.contains_key(&param_def.name) {
                         return Err(anyhow::anyhow!(
-                            "Block ID {} missing required parameter '{}'", 
-                            block_id, param_def.name
+                            "Block ID {} missing required parameter '{}'",
+                            block_id,
+                            param_def.name
                         ));
                     }
                 }
@@ -71,7 +74,10 @@ impl CatalogValidator {
                 if num < min {
                     return Err(anyhow::anyhow!(
                         "Block ID {} parameter '{}' value {} is below minimum {}",
-                        block_id, param_name, num, min
+                        block_id,
+                        param_name,
+                        num,
+                        min
                     ));
                 }
             }
@@ -84,7 +90,10 @@ impl CatalogValidator {
                 if num > max {
                     return Err(anyhow::anyhow!(
                         "Block ID {} parameter '{}' value {} exceeds maximum {}",
-                        block_id, param_name, num, max
+                        block_id,
+                        param_name,
+                        num,
+                        max
                     ));
                 }
             }
