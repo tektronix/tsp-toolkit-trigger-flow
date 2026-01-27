@@ -1,0 +1,13 @@
+<div class="custom-accordion">
+    <div *ngFor="let group of groups; let i = index" class="accordion-item">
+        <div class="accordion-header" (click)="togglePanel(i)">
+                        <mat-icon class="arrow" [class.expanded]="expanded === i">
+                            {{ expanded === i ? 'keyboard_arrow_down' : 'keyboard_arrow_right' }}
+                        </mat-icon>
+            <span class="title">{{ group }}</span>
+        </div>
+        <!-- <div class="accordion-content" *ngIf="expanded === i">
+            Content
+        </div> -->
+    </div>
+</div>

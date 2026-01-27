@@ -1,0 +1,30 @@
+.custom-accordion {
+    width: 100%;
+}
+.accordion-item {
+    border-bottom: 1px solid #e0e0e0;
+}
+.accordion-header {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    padding: 0.75rem 1rem;
+    background: #f7f7f7;
+    font-weight: 500;
+    user-select: none;
+}
+.arrow {
+    display: inline-block;
+    transition: transform 0.2s;
+    margin-right: 0.75rem;
+    font-size: 1rem;
+    margin-left: -1rem;
+}
+
+.title {
+    flex: 1;
+}
+.accordion-content {
+    padding: 1rem;
+    background: #fff;
+}

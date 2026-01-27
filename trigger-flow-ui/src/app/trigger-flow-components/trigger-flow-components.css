@@ -17,15 +17,51 @@
   width: 320px;
   flex-shrink: 0;
   background: #fafbfc;
-  box-shadow: 2px 0 4px rgba(0,0,0,0.06);
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.06);
   z-index: 9;
   padding: 0 0.5rem;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  position: relative;
+  transition: width 0.2s;
+}
+
+.accordion-sidebar.collapsed {
+  width: 32px;
+  min-width: 32px;
+  padding: 0;
+  overflow: visible;
+}
+
+.collapse-btn {
+  position: absolute;
+  top: 10px;
+  right: -16px;
+  width: 32px;
+  height: 32px;
+  background: #fafbfc;
+  border: 1px solid #e0e0e0;
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 20;
+  transition: right 0.2s;
+}
+
+.accordion-sidebar.collapsed .collapse-btn {
+  right: -16px;
 }
 
 .canvas-area {
   flex: 1;
   overflow: hidden;
+}
+
+.mat-icon {
+  height: 1rem;
+  width: 1.5rem;
 }

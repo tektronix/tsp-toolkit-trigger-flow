@@ -2,14 +2,19 @@
 import { Component } from '@angular/core';
 import { FlowCanvas } from './flow-canvas/flow-canvas';
 import { Palette } from './palette/palette';
-import { SidePanelAccordionComponent } from './side-panel-accordion.component';
+import { SidePanelAccordian } from './side-panel-accordian/side-panel-accordian';
+import { MatIconModule } from '@angular/material/icon';
+import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-trigger-flow-components',
-  imports: [FlowCanvas, Palette, SidePanelAccordionComponent],
+  imports: [CommonModule, FlowCanvas, Palette, SidePanelAccordian, MatIconModule],
   templateUrl: './trigger-flow-components.html',
   styleUrl: './trigger-flow-components.css',
 })
 export class TriggerFlowComponents {
-
+  sidebarCollapsed = false;
+  toggleSidebar() {
+    this.sidebarCollapsed = !this.sidebarCollapsed;
+  }
 }
