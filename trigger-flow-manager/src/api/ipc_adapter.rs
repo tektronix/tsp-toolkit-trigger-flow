@@ -61,11 +61,14 @@ pub fn ipc_to_request(ipc_data: &IpcData) -> Result<(Request, Option<TriggerFlow
                 let block_id = payload
                     .block_id
                     .ok_or_else(|| anyhow::anyhow!("block_id required"))?;
-
+                let block_data = payload
+                    .block_data
+                    .ok_or_else(|| anyhow::anyhow!("block_data required"))?;
                 Ok((
                     Request::UpdateBlock {
                         model_name,
                         block_id,
+                        block_data,
                     },
                     Some(payload.current_state),
                 ))

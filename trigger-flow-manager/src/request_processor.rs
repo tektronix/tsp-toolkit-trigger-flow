@@ -1,9 +1,12 @@
 use crate::{
-    TriggerBlocks, api::{
+    api::{
         request::{BlockData, Request},
         response::Response,
         state::{SystemConfiguration, TriggerFlowState},
-    }, model::{trigger_model::TriggerModel, trigger_model_block::TriggerModelBlock}, validator::{ValidationChain, Validator, catalog_validator::CatalogValidator}
+    },
+    model::{trigger_model::TriggerModel, trigger_model_block::TriggerModelBlock},
+    validator::{catalog_validator::CatalogValidator, ValidationChain, Validator},
+    TriggerBlocks,
 };
 use anyhow::Result;
 use std::{collections::HashMap, sync::Arc};
@@ -70,25 +73,23 @@ impl RequestProcessor {
             Request::UpdateBlock {
                 model_name,
                 block_id,
+                block_data,
             } => {
                 let state = current_state.ok_or_else(|| anyhow::anyhow!("No state provided."))?;
-
                 if state.system_config.is_none() {
                     return Err(anyhow::anyhow!("System not configured."));
                 }
-
-                self.handle_update_block(model_name, block_id, state)
+                self.handle_update_block(model_name, block_id, block_data, state)
+                // Pass block_data
             }
             Request::DeleteBlock {
                 model_name,
                 block_id,
             } => {
                 let state = current_state.ok_or_else(|| anyhow::anyhow!("No state provided."))?;
-
                 if state.system_config.is_none() {
                     return Err(anyhow::anyhow!("System not configured."));
                 }
-
                 self.handle_delete_block(model_name, block_id, state)
             }
         }
@@ -169,16 +170,43 @@ impl RequestProcessor {
         &self,
         model_name: String,
         block_id: u32,
+        updated_data: BlockData, 
         mut current_state: TriggerFlowState,
-    ) -> anyhow::Result<Response> {
-        // TODO: Implement in later phase
-        // Steps:
-        // 1. Get model from state
-        // 2. Convert to domain
-        // 3. Find and update block
-        // 4. Validate
-        // 5. Convert back and return
-        todo!("Update block functionality not yet implemented")
+    ) -> Result<Response> {
+        let model_state = current_state
+            .models
+            .get_mut(&model_name)
+            .ok_or_else(|| anyhow::anyhow!("Model '{}' not found", model_name))?;
+
+        let mut domain_model = TriggerModel::from_state(model_state, &self.catalog)?;
+
+
+        let block = domain_model
+            .model_blocks
+            .get_mut(&block_id)
+            .ok_or_else(|| anyhow::anyhow!("Block ID {} not found", block_id))?;
+
+        for (key, value) in updated_data.parameters {
+            block.block_parameters.insert(key, value);
+        }
+
+        
+        block.block_position = updated_data.position;
+
+        self.validation_chain.validate(&domain_model)?;
+
+        let system_config = current_state
+            .system_config
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("System config required"))?;
+
+        self.validate_with_system_config(&domain_model, system_config)?;
+
+        *model_state = domain_model.to_state();
+
+        Ok(Response::Success {
+            state: current_state,
+        })
     }
 
     pub fn handle_delete_block(
@@ -186,14 +214,38 @@ impl RequestProcessor {
         model_name: String,
         block_id: u32,
         mut current_state: TriggerFlowState,
-    ) -> anyhow::Result<Response> {
-        // TODO: Implement in later phase
-        // Steps:
-        // 1. Get model from state
-        // 2. Convert to domain
-        // 3. Delete block and handle connections
-        // 4. Validate remaining model
-        // 5. Convert back and return
-        todo!("Delete block functionality not yet implemented")
+    ) -> Result<Response> {
+        let model_state = current_state
+            .models
+            .get_mut(&model_name)
+            .ok_or_else(|| anyhow::anyhow!("Model '{}' not found", model_name))?;
+
+        let mut domain_model = TriggerModel::from_state(model_state, &self.catalog)?;
+
+        
+        let _deleted_block = domain_model
+            .delete_block(block_id)
+            .ok_or_else(|| anyhow::anyhow!("Block ID {} not found", block_id))?;
+
+       
+        let block_id_str = block_id.to_string();
+        for (_id, block) in domain_model.model_blocks.iter_mut() {
+        
+            if let Some(ref incoming) = block.incoming {
+                if incoming == &block_id_str {
+                    block.incoming = None;
+                }
+            }
+            if let Some(ref outgoing) = block.outgoing {
+                if outgoing == &block_id_str {
+                    block.outgoing = None;
+                }
+            }
+        }
+        *model_state = domain_model.to_state();
+
+        Ok(Response::Success {
+            state: current_state,
+        })
     }
 }

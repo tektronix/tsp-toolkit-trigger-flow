@@ -15,7 +15,7 @@ pub enum Request {
     InitialRequest {system_config: SystemConfiguration},
     AddModel {model_name: String},
     AddBlock {model_name: String, block_data: BlockData},
-    UpdateBlock {model_name: String, block_id: u32},
+    UpdateBlock {model_name: String, block_id: u32, block_data: BlockData,},
     DeleteBlock {model_name: String, block_id: u32},
 }
 //more request types will eventually be added

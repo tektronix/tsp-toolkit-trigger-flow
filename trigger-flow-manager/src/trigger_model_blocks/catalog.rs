@@ -7,7 +7,6 @@ use std::collections::HashMap;
 pub struct TriggerBlocks {
     pub blocks: HashMap<String, BlockDefinition>,
     pub trigger_events: HashMap<String, EventDefinition>,
-    pub(crate) trigger_blocks: (),
 }
 
 /// Definition of a single block type with its parameters and syntax
