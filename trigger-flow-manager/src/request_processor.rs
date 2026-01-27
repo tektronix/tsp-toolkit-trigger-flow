@@ -170,7 +170,7 @@ impl RequestProcessor {
         &self,
         model_name: String,
         block_id: u32,
-        updated_data: BlockData, 
+        updated_data: BlockData,
         mut current_state: TriggerFlowState,
     ) -> Result<Response> {
         let model_state = current_state
@@ -179,7 +179,6 @@ impl RequestProcessor {
             .ok_or_else(|| anyhow::anyhow!("Model '{}' not found", model_name))?;
 
         let mut domain_model = TriggerModel::from_state(model_state, &self.catalog)?;
-
 
         let block = domain_model
             .model_blocks
@@ -190,7 +189,6 @@ impl RequestProcessor {
             block.block_parameters.insert(key, value);
         }
 
-        
         block.block_position = updated_data.position;
 
         self.validation_chain.validate(&domain_model)?;
@@ -222,15 +220,12 @@ impl RequestProcessor {
 
         let mut domain_model = TriggerModel::from_state(model_state, &self.catalog)?;
 
-        
         let _deleted_block = domain_model
             .delete_block(block_id)
             .ok_or_else(|| anyhow::anyhow!("Block ID {} not found", block_id))?;
 
-       
         let block_id_str = block_id.to_string();
         for (_id, block) in domain_model.model_blocks.iter_mut() {
-        
             if let Some(ref incoming) = block.incoming {
                 if incoming == &block_id_str {
                     block.incoming = None;
