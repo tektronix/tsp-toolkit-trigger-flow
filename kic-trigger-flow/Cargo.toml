@@ -4,5 +4,6 @@ version = {workspace = true}
 edition = "2021"
 
 [dependencies]
+anyhow = "1.0.100"
 serde = "1.0.228"
 trigger-flow-manager = { workspace = true }

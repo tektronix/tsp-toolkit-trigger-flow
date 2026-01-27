@@ -4,6 +4,8 @@ resolver = "2"
 
 [workspace.dependencies]
 trigger-flow-manager = {path = "trigger-flow-manager"}
+kic-trigger-flow = {path = "kic-trigger-flow"}
+
 
 [workspace.package]
 version = "0.1.0"

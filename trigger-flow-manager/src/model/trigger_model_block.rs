@@ -1,6 +1,8 @@
 use std::collections::HashMap;
-
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
+
+use crate::TriggerBlocks;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockPosition {
@@ -34,23 +36,33 @@ impl TriggerModelBlock {
         }
     }
 
-    pub fn add_block() {
+    pub fn default_block(
+        catalog: &TriggerBlocks,
+        _block_type: &str,
+        _position: BlockPosition,
+        _block_id: u32
+    ) -> Result<Self>{
+        let definition = catalog.get_block(_block_type).ok_or_else(|| anyhow::anyhow!("Block type '{}' not found in catalog", _block_type))?;
 
-    }
+        let mut block_parameters = HashMap::new();
 
-    pub fn delete_block() {
-        
-    }
+        for param in &definition.parameters {
+            if let Some(default_value) = &param.default {
+                block_parameters.insert(
+                    param.name.clone(),
+                    default_value.clone(),
+                );
+            }
+        };
 
-    pub fn update_block() {
-        
-    }
-
-    pub fn move_block() {
-        
-    }
-
-    pub fn evaluate() {
+        Ok(TriggerModelBlock {
+            block_type: _block_type.to_string(),
+            block_parameters,
+            incoming: None,
+            outgoing: None,
+            block_position: _position,
+            block_id: _block_id,
+        })
         
     }
 }
