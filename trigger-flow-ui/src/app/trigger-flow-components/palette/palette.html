@@ -1,0 +1,15 @@
+<div class="palette-container">
+  <div class="palette-header">
+    <h3>Shapes</h3>
+  </div>
+  <div class="palette-items">
+    <div 
+      class="palette-item" 
+      draggable="true"
+      (dragstart)="onDragStart($event, 'rectangle')">
+      <div class="shape-icon">
+        <img [src]="rectangleSvg" alt="Rectangle" class="shape-svg" />
+      </div>
+    </div>
+  </div>
+</div>
