@@ -1,13 +1,30 @@
 <div class="custom-accordion">
     <div *ngFor="let group of groups; let i = index" class="accordion-item">
         <div class="accordion-header" (click)="togglePanel(i)">
-                        <mat-icon class="arrow" [class.expanded]="expanded === i">
-                            {{ expanded === i ? 'keyboard_arrow_down' : 'keyboard_arrow_right' }}
-                        </mat-icon>
-            <span class="title">{{ group }}</span>
+            <mat-icon class="arrow" [class.expanded]="expanded.has(i)">
+                {{ expanded.has(i) ? 'keyboard_arrow_down' : 'keyboard_arrow_right' }}
+            </mat-icon>
+            <span class="title">{{ group.label }}</span>
         </div>
-        <!-- <div class="accordion-content" *ngIf="expanded === i">
-            Content
-        </div> -->
+        <div class="accordion-content" *ngIf="expanded.has(i)">
+            <ng-container *ngIf="group.type === 'group'; else singleContent">
+                <div class="custom-accordion sub-accordion">
+                    <div *ngFor="let sub of group.subgroups; let j = index" class="accordion-item">
+                        <div class="accordion-header sub-header" (click)="toggleBlock(j); $event.stopPropagation()">
+                            <mat-icon class="arrow" [class.expanded]="blockExpanded.has(j)">
+                                {{ blockExpanded.has(j) ? 'keyboard_arrow_down' : 'keyboard_arrow_right' }}
+                            </mat-icon>
+                            <span class="title">{{ sub.label }}</span>
+                        </div>
+                        <div class="accordion-content" *ngIf="blockExpanded.has(j)">
+                            Content for {{ sub.label }}
+                        </div>
+                    </div>
+                </div>
+            </ng-container>
+            <ng-template #singleContent>
+                Content for {{ group.label }}
+            </ng-template>
+        </div>
     </div>
 </div>
