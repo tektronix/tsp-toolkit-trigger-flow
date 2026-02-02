@@ -16,9 +16,21 @@
                             </mat-icon>
                             <span class="title">{{ sub.label }}</span>
                         </div>
-                        <div class="accordion-content" *ngIf="blockExpanded.has(j)">
-                            {{ sub.label }}
-                        </div>
+                                                <div class="accordion-content" *ngIf="blockExpanded.has(j)">
+                                                    <ng-container *ngIf="sub.hasRectangle; else subgroupContent">
+                                                        <div class="palette-item"
+                                                            fExternalItem
+                                                            [fData]="{ type: 'rectangle', svgPath: rectangleSvg }">
+                                                            <div class="shape-icon">
+                                                                <img [src]="rectangleSvg" alt="Rectangle" class="shape-svg" />
+                                                            </div>
+                                                            <!-- <span>Rectangle</span> -->
+                                                        </div>
+                                                    </ng-container>
+                                                    <ng-template #subgroupContent>
+                                                        {{ sub.label }}
+                                                    </ng-template>
+                                                </div>
                     </div>
                 </div>
             </ng-container>

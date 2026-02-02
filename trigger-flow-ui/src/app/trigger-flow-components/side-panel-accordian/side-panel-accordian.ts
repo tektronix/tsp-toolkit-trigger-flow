@@ -1,15 +1,18 @@
 import { Component } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { CommonModule } from '@angular/common';
+import { FFlowModule } from '@foblex/flow';
 
 @Component({
   selector: 'app-side-panel-accordian',
   standalone: true,
-  imports: [MatIconModule, CommonModule],
+  imports: [MatIconModule, CommonModule, FFlowModule],
   templateUrl: './side-panel-accordian.html',
   styleUrls: ['./side-panel-accordian.css']
 })
 export class SidePanelAccordion {
+  rectangleSvg = 'assets/shapes/rectangle.svg';
+  rectangleData = { svgPath: 'assets/shapes/rectangle.svg' };
   groups = [
     { label: 'Templates', type: 'single' },
     {
@@ -17,7 +20,7 @@ export class SidePanelAccordion {
       type: 'group',
       subgroups: [
         { label: 'Branches' },
-        { label: 'Actions' },
+        { label: 'Actions', hasRectangle: true },
         { label: 'Timing' },
         { label: 'Notify' }
       ]

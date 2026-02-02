@@ -19,49 +19,56 @@ interface FlowNode {
 })
 export class FlowCanvas {
   @ViewChild(FFlowComponent) flowComponent!: FFlowComponent;
-  
+
   nodes: FlowNode[] = [];
   private nodeCounter = 0;
 
-  @HostListener('dragover', ['$event'])
-  onDragOver(event: DragEvent) {
-    event.preventDefault();
-    event.stopPropagation();
-    if (event.dataTransfer) {
-      event.dataTransfer.dropEffect = 'copy';
-    }
-    console.log('Drag over canvas');
-  }
-
-  @HostListener('drop', ['$event'])
-  onDrop(event: DragEvent) {
-    event.preventDefault();
-    event.stopPropagation();
-    
-    console.log('Drop event triggered');
-    
-    const shapeType = event.dataTransfer?.getData('application/shape-type');
-    const svgPath = event.dataTransfer?.getData('application/svg-path');
-    
-    console.log('Shape type:', shapeType);
-    console.log('SVG path:', svgPath);
-    
-    if (shapeType && svgPath) {
-      const canvasRect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-      const x = event.clientX - canvasRect.left;
-      const y = event.clientY - canvasRect.top;
+  onCreateNode(event: any) {
+    // FCreateNodeEvent: { rect, data, fTargetNode?, fDropPosition? }
+    console.log('fCreateNode event:', event);
+    if (event.data && event.data.type === 'rectangle') {
+      // Use rect position directly
+      const position = {
+        x: event.rect.x,
+        y: event.rect.y
+      };
       
       const newNode: FlowNode = {
         id: `node-${++this.nodeCounter}`,
-        position: { x: Math.max(0, x - 75), y: Math.max(0, y - 40) },
-        svgPath: svgPath
+        position: position,
+        svgPath: event.data.svgPath
       };
-      
       this.nodes = [...this.nodes, newNode];
-      console.log('Node added:', newNode);
-      console.log('Total nodes:', this.nodes.length);
-    } else {
-      console.log('No shape data received');
+      console.log('Created node:', newNode);
     }
+  }
+
+  onMoveNodes(event: any) {
+    // event.fNodes is an array of { id, position }
+    if (!event || !event.fNodes || !Array.isArray(event.fNodes)) {
+      return;
+    }
+    const updates = new Map<string, { x: number; y: number }>(
+      event.fNodes.map((item: any) => [item.id, { x: item.position.x, y: item.position.y }])
+    );
+    this.nodes = this.nodes.map((node): FlowNode => {
+      const newPos = updates.get(node.id);
+      if (newPos) {
+        return { ...node, position: newPos };
+      }
+      return node;
+    });
+  }
+
+  onNodePositionChange(position: { x: number; y: number }, nodeId: string) {
+    // Update position of the specific node
+    console.log('Node position change:', nodeId, position);
+    this.nodes = this.nodes.map((node): FlowNode => {
+      if (node.id === nodeId) {
+        return { ...node, position: { x: position.x, y: position.y } };
+      }
+      return node;
+    });
+    console.log('Updated nodes:', this.nodes);
   }
 }
