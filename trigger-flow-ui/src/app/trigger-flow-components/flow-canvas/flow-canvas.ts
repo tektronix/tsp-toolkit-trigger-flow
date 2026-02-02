@@ -27,29 +27,19 @@ export class FlowCanvas {
     // FCreateNodeEvent: { rect, data, fTargetNode?, fDropPosition? }
     console.log('fCreateNode event:', event);
     if (event.data && event.data.type === 'rectangle') {
-      // Use rect position directly
-      const position = {
-        x: event.rect.x,
-        y: event.rect.y
-      };
-      
       const newNode: FlowNode = {
         id: `node-${++this.nodeCounter}`,
-        position: position,
+        position: { x: event.rect.x, y: event.rect.y },
         svgPath: event.data.svgPath
       };
       this.nodes = [...this.nodes, newNode];
-      console.log('Created node:', newNode);
     }
   }
 
   onMoveNodes(event: any) {
-    // event.fNodes is an array of { id, position }
-    if (!event || !event.fNodes || !Array.isArray(event.fNodes)) {
-      return;
-    }
+    // event.items is an array of { id, position }
     const updates = new Map<string, { x: number; y: number }>(
-      event.fNodes.map((item: any) => [item.id, { x: item.position.x, y: item.position.y }])
+      event.items.map((item: any) => [item.id, { x: item.position.x, y: item.position.y }])
     );
     this.nodes = this.nodes.map((node): FlowNode => {
       const newPos = updates.get(node.id);
@@ -58,17 +48,5 @@ export class FlowCanvas {
       }
       return node;
     });
-  }
-
-  onNodePositionChange(position: { x: number; y: number }, nodeId: string) {
-    // Update position of the specific node
-    console.log('Node position change:', nodeId, position);
-    this.nodes = this.nodes.map((node): FlowNode => {
-      if (node.id === nodeId) {
-        return { ...node, position: { x: position.x, y: position.y } };
-      }
-      return node;
-    });
-    console.log('Updated nodes:', this.nodes);
   }
 }
