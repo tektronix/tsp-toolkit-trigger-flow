@@ -1,15 +1,30 @@
 <f-flow fDraggable 
         (fCreateNode)="onCreateNode($event)"
-        (fMoveNodes)="onMoveNodes($event)">
+        (fMoveNodes)="onMoveNodes($event)"
+        (fCreateConnection)="onCreateConnection($event)">
   <f-canvas>
-    @for (node of nodes; track node.id) {
+    @for (node of nodes(); track node.id) {
       <div
         fNode
+        fDragHandle
         [fNodeId]="node.id"
         [fNodePosition]="node.position"
-        [fNodeSize]="{ width: 150, height: 80 }">
+        [fNodeSize]="{ width: 0, height: 0 }"
+        fNodeInput
+        [fInputId]="node.input"
+        fInputConnectableSide="left"
+        class="node-wrapper">
+        
         <div class="node-content">
           <img [src]="node.svgPath" alt="Shape" class="node-svg" />
+          
+          @for (outputId of node.outputs; track outputId) {
+            <div fNodeOutput 
+                 [fOutputId]="outputId" 
+                 fOutputConnectableSide="right"
+                 class="output-connector">
+            </div>
+          }
         </div>
       </div>
     }
