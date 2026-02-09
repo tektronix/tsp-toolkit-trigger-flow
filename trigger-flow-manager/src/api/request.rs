@@ -2,7 +2,7 @@ use crate::{api::state::SystemConfiguration, model::trigger_model_block::BlockPo
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// Data needed to create a new block
+/// Todo: move somewhere else
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockData {
     pub block_type: String,
@@ -11,25 +11,21 @@ pub struct BlockData {
 }
 
 #[derive(Debug, Clone)]
-pub enum Request {
+pub enum RequestType {
     InitialRequest {
         system_config: SystemConfiguration,
     },
-    AddModel {
-        model_name: String,
-    },
-    AddBlock {
-        model_name: String,
-        block_data: BlockData,
-    },
-    UpdateBlock {
-        model_name: String,
-        block_id: u32,
-        block_data: BlockData,
-    },
-    DeleteBlock {
-        model_name: String,
-        block_id: u32,
-    },
+    EvaluateRequest {
+        current_state: crate::api::state::TriggerFlowState,
+    }
 }
-//more request types will eventually be added
+
+pub enum ResponseType {
+    InitialResponse {
+        catalog: crate::TriggerBlocks,
+    },
+    EvaluateResponse {
+        current_state: crate::api::state::TriggerFlowState,
+    }
+
+}
