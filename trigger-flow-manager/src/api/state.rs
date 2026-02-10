@@ -19,22 +19,14 @@ pub enum InstrumentType {
     SMU,
     PSU,
 }
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-pub enum SlotIndex {
-    #[serde(rename = "1")]
-    Slot1,
-    #[serde(rename = "2")]
-    Slot2,
-    #[serde(rename = "3")]
-    Slot3,
-}
+pub struct SlotIndex(u8);
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-pub enum ChannelIndex {
-    #[serde(rename = "1")]
-    Channel1 = 1,
-    #[serde(rename = "2")]
-    Channel2 = 2,
-}
+pub struct ChannelIndex(u8);
+
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SystemConfiguration {
     pub instrument_type: InstrumentType,

@@ -1,22 +1,16 @@
 use anyhow::Result;
 use std::sync::Arc;
-use trigger_flow_manager::{handle_ipc_request, IpcData, TriggerBlocks};
+use trigger_flow_manager::{IpcData, TriggerBlocks};
 pub struct DataModel {
     catalog: Arc<TriggerBlocks>,
 }
 
 impl DataModel {
-    pub fn new() -> Result<Self> {
+    pub fn new(catalog: TriggerBlocks) -> Result<Self> {
         // Load catalog once at startup
         let catalog = TriggerBlocks::from_file("triggerBlocks.json")?;
         Ok(Self {
             catalog: Arc::new(catalog),
         })
-    }
-
-    /// Process any IPC request from frontend
-    pub fn process_ipc_request(&self, ipc_data: IpcData) -> Result<IpcData> {
-        // Delegate everything to trigger-flow-manager
-        handle_ipc_request(ipc_data, &self.catalog)
     }
 }
