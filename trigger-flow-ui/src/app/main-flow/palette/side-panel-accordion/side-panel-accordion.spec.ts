@@ -1,18 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { TriggerFlowComponents } from './trigger-flow-components';
+import { SidePanelAccordion } from './side-panel-accordion';
 
-describe('TriggerFlowComponents', () => {
-  let component: TriggerFlowComponents;
-  let fixture: ComponentFixture<TriggerFlowComponents>;
+describe('SidePanelAccordion', () => {
+  let component: SidePanelAccordion;
+  let fixture: ComponentFixture<SidePanelAccordion>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [TriggerFlowComponents]
+      imports: [SidePanelAccordion]
     })
     .compileComponents();
 
-    fixture = TestBed.createComponent(TriggerFlowComponents);
+    fixture = TestBed.createComponent(SidePanelAccordion);
     component = fixture.componentInstance;
     await fixture.whenStable();
   });

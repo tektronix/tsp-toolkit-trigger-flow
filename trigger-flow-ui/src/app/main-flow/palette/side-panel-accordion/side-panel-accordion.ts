@@ -4,15 +4,15 @@ import { CommonModule } from '@angular/common';
 import { FFlowModule } from '@foblex/flow';
 
 @Component({
-  selector: 'app-side-panel-accordian',
+  selector: 'app-side-panel-accordion',
   standalone: true,
   imports: [MatIconModule, CommonModule, FFlowModule],
-  templateUrl: './side-panel-accordian.html',
-  styleUrls: ['./side-panel-accordian.css']
+  templateUrl: './side-panel-accordion.html',
+  styleUrls: ['./side-panel-accordion.css']
 })
 export class SidePanelAccordion {
-  rectangleSvg = 'assets/shapes/rectangle.svg';
-  rectangleData = { svgPath: 'assets/shapes/rectangle.svg' };
+  rectangleSvg = 'assets/shapes/notify.svg';
+  rectangleData = { svgPath: 'assets/shapes/notify.svg' };
   groups = [
     { label: 'Templates', type: 'single' },
     {
@@ -36,7 +36,6 @@ export class SidePanelAccordion {
     } else {
       this.expanded.add(idx);
     }
-    // Force change detection
     this.expanded = new Set(this.expanded);
   }
 
@@ -46,7 +45,6 @@ export class SidePanelAccordion {
     } else {
       this.blockExpanded.add(idx);
     }
-    // Force change detection
     this.blockExpanded = new Set(this.blockExpanded);
   }
 }

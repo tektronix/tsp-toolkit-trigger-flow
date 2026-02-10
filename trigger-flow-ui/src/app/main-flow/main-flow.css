@@ -1,4 +1,4 @@
-.trigger-flow-container {
+.main-flow-container {
   display: flex;
   width: 100%;
   height: 100vh;
@@ -6,14 +6,6 @@
 }
 
 .palette-sidebar {
-  width: 280px;
-  flex-shrink: 0;
-  background: #fff;
-  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
-  z-index: 10;
-}
-
-.accordion-sidebar {
   width: 320px;
   flex-shrink: 0;
   background: #fafbfc;
@@ -27,7 +19,7 @@
   transition: width 0.2s;
 }
 
-.accordion-sidebar.collapsed {
+.palette-sidebar.collapsed {
   width: 32px;
   min-width: 32px;
   padding: 0;
@@ -50,7 +42,7 @@
   padding-bottom: 1rem;
 }
 
-.accordion-sidebar.collapsed .collapse-btn {
+.palette-sidebar.collapsed .collapse-btn {
   right: -16px;
 }
 

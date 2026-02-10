@@ -1,18 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { CustomNode } from './custom-node';
+import { Blocks } from './blocks';
 
-describe('CustomNode', () => {
-  let component: CustomNode;
-  let fixture: ComponentFixture<CustomNode>;
+describe('Blocks', () => {
+  let component: Blocks;
+  let fixture: ComponentFixture<Blocks>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [CustomNode]
+      imports: [Blocks]
     })
     .compileComponents();
 
-    fixture = TestBed.createComponent(CustomNode);
+    fixture = TestBed.createComponent(Blocks);
     component = fixture.componentInstance;
     await fixture.whenStable();
   });

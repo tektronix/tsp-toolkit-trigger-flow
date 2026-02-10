@@ -11,15 +11,15 @@ interface FlowNode {
 }
 
 @Component({
-  selector: 'app-flow-canvas',
+  selector: 'app-canvas',
   imports: [
     FFlowModule,
     CommonModule
   ],
-  templateUrl: './flow-canvas.html',
-  styleUrl: './flow-canvas.css',
+  templateUrl: './canvas.html',
+  styleUrl: './canvas.css',
 })
-export class FlowCanvas {
+export class Canvas {
   @ViewChild(FFlowComponent) flowComponent!: FFlowComponent;
 
   nodes = signal<FlowNode[]>([]);
@@ -28,11 +28,11 @@ export class FlowCanvas {
   onCreateNode(event: any) {
     // FCreateNodeEvent: { rect, data, fTargetNode?, fDropPosition? }
     console.log('fCreateNode event:', event);
-    if (event.data === 'rectangle') {
+    if (event.data && event.data.type) {
       const newNode: FlowNode = {
         id: `node-${++this.nodeCounter}`,
         position: { x: event.rect.x, y: event.rect.y },
-        svgPath: 'assets/shapes/rectangle.svg',
+        svgPath: event.data.svgPath,
         input: `input-${this.nodeCounter}`,
         outputs: [`output-${this.nodeCounter}`]
       };

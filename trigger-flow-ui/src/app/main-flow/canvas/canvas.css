@@ -39,13 +39,11 @@ f-canvas {
   pointer-events: none;
 }
 
-/* Connection points styling */
 .f-node-input {
   position: absolute;
   left: -5px;
   top: 50%;
-  transform: translateY(-50%);
-  width: 10px;
+  transform: translateY(-50%);  width: 10px;
   height: 10px;
   background: #000;
   border: 1px solid white;
@@ -74,7 +72,6 @@ f-canvas {
   border-radius: 50%;
 }
 
-/* Highlight connection points on hover */
 .f-node-input:hover,
 .output-connector:hover {
   transform: translateY(-50%) scale(1.2);
