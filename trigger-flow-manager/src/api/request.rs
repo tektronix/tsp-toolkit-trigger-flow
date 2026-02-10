@@ -10,6 +10,7 @@ pub struct BlockData {
     pub parameters: HashMap<String, serde_json::Value>,
 }
 
+//request types from angular to backend
 #[derive(Debug, Clone)]
 pub enum RequestType {
     InitialRequest {
@@ -20,12 +21,18 @@ pub enum RequestType {
     }
 }
 
+//response types from backend to angular
 pub enum ResponseType {
     InitialResponse {
+        system_config: SystemConfiguration,
         catalog: crate::TriggerBlocks,
     },
     EvaluateResponse {
         current_state: crate::api::state::TriggerFlowState,
     }
 
+}
+
+pub enum ErrorType {
+    
 }
