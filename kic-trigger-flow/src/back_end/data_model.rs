@@ -8,7 +8,6 @@ pub struct DataModel {
 impl DataModel {
     pub fn new(catalog: TriggerBlocks) -> Result<Self> {
         // Load catalog once at startup
-        let catalog = TriggerBlocks::from_file("triggerBlocks.json")?;
         Ok(Self {
             catalog: Arc::new(catalog),
         })
