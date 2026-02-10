@@ -5,18 +5,19 @@
   <f-canvas>
     @for (node of nodes(); track node.id) {
       <div
-        fNode
-        fDragHandle
+        fNode fDragHandle
         [fNodeId]="node.id"
         [fNodePosition]="node.position"
-        [fNodeSize]="{ width: 0, height: 0 }"
-        fNodeInput
-        [fInputId]="node.input"
-        fInputConnectableSide="left"
         class="node-wrapper">
         
         <div class="node-content">
-          <img [src]="node.svgPath" alt="Shape" class="node-svg" />
+          <img [src]="node.svgPath" alt="Shape" class="node-svg" fDragHandle />
+          
+          <div fNodeInput
+               [fInputId]="node.input"
+               fInputConnectableSide="left"
+               class="input-connector">
+          </div>
           
           @for (outputId of node.outputs; track outputId) {
             <div fNodeOutput 

@@ -17,16 +17,17 @@
                             <span class="title">{{ sub.label }}</span>
                         </div>
                         <div class="accordion-content" *ngIf="blockExpanded.has(j)">
-                            <ng-container *ngIf="sub.hasRectangle; else subgroupContent">
-                                <div class="palette-item" fExternalItem
-                                    [fData]="{ type: 'rectangle', svgPath: rectangleSvg }">
+                            <ng-container *ngIf="sub.shapes && sub.shapes.length > 0; else subgroupContent">
+                                <div *ngFor="let shape of sub.shapes" class="palette-item" fExternalItem
+                                    [fData]="shape">
                                     <div class="shape-icon">
-                                        <img [src]="rectangleSvg" alt="Rectangle" class="shape-svg" />
+                                        <img [src]="shape.svgPath" [alt]="shape.label" class="shape-svg" />
                                     </div>
+                                    <span class="shape-label">{{ shape.label }}</span>
                                 </div>
                             </ng-container>
                             <ng-template #subgroupContent>
-                                {{ sub.label }}
+                                <div class="empty-message">No shapes available</div>
                             </ng-template>
                         </div>
                     </div>

@@ -11,18 +11,40 @@ import { FFlowModule } from '@foblex/flow';
   styleUrls: ['./side-panel-accordion.css']
 })
 export class SidePanelAccordion {
-  rectangleSvg = 'assets/shapes/notify.svg';
-  rectangleData = { svgPath: 'assets/shapes/notify.svg' };
   groups = [
     { label: 'Templates', type: 'single' },
     {
       label: 'Blocks',
       type: 'group',
       subgroups: [
-        { label: 'Branches' },
-        { label: 'Actions', hasRectangle: true },
-        { label: 'Timing' },
-        { label: 'Notify' }
+        { 
+          label: 'Actions', 
+          shapes: [
+            { type: 'action-1', svgPath: 'assets/shapes/notify.svg', label: 'Action 1' },
+            { type: 'action-2', svgPath: 'assets/shapes/notify.svg', label: 'Action 2' }
+          ]
+        },
+        { 
+          label: 'Branches',
+          shapes: [
+            { type: 'branch-1', svgPath: 'assets/shapes/notify.svg', label: 'Branch 1' },
+            { type: 'branch-2', svgPath: 'assets/shapes/notify.svg', label: 'Branch 2' }
+          ]
+        },
+        { 
+          label: 'Notify',
+          shapes: [
+            { type: 'notify-1', svgPath: 'assets/shapes/notify.svg', label: 'Notify 1' }
+          ]
+        },
+        { 
+          label: 'Timing',
+          shapes: [
+            { type: 'timer-1', svgPath: 'assets/shapes/notify.svg', label: 'Timer 1' },
+            { type: 'timer-2', svgPath: 'assets/shapes/notify.svg', label: 'Timer 2' },
+            { type: 'timer-3', svgPath: 'assets/shapes/notify.svg', label: 'Timer 3' }
+          ]
+        }
       ]
     },
     { label: 'Events', type: 'single' }
