@@ -1,0 +1,17 @@
+<div class="main-flow-container">
+  <aside class="palette-sidebar" [class.collapsed]="sidebarCollapsed">
+    <div class="collapse-btn-header">
+      <button class="collapse-btn" (click)="toggleSidebar()">
+        <mat-icon>{{ sidebarCollapsed ? 'chevron_right' : 'chevron_left' }}</mat-icon>
+      </button>
+    </div>
+    <div>
+      <ng-container *ngIf="!sidebarCollapsed">
+        <app-side-panel-accordion></app-side-panel-accordion>
+      </ng-container>
+    </div>
+  </aside>
+  <main class="canvas-area">
+    <app-canvas></app-canvas>
+  </main>
+</div>

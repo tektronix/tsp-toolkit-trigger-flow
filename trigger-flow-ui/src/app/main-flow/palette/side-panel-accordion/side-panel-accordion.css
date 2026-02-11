@@ -1,0 +1,67 @@
+.custom-accordion {
+    width: 100%;
+}
+
+.accordion-item {
+}
+
+.accordion-header {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    padding: 0.75rem 1rem;
+    font-weight: 500;
+    user-select: none;
+}
+
+.arrow {
+    display: inline-block;
+    transition: transform 0.2s;
+    margin-right: 0.75rem;
+    font-size: 1rem;
+    margin-left: -1rem;
+}
+
+.title {
+    flex: 1;
+}
+
+.accordion-content {
+    padding: 1rem;
+    background: #fff;
+}
+
+.mat-icon {
+    height: 1rem;
+    width: 1rem;
+}
+
+.palette-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    cursor: grab;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.palette-item:hover {
+    background: #f0f0f0;
+}
+
+.palette-item:active {
+    cursor: grabbing;
+}
+
+.shape-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.shape-svg {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+}

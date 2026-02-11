@@ -1,9 +1,9 @@
 import { Component, signal } from '@angular/core';
-import { TriggerFlowComponents } from './trigger-flow-components/trigger-flow-components';
+import { MainFlow } from './main-flow/main-flow';
 
 @Component({
   selector: 'app-root',
-  imports: [TriggerFlowComponents],
+  imports: [MainFlow],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })

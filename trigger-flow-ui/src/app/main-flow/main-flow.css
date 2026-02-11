@@ -1,0 +1,57 @@
+.main-flow-container {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.palette-sidebar {
+  width: 320px;
+  flex-shrink: 0;
+  background: #fafbfc;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.06);
+  z-index: 9;
+  padding: 0 0.5rem;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  position: relative;
+  transition: width 0.2s;
+}
+
+.palette-sidebar.collapsed {
+  width: 32px;
+  min-width: 32px;
+  padding: 0;
+  overflow: visible;
+}
+
+.collapse-btn {
+  position: absolute;
+  right: 1rem;
+  background: #fafbfc;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.collapse-btn-header {
+  display: flex;
+  padding-bottom: 1rem;
+}
+
+.palette-sidebar.collapsed .collapse-btn {
+  right: -16px;
+}
+
+.canvas-area {
+  flex: 1;
+  overflow: hidden;
+}
+
+.mat-icon {
+  height: 1.5rem;
+  width: 1rem;
+}

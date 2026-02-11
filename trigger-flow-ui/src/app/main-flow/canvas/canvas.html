@@ -1,0 +1,38 @@
+<f-flow fDraggable 
+        (fCreateNode)="onCreateNode($event)"
+        (fMoveNodes)="onMoveNodes($event)"
+        (fCreateConnection)="onCreateConnection($event)">
+  <f-canvas>
+    @for (node of nodes(); track node.id) {
+      <div
+        fNode fDragHandle
+        [fNodeId]="node.id"
+        [fNodePosition]="node.position"
+        class="node-wrapper">
+        
+        <div class="node-content">
+          <svg-icon 
+            [src]="node.svgPath" 
+            [svgStyle]="getSvgStyle(node)" 
+            class="node-svg" 
+            fDragHandle>
+          </svg-icon>
+          
+          <div fNodeInput
+               [fInputId]="node.input"
+               fInputConnectableSide="left"
+               class="input-connector">
+          </div>
+          
+          @for (outputId of node.outputs; track outputId) {
+            <div fNodeOutput 
+                 [fOutputId]="outputId" 
+                 fOutputConnectableSide="right"
+                 class="output-connector">
+            </div>
+          }
+        </div>
+      </div>
+    }
+  </f-canvas>
+</f-flow>
