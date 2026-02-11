@@ -1,15 +1,4 @@
-use crate::{api::state::SystemConfiguration, model::trigger_model_block::BlockPosition};
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-
-/// Todo: move somewhere else
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BlockData {
-    pub block_type: String,
-    pub position: BlockPosition,
-    pub parameters: HashMap<String, serde_json::Value>,
-}
-
+use crate::api::state::SystemConfiguration;
 //request types from angular to backend
 #[derive(Debug, Clone)]
 pub enum RequestType {
@@ -18,7 +7,7 @@ pub enum RequestType {
     },
     EvaluateRequest {
         current_state: crate::api::state::TriggerFlowState,
-    }
+    },
 }
 
 //response types from backend to angular
@@ -29,10 +18,7 @@ pub enum ResponseType {
     },
     EvaluateResponse {
         current_state: crate::api::state::TriggerFlowState,
-    }
-
+    },
 }
 
-pub enum ErrorType {
-    
-}
+pub enum ErrorType {}
