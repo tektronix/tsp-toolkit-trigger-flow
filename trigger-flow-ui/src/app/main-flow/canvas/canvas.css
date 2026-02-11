@@ -34,10 +34,22 @@ f-canvas {
 }
 
 .node-svg {
-  width: 80px;
-  height: 50px;
+  width: 60px;
+  height: 60px;
   object-fit: contain;
   pointer-events: none;
+}
+
+.node-svg::ng-deep svg {
+  fill: white !important;
+}
+
+.node-svg::ng-deep svg path,
+/* .node-svg::ng-deep svg circle, */
+/* .node-svg::ng-deep svg rect, */
+.node-svg::ng-deep svg polygon {
+  fill: green !important;
+  stroke: black !important;
 }
 
 .f-node-input {
@@ -45,7 +57,8 @@ f-canvas {
   position: absolute;
   left: -5px;
   top: 50%;
-  transform: translateY(-50%);  width: 10px;
+  transform: translateY(-50%);  
+  width: 10px;
   height: 10px;
   background: #000;
   border: 1px solid white;
@@ -75,8 +88,8 @@ f-canvas {
   border-radius: 50%;
 }
 
-.f-node-input:hover,
+/* .f-node-input:hover,
 .output-connector:hover {
   transform: translateY(-50%) scale(1.2);
   box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
-}
+} */

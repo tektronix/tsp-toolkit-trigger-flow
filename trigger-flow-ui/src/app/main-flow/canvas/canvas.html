@@ -11,7 +11,12 @@
         class="node-wrapper">
         
         <div class="node-content">
-          <img [src]="node.svgPath" alt="Shape" class="node-svg" fDragHandle />
+          <svg-icon 
+            [src]="node.svgPath" 
+            [svgStyle]="getSvgStyle(node)" 
+            class="node-svg" 
+            fDragHandle>
+          </svg-icon>
           
           <div fNodeInput
                [fInputId]="node.input"

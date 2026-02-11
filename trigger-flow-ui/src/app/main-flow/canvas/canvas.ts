@@ -1,6 +1,8 @@
-import { Component, ViewChild, signal } from '@angular/core';
+import { Component, ViewChild, signal, inject } from '@angular/core';
 import { FFlowModule, FFlowComponent } from '@foblex/flow';
 import { CommonModule } from '@angular/common';
+import { AngularSvgIconModule } from 'angular-svg-icon';
+import { SvgManagerService, SvgOptions } from '../../services/svg-manager.service';
 
 interface FlowNode {
   id: string;
@@ -8,19 +10,22 @@ interface FlowNode {
   svgPath: string;
   input?: string;
   outputs: string[];
+  color?: string;
 }
 
 @Component({
   selector: 'app-canvas',
   imports: [
     FFlowModule,
-    CommonModule
+    CommonModule,
+    AngularSvgIconModule
   ],
   templateUrl: './canvas.html',
   styleUrl: './canvas.css',
 })
 export class Canvas {
   @ViewChild(FFlowComponent) flowComponent!: FFlowComponent;
+  private svgManager = inject(SvgManagerService);
 
   nodes = signal<FlowNode[]>([]);
   private nodeCounter = 0;
@@ -34,10 +39,19 @@ export class Canvas {
         position: { x: event.rect.x, y: event.rect.y },
         svgPath: event.data.svgPath,
         input: `input-${this.nodeCounter}`,
-        outputs: [`output-${this.nodeCounter}`]
+        outputs: [`output-${this.nodeCounter}`],
+        color: '#FFFFFF'
       };
       this.nodes.update(current => [...current, newNode]);
     }
+  }
+
+  getSvgStyle(node: FlowNode): { [key: string]: string } {
+    return this.svgManager.buildSvgStyle({
+      // fillColor: node.color,
+      // width: '60px',
+      // height: '60px'
+    });
   }
 
   onCreateConnection(event: any) {
