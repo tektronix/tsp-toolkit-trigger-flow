@@ -4,6 +4,10 @@ version = {workspace = true}
 edition = "2021"
 
 [dependencies]
+actix = "0.13.5"
+actix-cors = "0.7.1"
+actix-web = "4.12.1"
 anyhow = "1.0.100"
 serde = "1.0.228"
+tokio = "1.49.0"
 trigger-flow-manager = { workspace = true }
