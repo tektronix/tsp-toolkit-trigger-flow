@@ -9,6 +9,4 @@ pub use trigger_model_blocks::catalog::{
     BlockDefinition, EventDefinition, Parameter, TriggerBlocks,
 };
 
-// Re-export the main IPC handler entry point
-pub use api::ipc_adapter::handle_ipc_request;
 pub use api::ipc_data::IpcData;
