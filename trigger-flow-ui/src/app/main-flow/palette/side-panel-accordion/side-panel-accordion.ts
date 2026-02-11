@@ -20,29 +20,27 @@ export class SidePanelAccordion {
         { 
           label: 'Actions', 
           shapes: [
-            { type: 'action-1', svgPath: 'assets/shapes/notify.svg', label: 'Action 1' },
-            { type: 'action-2', svgPath: 'assets/shapes/notify.svg', label: 'Action 2' }
+            { type: 'action-1', svgPath: 'assets/shapes/Actions/Config List Next.svg'}
+            //{  }
           ]
         },
         { 
           label: 'Branches',
           shapes: [
-            { type: 'branch-1', svgPath: 'assets/shapes/notify.svg', label: 'Branch 1' },
-            { type: 'branch-2', svgPath: 'assets/shapes/notify.svg', label: 'Branch 2' }
+            { type: 'branch-1', svgPath: 'assets/shapes/Branches/Always.svg' },
+            { type: 'branch-2', svgPath: 'assets/shapes/Branches/On Event.svg' }
           ]
         },
         { 
           label: 'Notify',
           shapes: [
-            { type: 'notify-1', svgPath: 'assets/shapes/notify.svg', label: 'Notify 1' }
+            { type: 'notify-1', svgPath: 'assets/shapes/Notify/Notify Block Template.svg'}
           ]
         },
         { 
           label: 'Timing',
           shapes: [
-            { type: 'timer-1', svgPath: 'assets/shapes/notify.svg', label: 'Timer 1' },
-            { type: 'timer-2', svgPath: 'assets/shapes/notify.svg', label: 'Timer 2' },
-            { type: 'timer-3', svgPath: 'assets/shapes/notify.svg', label: 'Timer 3' }
+            { type: 'timer-1', svgPath: 'assets/shapes/Timing/Constant Delay.svg'}
           ]
         }
       ]

@@ -21,9 +21,9 @@
                                 <div *ngFor="let shape of sub.shapes" class="palette-item" fExternalItem
                                     [fData]="shape">
                                     <div class="shape-icon">
-                                        <img [src]="shape.svgPath" [alt]="shape.label" class="shape-svg" />
+                                        <img [src]="shape.svgPath" class="shape-svg" />
                                     </div>
-                                    <span class="shape-label">{{ shape.label }}</span>
+                                    <!-- <span class="shape-label">{{ shape.label }}</span> -->
                                 </div>
                             </ng-container>
                             <ng-template #subgroupContent>
