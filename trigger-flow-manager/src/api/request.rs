@@ -21,4 +21,7 @@ pub enum ResponseType {
     },
 }
 
-pub enum ErrorType {}
+pub enum ErrorType {
+    InvalidRequestType(String),
+    DeserializationError(String),
+}

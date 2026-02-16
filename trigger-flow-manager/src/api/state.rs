@@ -26,7 +26,6 @@ pub struct SlotIndex(u8);
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ChannelIndex(u8);
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SystemConfiguration {
     pub instrument_type: InstrumentType,

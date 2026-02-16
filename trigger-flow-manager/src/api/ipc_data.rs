@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use crate::api::{request::{ErrorType, RequestType, ResponseType}, state::{SystemConfiguration, TriggerFlowState}};
+use crate::api::{
+    request::{ErrorType, RequestType, ResponseType},
+    state::{SystemConfiguration, TriggerFlowState},
+};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct IpcData {
@@ -16,15 +19,23 @@ impl TryFrom<&IpcData> for RequestType {
 
     fn try_from(ipc_data: &IpcData) -> Result<Self, Self::Error> {
         match ipc_data.request_type.as_str() {
-        "initial_request" => {
-            let system_config: SystemConfiguration = serde_json::from_str(&ipc_data.json_value)?;
-            Ok(RequestType::InitialRequest { system_config })
-        },
-        "evaluate_request" => {
-            let curret_state: TriggerFlowState = serde_json::from_str(&ipc_data.json_value)?;
-            Ok(RequestType::EvaluateRequest { current_state: curret_state.clone() })
-    },
-    }
+            "initial_request" => {
+                let system_config: SystemConfiguration = serde_json::from_str(&ipc_data.json_value)
+                    .map_err(|e| ErrorType::DeserializationError(e.to_string()))?;
+                Ok(RequestType::InitialRequest { system_config })
+            }
+            "evaluate_request" => {
+                let current_state: TriggerFlowState = serde_json::from_str(&ipc_data.json_value)
+                    .map_err(|e| ErrorType::DeserializationError(e.to_string()))?;
+                Ok(RequestType::EvaluateRequest {
+                    current_state: current_state.clone(),
+                })
+            }
+            _ => Err(ErrorType::InvalidRequestType(format!(
+                "Unknown request type: {}",
+                ipc_data.request_type
+            ))),
+        }
     }
 }
 
@@ -33,16 +44,21 @@ impl TryFrom<&ResponseType> for IpcData {
 
     fn try_from(response: &ResponseType) -> Result<Self, Self::Error> {
         match response {
-            ResponseType::InitialResponse { system_config, catalog } => {
-                let json_value = serde_json::to_string(&(system_config, catalog))?;
+            ResponseType::InitialResponse {
+                system_config,
+                catalog,
+            } => {
+                let json_value = serde_json::to_string(&(system_config, catalog))
+                    .map_err(|e| ErrorType::DeserializationError(e.to_string()))?;
                 Ok(IpcData {
                     request_type: "initial_response".to_string(),
                     additional_info: "".to_string(),
                     json_value,
                 })
-            },
+            }
             ResponseType::EvaluateResponse { current_state } => {
-                let json_value = serde_json::to_string(current_state)?;
+                let json_value = serde_json::to_string(current_state)
+                    .map_err(|e| ErrorType::DeserializationError(e.to_string()))?;
                 Ok(IpcData {
                     request_type: "evaluate_response".to_string(),
                     additional_info: "".to_string(),
