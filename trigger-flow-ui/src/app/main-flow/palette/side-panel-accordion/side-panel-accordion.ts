@@ -1,7 +1,8 @@
-import { Component } from '@angular/core';
+import { Component, Input } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { CommonModule } from '@angular/common';
 import { FFlowModule } from '@foblex/flow';
+import { PaletteGroup } from '../../../models/trigger-block.model';
 
 @Component({
   selector: 'app-side-panel-accordion',
@@ -11,42 +12,7 @@ import { FFlowModule } from '@foblex/flow';
   styleUrls: ['./side-panel-accordion.css']
 })
 export class SidePanelAccordion {
-  groups = [
-    { label: 'Templates', type: 'single' },
-    {
-      label: 'Blocks',
-      type: 'group',
-      subgroups: [
-        { 
-          label: 'Actions', 
-          shapes: [
-            { type: 'action-1', svgPath: 'assets/shapes/Actions/Config List Next.svg'}
-            //{  }
-          ]
-        },
-        { 
-          label: 'Branches',
-          shapes: [
-            { type: 'branch-1', svgPath: 'assets/shapes/Branches/Always.svg' },
-            { type: 'branch-2', svgPath: 'assets/shapes/Branches/On Event.svg' }
-          ]
-        },
-        { 
-          label: 'Notify',
-          shapes: [
-            { type: 'notify-1', svgPath: 'assets/shapes/Notify/Notify Block Template.svg'}
-          ]
-        },
-        { 
-          label: 'Timing',
-          shapes: [
-            { type: 'timer-1', svgPath: 'assets/shapes/Timing/Constant Delay.svg'}
-          ]
-        }
-      ]
-    },
-    { label: 'Events', type: 'single' }
-  ];
+  @Input() groups: PaletteGroup[] = [];
   expanded: Set<number> = new Set();
   blockExpanded: Set<number> = new Set();
 
