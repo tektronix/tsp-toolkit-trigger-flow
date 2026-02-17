@@ -7,6 +7,7 @@ use crate::{
     TriggerBlocks,
 };
 use anyhow::{Ok, Result};
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 pub struct RequestProcessor {

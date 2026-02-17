@@ -3,16 +3,15 @@ use actix_web::{web, App, Error, HttpRequest, HttpResponse, HttpServer};
 use actix_ws::{Message, Session};
 use futures::StreamExt;
 use std::{
-    collections::HashMap,
-    fs::{self as other_fs},
-    sync::Arc,
+    collections::HashMap, fs::{self as other_fs}, os::windows::process, sync::Arc
 };
-use tokio::sync::Mutex;
-use trigger_flow_manager::{IpcData, TriggerBlocks, api::request::{self, RequestType}, request_processor::RequestProcessor};
+use tokio::sync::{Mutex, broadcast};
+use trigger_flow_manager::{IpcData, TriggerBlocks, api::request::{RequestType, ResponseWrapper}, request_processor::RequestProcessor};
 #[derive(Clone)]
 pub struct AppState {
-    pub(crate) session: Arc<Mutex<Option<Session>>>,
+    session: Arc<Mutex<Option<Session>>>,
     catalog: Arc<TriggerBlocks>,
+    gen_script_tx: broadcast::Sender<()>,
 }
 
 impl AppState {
@@ -20,6 +19,7 @@ impl AppState {
         Self {
             session: Arc::new(Mutex::new(None)),
             catalog: Arc::new(catalog),
+            gen_script_tx: broadcast::channel(100).0,
         }
     }
 }
@@ -27,6 +27,7 @@ async fn ws_index(
     req: HttpRequest,
     body: web::Payload,
     app_state: web::Data<AppState>,
+    processor: web::Data<RequestProcessor>,
 ) -> Result<HttpResponse, Error> {
     let (response, mut session, mut msg_stream) = actix_ws::handle(&req, body)?;
     {
@@ -95,11 +96,22 @@ async fn ws_index(
                     }
                     match serde_json::from_str::<IpcData>(&msg) {
                         Ok(ipc_data) => {
-                            //call tryfrom ipcdata to request, process_request, tryfrom response to ipcdata
-                            let request = RequestType::try_from(&ipc_data);
-                            let reponse= RequestProcessor::process_request(request); //TODO: change the parameters for request_processor
+                            match RequestType::try_from(&ipc_data) {
+                                Ok(request)=>{
+                                    let response_type = RequestProcessor::process_request(&processor, request);
+                                    let response_wrapper = match response_type {
+                                        Ok(resp) => ResponseWrapper::Ok(resp),
+                                        Err(e) => ResponseWrapper::Err(e.to_string()),
+                                    };
+                                    let response = serde_json::to_string(&response_wrapper).unwrap();
+                                    session.text(&*response).await.unwrap();
+                                }
+                                Err(err)=>{
+                                    eprintln!("Failed to convert IpcData to RequestType: {err}");
+                                    continue;
+                                }
+                            }
                             //send response back to UI
-
                         }
                         Err(e) => {
                             eprintln!("Failed to deserialize IpcData: {e}");

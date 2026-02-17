@@ -1,6 +1,8 @@
+use serde::{Deserialize, Serialize};
+
 use crate::api::state::SystemConfiguration;
 //request types from angular to backend
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RequestType {
     InitialRequest {
         system_config: SystemConfiguration,
@@ -11,6 +13,7 @@ pub enum RequestType {
 }
 
 //response types from backend to angular
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ResponseType {
     InitialResponse {
         system_config: SystemConfiguration,
@@ -21,7 +24,14 @@ pub enum ResponseType {
     },
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ErrorType {
     InvalidRequestType(String),
     DeserializationError(String),
+    RequestConversionError(String),
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ResponseWrapper<T> {
+    Ok(T),
+    Err(String),
 }

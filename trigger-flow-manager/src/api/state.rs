@@ -30,6 +30,5 @@ pub struct ChannelIndex(u8);
 pub struct SystemConfiguration {
     pub instrument_type: InstrumentType,
     pub slot_index: SlotIndex,
-    pub channels: Vec<ChannelIndex>,
-    pub(crate) available_channels: Vec<ChannelIndex>,
+    pub channels: Vec<ChannelIndex>
 }
