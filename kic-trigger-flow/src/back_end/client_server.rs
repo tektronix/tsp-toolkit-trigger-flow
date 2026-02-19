@@ -3,10 +3,16 @@ use actix_web::{web, App, Error, HttpRequest, HttpResponse, HttpServer};
 use actix_ws::{Message, Session};
 use futures::StreamExt;
 use std::{
-    collections::HashMap, fs::{self as other_fs}, os::windows::process, sync::Arc
+    collections::HashMap,
+    fs::{self as other_fs},
+    sync::Arc,
 };
-use tokio::sync::{Mutex, broadcast};
-use trigger_flow_manager::{IpcData, TriggerBlocks, api::request::{RequestType, ResponseWrapper}, request_processor::RequestProcessor};
+use tokio::sync::{broadcast, Mutex};
+use trigger_flow_manager::{
+    api::request::{RequestType, ResponseWrapper},
+    request_processor::RequestProcessor,
+    IpcData, TriggerBlocks,
+};
 #[derive(Clone)]
 pub struct AppState {
     session: Arc<Mutex<Option<Session>>>,
@@ -97,16 +103,18 @@ async fn ws_index(
                     match serde_json::from_str::<IpcData>(&msg) {
                         Ok(ipc_data) => {
                             match RequestType::try_from(&ipc_data) {
-                                Ok(request)=>{
-                                    let response_type = RequestProcessor::process_request(&processor, request);
+                                Ok(request) => {
+                                    let response_type =
+                                        RequestProcessor::process_request(&processor, request);
                                     let response_wrapper = match response_type {
                                         Ok(resp) => ResponseWrapper::Ok(resp),
                                         Err(e) => ResponseWrapper::Err(e.to_string()),
                                     };
-                                    let response = serde_json::to_string(&response_wrapper).unwrap();
+                                    let response =
+                                        serde_json::to_string(&response_wrapper).unwrap();
                                     session.text(&*response).await.unwrap();
                                 }
-                                Err(err)=>{
+                                Err(err) => {
                                     eprintln!("Failed to convert IpcData to RequestType: {err}");
                                     continue;
                                 }

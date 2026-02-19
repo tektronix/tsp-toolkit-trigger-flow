@@ -54,7 +54,6 @@ impl RequestProcessor {
         &self,
         current_state: TriggerFlowState,
     ) -> Result<TriggerFlowState> {
-        //validate against catalog
         Ok(current_state)
     }
 }
