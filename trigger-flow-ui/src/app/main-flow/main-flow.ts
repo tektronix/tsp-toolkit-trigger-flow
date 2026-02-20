@@ -4,6 +4,7 @@ import { SidePanelAccordion } from './palette/side-panel-accordion/side-panel-ac
 import { MatIconModule } from '@angular/material/icon';
 import { CommonModule } from '@angular/common';
 import { TriggerBlocksService } from '../services/trigger-blocks.service';
+import { CanvasBlocksService } from '../services/canvas-blocks.service';
 import { TriggerBlocks } from '../models/trigger-blocks.model';
 
 @Component({
@@ -16,7 +17,10 @@ export class MainFlow implements OnInit {
   sidebarCollapsed = false;
   catalogData: TriggerBlocks | null = null;
   
-  constructor(private triggerBlocksService: TriggerBlocksService) {}
+  constructor(
+    private triggerBlocksService: TriggerBlocksService,
+    private canvasBlocksService: CanvasBlocksService
+  ) {}
 
   ngOnInit(): void {
     this.loadCatalogData();
@@ -26,6 +30,7 @@ export class MainFlow implements OnInit {
     this.triggerBlocksService.getTriggerBlocks().subscribe({
       next: (data) => {
         this.catalogData = data;
+        this.canvasBlocksService.setCatalogData(data);
         console.log('Trigger blocks catalog loaded:', this.catalogData);
       },
       error: (error) => {
