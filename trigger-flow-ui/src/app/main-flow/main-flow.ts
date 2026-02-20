@@ -3,7 +3,8 @@ import { Canvas } from './canvas/canvas';
 import { SidePanelAccordion } from './palette/side-panel-accordion/side-panel-accordion';
 import { MatIconModule } from '@angular/material/icon';
 import { CommonModule } from '@angular/common';
-import { TriggerBlocksService, TriggerBlocksData } from '../services/trigger-blocks.service';
+import { TriggerBlocksService } from '../services/trigger-blocks.service';
+import { TriggerBlocks } from '../models/trigger-blocks.model';
 
 @Component({
   selector: 'app-main-flow',
@@ -13,18 +14,22 @@ import { TriggerBlocksService, TriggerBlocksData } from '../services/trigger-blo
 })
 export class MainFlow implements OnInit {
   sidebarCollapsed = false;
-  triggerBlocksData: TriggerBlocksData | null = null;
+  catalogData: TriggerBlocks | null = null;
   
   constructor(private triggerBlocksService: TriggerBlocksService) {}
 
   ngOnInit(): void {
+    this.loadCatalogData();
+  }
+
+  private loadCatalogData(): void {
     this.triggerBlocksService.getTriggerBlocks().subscribe({
       next: (data) => {
-        this.triggerBlocksData = data;
-        console.log('Trigger blocks loaded:', data);
+        this.catalogData = data;
+        console.log('Trigger blocks catalog loaded:', this.catalogData);
       },
       error: (error) => {
-        console.error('Error loading trigger blocks:', error);
+        console.error('Error loading trigger blocks catalog:', error);
       }
     });
   }
