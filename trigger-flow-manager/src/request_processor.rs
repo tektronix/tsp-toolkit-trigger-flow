@@ -46,7 +46,7 @@ impl RequestProcessor {
     }
 
     pub fn handle_initial_request(&self, config: SystemConfiguration) -> Result<()> {
-        //validate the config
+        //translate the config to structure
         //send catalog
         Ok(())
     }

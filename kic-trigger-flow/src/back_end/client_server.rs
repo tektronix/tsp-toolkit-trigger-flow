@@ -13,18 +13,19 @@ use trigger_flow_manager::{
     request_processor::RequestProcessor,
     IpcData, TriggerBlocks,
 };
+
 #[derive(Clone)]
 pub struct AppState {
     session: Arc<Mutex<Option<Session>>>,
-    catalog: Arc<TriggerBlocks>,
+    catalog: &'static TriggerBlocks,
     gen_script_tx: broadcast::Sender<()>,
 }
 
 impl AppState {
-    pub fn new(catalog: TriggerBlocks) -> Self {
+    pub fn new(catalog_ref: &'static TriggerBlocks) -> Self {
         Self {
             session: Arc::new(Mutex::new(None)),
-            catalog: Arc::new(catalog),
+            catalog: catalog_ref,
             gen_script_tx: broadcast::channel(100).0,
         }
     }
@@ -115,7 +116,7 @@ async fn ws_index(
                                     session.text(&*response).await.unwrap();
                                 }
                                 Err(err) => {
-                                    eprintln!("Failed to convert IpcData to RequestType: {err}");
+                                    eprintln!("Failed to convert IpcData to RequestType: {err:?}");
                                     continue;
                                 }
                             }
@@ -152,9 +153,10 @@ async fn serve_index_html() -> Result<HttpResponse, Error> {
         .body(html_content))
 }
 
-pub async fn start_web_server() -> std::io::Result<()> {
+pub async fn start_web_server(app_state: Arc<AppState>) -> std::io::Result<()> {
     let server = HttpServer::new(move || {
         App::new()
+            .app_data(web::Data::new(app_state.clone()))
             .route("/", web::get().to(serve_index_html))
             .route("/ws", web::get().to(ws_index))
             .wrap(
@@ -170,8 +172,9 @@ pub async fn start_web_server() -> std::io::Result<()> {
     server.await
 }
 
-pub async fn start() -> anyhow::Result<()> {
-    let server = start_web_server();
+pub async fn start(catalog_ref: &'static TriggerBlocks) -> anyhow::Result<()> {
+    let app_state = Arc::new(AppState::new(catalog_ref));
+    let server = start_web_server(app_state.clone());
     server.await?;
     Ok(())
 }
