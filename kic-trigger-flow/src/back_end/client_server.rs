@@ -106,7 +106,7 @@ async fn ws_index(
                             match RequestType::try_from(&ipc_data) {
                                 Ok(request) => {
                                     let response_type =
-                                        RequestProcessor::process_request(&processor, request);
+                                        RequestProcessor::process_request(&processor, &app_state.catalog, request);
                                     let response_wrapper = match response_type {
                                         Ok(resp) => ResponseWrapper::Ok(resp),
                                         Err(e) => ResponseWrapper::Err(e.to_string()),

@@ -1,10 +1,9 @@
 use crate::{
-    api::{
+    TriggerBlocks, api::{
         request::{RequestType, ResponseType},
-        state::{SystemConfiguration, TriggerFlowState},
-    },
-    validator::{catalog_validator::CatalogValidator, ValidationChain, Validator},
-    TriggerBlocks,
+        state::TriggerFlowState,
+        system_config::{SlotChannelList, SystemConfiguration},
+    }, validator::{ValidationChain, Validator, catalog_validator::CatalogValidator, slot_channel_hashmap::SlotChannelHashMap}
 };
 use anyhow::{Ok, Result};
 use serde::{Deserialize, Serialize};
@@ -27,28 +26,33 @@ impl RequestProcessor {
             validation_chain,
         }
     }
-    pub fn process_request(&self, request: RequestType) -> Result<ResponseType> {
+    pub fn process_request(
+        &self,
+        catalog: &'static TriggerBlocks,
+        request: RequestType,
+    ) -> Result<ResponseType> {
         match request {
-            RequestType::InitialRequest { system_config } => {
-                self.handle_initial_request(system_config.clone())?;
-                Ok(ResponseType::InitialResponse {
-                    system_config: system_config.clone(),
-                    catalog: self.catalog.as_ref().clone(),
-                })
+            RequestType::InitialRequest => {
+                let response = self.handle_initial_request(catalog, slot_channel_list.clone()) //will be intialized
+                Ok(ResponseType::InitialResponse { slot_channel_list: response.slot_channel_list, catalog: response.catalog })
             }
             RequestType::EvaluateRequest { current_state } => {
-                let state = current_state.clone();
-                self.handle_evaluate_request(state)?;
+                let response = self.handle_evaluate_request(current_state.clone())?;
 
-                Ok(ResponseType::EvaluateResponse { current_state })
+                Ok(ResponseType::EvaluateResponse { current_state: response })
             }
         }
     }
 
-    pub fn handle_initial_request(&self, config: SystemConfiguration) -> Result<()> {
-        //translate the config to structure
-        //send catalog
-        Ok(())
+    pub fn handle_initial_request(
+        &self,
+        catalog: &'static TriggerBlocks,
+        slot_channel_list: SlotChannelList,
+    ) -> Result<ResponseType> {
+        Ok(ResponseType::InitialResponse {
+            slot_channel_list: slot_channel_list.clone(),
+            catalog: catalog.clone(),
+        })
     }
     pub fn handle_evaluate_request(
         &self,
