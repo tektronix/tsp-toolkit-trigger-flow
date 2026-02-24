@@ -1,4 +1,32 @@
 {
+    "script_comments_start": [
+    "-- Set up the instrument before running this script.",
+    "-- Adjust slot_index (currently: {{slot_index}}) and channel_index (currently: {{channel_index}}) as needed.",
+    "-- Define aliases here",
+    "-- e.g. local smu = slot[{{slot_index}}].smu[{{channel_index}}]",
+
+    
+    "-- If your trigger model requires TSP-Linked instruments, be sure to initialize TSP-Link here",
+    "-- tsplink.initialize()",
+
+    "-- Initialize and configure any reading buffers into which you wish to put your readings",
+    "-- e.g. local rb = slot[{{slot_index}}].smu[{{channel_index}}].makebuffer(1000000)",
+    
+    "-- BEGIN GENERATED TRIGGER MODEL",
+
+    "-- Create a trigger model",
+    "slot[{{slot_index}}].trigger.model.create({{trigger_model_name}})"
+  ],
+  "script_comments_end": [    
+    "-- END GENERATED TRIGGER MODEL",
+    "-- IMPORTANT: Don't forget to start your trigger model!",
+    "{{#each trigger_models}}",
+    "slot[{{slot_index}}].trigger.model.initiate({{trigger_model_name}})",
+    "{{/each}}",
+    
+    "-- Process and/or print your data as needed after this point.",
+    "-- e.g. printbuffer(startIndex, endIndex, buffername)"
+  ],
     "blocks": {
         "always": {
             "parameters": [
@@ -188,7 +216,7 @@
                     "type": "string"
                 }
             ],
-            "syntax": "slot[{{slot_index}}].trigger.model.addblock.configlist.next({{trigger_model_name}}, {{trigger_block_name}}, {{channel_index}}, {{config_list_name}})",
+            "syntax": "-- The configuration list must be defined before the trigger model uses this block.\nslot[{{slot_index}}].trigger.model.addblock.configlist.next({{trigger_model_name}}, {{trigger_block_name}}, {{channel_index}}, {{config_list_name}})",
             "description": "When trigger model execution reaches a configuration recall next block, the settings stored at the next index of a configuration list are recalled.",
             "shape": "conditional"
         },
@@ -217,7 +245,7 @@
                     "type": "string"
                 }
             ],
-            "syntax": "slot[{{slot_index}}].trigger.model.addblock.configlist.prev({{trigger_model_name}}, {{trigger_block_name}}, {{channel_index}}, {{config_list_name}})",
+            "syntax": "-- The configuration list must be defined before the trigger model uses this block.\nslot[{{slot_index}}].trigger.model.addblock.configlist.prev({{trigger_model_name}}, {{trigger_block_name}}, {{channel_index}}, {{config_list_name}})",
             "description": "When trigger model execution reaches a configuration recall previous block, the settings at the previous index in the specified configuration list are restored.",
             "shape": "conditional"
         },
@@ -250,7 +278,7 @@
                     "type": "number"
                 }
             ],
-            "syntax": "slot[{{slot_index}}].trigger.model.addblock.configlist.recall({{trigger_model_name}}, {{trigger_block_name}}, {{channel_index}}, {{config_list_name}}, {{recall_index}})",
+            "syntax": "-- The configuration list must be defined before the trigger model uses this block.\nslot[{{slot_index}}].trigger.model.addblock.configlist.recall({{trigger_model_name}}, {{trigger_block_name}}, {{channel_index}}, {{config_list_name}}, {{recall_index}})",
             "description": "When the trigger model reaches a configuration recall block, the settings in the specified configuration list are recalled.",
             "shape": "conditional"
         },
