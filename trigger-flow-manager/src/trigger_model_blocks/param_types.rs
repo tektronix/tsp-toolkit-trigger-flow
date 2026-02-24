@@ -1,22 +1,39 @@
-use std::ops::Not;
-
 use serde::{Deserialize, Serialize};
 
 /// Enum representing parameter type names (for schema/catalog definitions)
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub enum ParamTypeName {
+    #[serde(alias = "string")]
     String,
+    #[serde(alias = "number")]
+    Number,
     SlotIndex,
     EventID,
     ChannelIndex,
     DelayList,
     DelayTime,
+    #[serde(alias = "LogEvent")]
     LogEventType,
     ChannelList,
     SourceState,
     ClearType,
     LogicType,
+    #[serde(alias = "triggerEventType")]
     TriggerEventType,
+    #[serde(rename = "notifyEventNumber")]
+    NotifyEventNumber,
+    #[serde(rename = "notifyType")]
+    NotifyType,
+    #[serde(rename = "digioTriggerLine")]
+    DigioTriggerLine,
+    #[serde(rename = "generatorNumber")]
+    GeneratorNumber,
+    #[serde(rename = "triggerTimerNumber")]
+    TriggerTimerNumber,
+    #[serde(rename = "tsplinkTriggerLine")]
+    TsplinkTriggerLine,
+    #[serde(rename = "triggerLine")]
+    TriggerLine,
 }
 
 /// Enum representing actual parameter values

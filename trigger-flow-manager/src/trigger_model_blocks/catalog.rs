@@ -5,7 +5,6 @@ use std::collections::HashMap;
 /// The root structure representing all available trigger blocks
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct TriggerBlocks {
-    #[serde(flatten)]
     pub blocks: HashMap<String, BlockDefinition>,
     pub trigger_events: HashMap<String, EventDefinition>,
 }
@@ -32,7 +31,7 @@ pub struct Parameter {
     #[serde(rename = "type")]
     pub param_type: ParamTypeName,
     pub options: Option<Vec<ParameterOptions>>,
-    pub default: Option<String>,
+    pub default: Option<serde_json::Value>,
     pub range: Option<ParameterRange>,
 }
 
@@ -44,8 +43,8 @@ pub struct ParameterOptions {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ParameterRange {
-    pub min: Option<f64>,
-    pub max: Option<f64>,
+    pub min: Option<serde_json::Value>,
+    pub max: Option<serde_json::Value>,
 }
 
 impl TriggerBlocks {
