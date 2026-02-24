@@ -27,4 +27,3 @@ impl ValidationChain {
 }
 pub mod catalog_validator;
 pub mod instr_validator;
-pub mod slot_channel_hashmap;

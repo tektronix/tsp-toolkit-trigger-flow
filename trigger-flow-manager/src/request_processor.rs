@@ -1,7 +1,7 @@
 use crate::{
     TriggerBlocks, api::{
         request::{RequestType, ResponseType}, slot_channel_list::{self, SlotChannelList}, state::TriggerFlowState
-    }, validator::{ValidationChain, Validator, catalog_validator::CatalogValidator, slot_channel_hashmap::SlotChannelHashMap}
+    }, validator::{ValidationChain, Validator, catalog_validator::CatalogValidator}
 };
 use anyhow::{Ok, Result};
 use serde::{Deserialize, Serialize};

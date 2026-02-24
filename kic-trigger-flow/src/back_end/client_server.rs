@@ -4,9 +4,7 @@ use actix_web::{web, App, Error, HttpRequest, HttpResponse, HttpServer};
 use actix_ws::{Message, Session};
 use futures::StreamExt;
 use std::{
-    collections::HashMap,
-    fs::{self as other_fs},
-    sync::Arc,
+    collections::HashMap, fs::{self as other_fs}, sync::Arc
 };
 use tokio::{
     io::{self, AsyncBufReadExt},
@@ -233,4 +231,171 @@ pub async fn start(catalog_ref: &'static TriggerBlocks) -> anyhow::Result<()> {
 
     server.await?;
     Ok(())
+}
+
+/// A script representing the contents of a script. The preamble and postable are used
+/// for comments to be rendered to the file only if the file is being written for the
+/// first time. Otherwise, only the contents should be written between the sentinal
+/// comments.
+#[derive(Default, Debug, Clone, PartialEq)]
+pub struct Script {
+    pub preamble: String,
+    pub contents: String,
+    pub postamble: String,
+}
+
+impl Script {
+    /// Take the current [`TriggerFlowState`] and, using the provided [`TriggerBlocks`] catalog,
+    /// generate the appropriate [`Script`].
+    pub fn from_state(catalog: &TriggerBlocks, state: &TriggerFlowState) -> Result<Self, Error> {
+        Ok(Self { ..Default::default() })
+    }
+}
+
+#[cfg(test)]
+mod script_tests {
+    use std::collections::HashMap;
+
+    use trigger_flow_manager::{
+        BlockDefinition, EventDefinition, Parameter, TriggerBlocks, api::{slot_channel_list::{Channel, ChannelIndex, Module, Slot, SlotChannelList, SlotIndex}, state::TriggerFlowState}, trigger_model_blocks::{catalog::ParameterRange, param_types::ParamTypeName}
+    };
+
+    use crate::back_end::client_server::Script;
+
+    fn catalog() -> TriggerBlocks {
+        let blocks: HashMap<String, BlockDefinition> = HashMap::from([
+            (
+                "block_a".to_string(),
+                BlockDefinition {
+                    parameters: vec![
+                        Parameter {
+                            name: "param1".to_string(),
+                            param_type: ParamTypeName::SlotIndex,
+                            options: None,
+                            default: Some(1.into()),
+                            range: Some(ParameterRange {
+                                min: Some(1.into()),
+                                max: Some(64.into()),
+                            }),
+                        },
+                        Parameter {
+                            name: "param2".to_string(),
+                            param_type: ParamTypeName::String,
+                            options: None,
+                            default: Some("model_name".into()),
+                            range: None,
+                        },
+                        Parameter {
+                            name: "param3".to_string(),
+                            param_type: ParamTypeName::Number,
+                            options: None,
+                            default: Some(80.into()),
+                            range: None,
+                        },
+                    ],
+                    syntax: "slot[{{param1}}].block_a(\"{{param2}}\", {{param3}})".to_string(),
+                    description: Some("".to_string()),
+                    shape: "".to_string(),
+                },
+            ),
+            (
+                "block_b".to_string(),
+                BlockDefinition {
+                    parameters: vec![
+                        Parameter {
+                            name: "param1".to_string(),
+                            param_type: ParamTypeName::SlotIndex,
+                            options: None,
+                            default: Some(1.into()),
+                            range: Some(ParameterRange {
+                                min: Some(1.into()),
+                                max: Some(64.into()),
+                            }),
+                        },
+                        Parameter {
+                            name: "param2".to_string(),
+                            param_type: ParamTypeName::String,
+                            options: None,
+                            default: Some("model_name".into()),
+                            range: None,
+                        },
+                        Parameter {
+                            name: "param3".to_string(),
+                            param_type: ParamTypeName::Number,
+                            options: None,
+                            default: Some(80.into()),
+                            range: None,
+                        },
+                    ],
+                    syntax: "slot[{{param1}}].block_b(\"{{param2}}\", {{param3}})".to_string(),
+                    description: Some("".to_string()),
+                    shape: "".to_string(),
+                },
+            ),
+        ]);
+        let mut trigger_events: HashMap<String, EventDefinition> = HashMap::from([]);
+        TriggerBlocks {
+            blocks,
+            trigger_events,
+        }
+    }
+
+    fn slot_channel_list() -> SlotChannelList {
+        SlotChannelList {
+            slots: vec![
+                Slot {
+                    slot_index: SlotIndex(1),
+                    module: Module::MSMU60_2,
+                    node_id: "localnode".to_string(),
+                    channels: vec![
+                        Channel {
+                            channel_index: ChannelIndex(1),
+                            in_use: false,
+                        },
+                        Channel {
+                            channel_index: ChannelIndex(2),
+                            in_use: false,
+                        },
+                    ],
+                },
+                Slot {
+                    slot_index: SlotIndex(2),
+                    module: Module::MPSU50_2ST,
+                    node_id: "localnode".to_string(),
+                    channels: vec![
+                        Channel {
+                            channel_index: ChannelIndex(1),
+                            in_use: false,
+                        },
+                        Channel {
+                            channel_index: ChannelIndex(2),
+                            in_use: false,
+                        },
+                    ],
+                },
+            ],
+        }
+    }
+
+    #[test]
+    fn empty_trigger_flow_state_produces_empty_script() {
+        let catalog = catalog();
+        let slot_channel_list = slot_channel_list();
+
+        let input = TriggerFlowState {
+            slot_channel_list,
+            models: HashMap::from([ ]),
+        };
+
+        let Ok(actual) = Script::from_state(&catalog, &input) else {
+            panic!("should be able to create script");
+        };
+
+        let expected = Script::default();
+
+        assert_eq!(
+            expected,
+            actual,
+        );
+    }
 }

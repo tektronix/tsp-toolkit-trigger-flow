@@ -10,10 +10,10 @@ pub enum Module {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-pub struct SlotIndex(u8);
+pub struct SlotIndex(pub u8);
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-pub struct ChannelIndex(u8);
+pub struct ChannelIndex(pub u8);
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Channel {
@@ -87,7 +87,7 @@ impl SlotChannelList {
                 let config_json: SystemConfigJson = serde_json::from_str(&system_config)
                 .map_err(|e| format!("Failed to parse system configuration JSON: {}", e))?;
                 // let slots
-                
+
             }
             SlotChannelListUpdate::TriggerFlowState(triggerflow_state)=> {
                 //use triggerflow_state to update slot_channel_list
