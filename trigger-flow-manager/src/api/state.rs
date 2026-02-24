@@ -6,7 +6,7 @@ use crate::{TriggerBlocks, api::{request::ResponseType, slot_channel_list::{Slot
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TriggerFlowState {
     pub slot_channel_list: SlotChannelList,
-    pub models: HashMap<String, TriggerModelState>,
+    pub models: Vec<TriggerModelState>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TriggerModelState {
@@ -24,9 +24,9 @@ impl TriggerFlowState {
            match SlotChannelList::new(&system_config) {
                 Ok(new_list) => {
                 self.slot_channel_list = new_list;
-                let response = ResponseType::InitialResponse { 
-                    slot_channel_list: self.slot_channel_list.clone(), 
-                    catalog: catalog.clone() 
+                let response = ResponseType::InitialResponse {
+                    slot_channel_list: self.slot_channel_list.clone(),
+                    catalog: catalog.clone()
                 };
                 serde_json::to_string(&response).unwrap_or_else(|_| "{\"error\":\"Serialization failed\"}".to_string())
                 }
@@ -36,13 +36,13 @@ impl TriggerFlowState {
                 }
            }
            //return the response as json string
-          
+
         } else {
             match SlotChannelList::update_slot_channel_list(&mut self.slot_channel_list, SlotChannelListUpdate::SystemConfig(system_config.to_string())) {
                 Ok(new_list)=> {
                     self.slot_channel_list = new_list;
-                    // let response = ResponseType::EvaluateResponse { 
-                    //     current_state: () 
+                    // let response = ResponseType::EvaluateResponse {
+                    //     current_state: ()
                     // };
                 }
                 Err(e)=> {}
