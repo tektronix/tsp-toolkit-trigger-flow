@@ -9,6 +9,7 @@ interface FlowNode {
   id: string;
   position: { x: number; y: number };
   svgPath: string;
+  catalogLabel?: string;
   input?: string;
   outputs: string[];
   color?: string;
@@ -40,14 +41,19 @@ export class Canvas {
         id: `node-${++this.nodeCounter}`,
         position: { x: event.rect.x, y: event.rect.y },
         svgPath: event.data.svgPath,
+        catalogLabel: event.data.catalogLabel,
         input: `input-${this.nodeCounter}`,
         outputs: [`output-${this.nodeCounter}`],
         color: '#FFFFFF'
       };
       this.nodes.update(current => [...current, newNode]);
       
-      // Add block to canvas blocks service
-      this.canvasBlocksService.addBlock(newNode.id, newNode.svgPath, newNode.position);
+      // Add block to canvas blocks service with catalogLabel
+      this.canvasBlocksService.addBlock(
+        newNode.id, 
+        newNode.catalogLabel || newNode.svgPath, 
+        newNode.position
+      );
     }
   }
 

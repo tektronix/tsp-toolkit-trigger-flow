@@ -29,17 +29,16 @@ export class CanvasBlocksService {
     this.catalogData = catalog;
   }
 
-  addBlock(nodeId: string, svgPath: string, position: { x: number; y: number }): void {
+  addBlock(nodeId: string, blockLabel: string, position: { x: number; y: number }): void {
     if (!this.catalogData) {
       console.warn('Catalog data not loaded yet');
       return;
     }
 
-    // Extract block name from SVG path (e.g., "assets/shapes/Branches/Always.svg" -> "always")
-    const blockName = this.extractBlockNameFromPath(svgPath);
+    const blockName = blockLabel.toLowerCase().trim();
     
     if (!blockName) {
-      console.warn('Could not extract block name from:', svgPath);
+      console.warn('Block label is empty');
       return;
     }
 
@@ -56,7 +55,7 @@ export class CanvasBlocksService {
       blockName: blockName,
       blockData: blockData,
       position: position,
-      svgPath: svgPath
+      svgPath: blockLabel
     };
 
     this.canvasBlocks.push(canvasBlock);
@@ -82,15 +81,6 @@ export class CanvasBlocksService {
   clearAll(): void {
     this.canvasBlocks = [];
     this.updateAndPrint();
-  }
-
-  private extractBlockNameFromPath(svgPath: string): string {
-    // Extract filename without extension from path like "assets/shapes/Branches/Always.svg"
-    const match = svgPath.match(/\/([^\/]+)\.svg$/i);
-    if (match) {
-      return match[1].toLowerCase().trim();
-    }
-    return '';
   }
 
   private findBlockInCatalog(blockName: string): BlockDefinition | EventDefinition | null {
