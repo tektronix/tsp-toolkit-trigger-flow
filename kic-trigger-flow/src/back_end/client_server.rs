@@ -4,21 +4,23 @@ use actix_web::{web, App, Error, HttpRequest, HttpResponse, HttpServer};
 use actix_ws::{Message, Session};
 use futures::StreamExt;
 use std::{
-    collections::HashMap, fs::{self as other_fs}, sync::Arc
+    collections::HashMap,
+    fs::{self as other_fs},
+    sync::Arc,
 };
 use tokio::{
     io::{self, AsyncBufReadExt},
     sync::{broadcast, Mutex},
 };
 use trigger_flow_manager::{
-    api::{
+    IpcData, TriggerBlocks, api::{
         request::{RequestType, ResponseWrapper},
         slot_channel_list::SlotChannelList,
-        state::TriggerFlowState,
-    },
-    request_processor::RequestProcessor,
-    IpcData, TriggerBlocks,
+        state::{TriggerFlowState, TriggerModelState},
+    }, request_processor::RequestProcessor
 };
+
+use handlebars::Handlebars;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -197,8 +199,7 @@ pub async fn start(catalog_ref: &'static TriggerBlocks) -> anyhow::Result<()> {
 
     tokio::spawn(async move {
         let stdin: tokio::io::Stdin = io::stdin();
-        let mut reader: io::Lines<io::BufReader<io::Stdin>> =
-            io::BufReader::new(stdin).lines();
+        let mut reader: io::Lines<io::BufReader<io::Stdin>> = io::BufReader::new(stdin).lines();
 
         let app_state = app_state.clone();
 
@@ -248,7 +249,27 @@ impl Script {
     /// Take the current [`TriggerFlowState`] and, using the provided [`TriggerBlocks`] catalog,
     /// generate the appropriate [`Script`].
     pub fn from_state(catalog: &TriggerBlocks, state: &TriggerFlowState) -> Result<Self, Error> {
-        Ok(Self { ..Default::default() })
+        let mut contents = String::new();
+        for (_k,v) in state.models.clone() {
+            let hb = Handlebars::new();
+            contents = format!("{contents}{}\n", format!("slot[{}].trigger.model.create(\"{}\")", v.slot_index.0, v.model_name));
+            for b in v.blocks {
+                let Some(catalog) = catalog.blocks.get(&b.block_type) else {
+                    panic!("should find block in catalog");
+                };
+                let template = catalog.syntax.clone();
+                let Ok(s) = hb.render_template(&template, &b.block_parameters) else {
+                    panic!("should render template");
+                };
+                contents = format!("{contents}{s}\n");
+            }
+            contents = format!("{contents}{}\n", format!("--slot[{}].trigger.model.initialize(\"{}\")", v.slot_index.0, v.model_name));
+        };
+
+        Ok(Self {
+            contents,
+            ..Default::default()
+        })
     }
 }
 
@@ -257,7 +278,13 @@ mod script_tests {
     use std::collections::HashMap;
 
     use trigger_flow_manager::{
-        BlockDefinition, EventDefinition, Parameter, TriggerBlocks, api::{slot_channel_list::{Channel, ChannelIndex, Module, Slot, SlotChannelList, SlotIndex}, state::TriggerFlowState}, trigger_model_blocks::{catalog::ParameterRange, param_types::ParamTypeName}
+        api::{
+            slot_channel_list::{Channel, ChannelIndex, Module, Slot, SlotChannelList, SlotIndex},
+            state::{TriggerFlowState, TriggerModelState},
+        },
+        model::trigger_model_block::{BlockPosition, TriggerModelBlock},
+        trigger_model_blocks::{catalog::ParameterRange, param_types::ParamTypeName},
+        BlockDefinition, EventDefinition, Parameter, TriggerBlocks,
     };
 
     use crate::back_end::client_server::Script;
@@ -384,7 +411,7 @@ mod script_tests {
 
         let input = TriggerFlowState {
             slot_channel_list,
-            models: HashMap::from([ ]),
+            models: HashMap::from([]),
         };
 
         let Ok(actual) = Script::from_state(&catalog, &input) else {
@@ -393,9 +420,46 @@ mod script_tests {
 
         let expected = Script::default();
 
-        assert_eq!(
-            expected,
-            actual,
-        );
+        assert_eq!(expected, actual,);
+    }
+
+    #[test]
+    fn single_tm_single_block() {
+        let catalog = catalog();
+        let slot_channel_list = slot_channel_list();
+
+        let input = TriggerFlowState {
+            slot_channel_list,
+            models: HashMap::from([(
+                "tm1".to_string(),
+                TriggerModelState {
+                    model_name: "tm1".to_string(),
+                    slot_index: SlotIndex(1),
+                    blocks: vec![TriggerModelBlock {
+                        block_type: "block_a".to_string(),
+                        block_parameters: HashMap::from([
+                            ("param1".to_string(), 1.into()),
+                            ("param2".to_string(), "asdf".into()),
+                            ("param3".to_string(), 81.into()),
+                        ]),
+                        incoming: None,
+                        outgoing: None,
+                        block_position: BlockPosition { x: 0.0, y: 0.0 },
+                        block_id: 1,
+                    }],
+                },
+            )]),
+        };
+
+        let Ok(actual) = Script::from_state(&catalog, &input) else {
+            panic!("should be able to create script");
+        };
+
+        let expected = Script {
+            contents: "slot[1].trigger.model.create(\"tm1\")\nslot[1].block_a(\"asdf\", 81)\n--slot[1].trigger.model.initialize(\"tm1\")\n".to_string(),
+            ..Default::default()
+        };
+
+        assert_eq!(expected, actual);
     }
 }
