@@ -13,11 +13,13 @@ use tokio::{
     sync::{broadcast, Mutex},
 };
 use trigger_flow_manager::{
-    IpcData, TriggerBlocks, api::{
+    api::{
         request::{RequestType, ResponseWrapper},
         slot_channel_list::SlotChannelList,
         state::{TriggerFlowState, TriggerModelState},
-    }, request_processor::RequestProcessor
+    },
+    request_processor::RequestProcessor,
+    IpcData, TriggerBlocks,
 };
 
 use handlebars::Handlebars;
@@ -250,9 +252,15 @@ impl Script {
     /// generate the appropriate [`Script`].
     pub fn from_state(catalog: &TriggerBlocks, state: &TriggerFlowState) -> Result<Self, Error> {
         let mut contents = String::new();
-        for (_k,v) in state.models.clone() {
+        for (_k, v) in state.models.clone() {
             let hb = Handlebars::new();
-            contents = format!("{contents}{}\n", format!("slot[{}].trigger.model.create(\"{}\")", v.slot_index.0, v.model_name));
+            contents = format!(
+                "{contents}{}\n",
+                format!(
+                    "slot[{}].trigger.model.create(\"{}\")",
+                    v.slot_index.0, v.model_name
+                )
+            );
             for b in v.blocks {
                 let Some(catalog) = catalog.blocks.get(&b.block_type) else {
                     panic!("should find block in catalog");
@@ -263,8 +271,14 @@ impl Script {
                 };
                 contents = format!("{contents}{s}\n");
             }
-            contents = format!("{contents}{}\n", format!("--slot[{}].trigger.model.initialize(\"{}\")", v.slot_index.0, v.model_name));
-        };
+            contents = format!(
+                "{contents}{}\n",
+                format!(
+                    "--slot[{}].trigger.model.initialize(\"{}\")",
+                    v.slot_index.0, v.model_name
+                )
+            );
+        }
 
         Ok(Self {
             contents,
@@ -503,6 +517,73 @@ mod script_tests {
 
         let expected = Script {
             contents: "slot[1].trigger.model.create(\"tm1\")\nslot[1].block_a(\"asdf\", 81)\nslot[2].block_b(\"qwerty\")\n--slot[1].trigger.model.initialize(\"tm1\")\n".to_string(),
+            ..Default::default()
+        };
+
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn multiple_models_single_block() {
+        let catalog = catalog();
+        let slot_channel_list = slot_channel_list();
+
+        let input = TriggerFlowState {
+            slot_channel_list,
+            models: HashMap::from([
+                (
+                    "tm1".to_string(),
+                    TriggerModelState {
+                        model_name: "tm1".to_string(),
+                        slot_index: SlotIndex(1),
+                        blocks: vec![TriggerModelBlock {
+                            block_type: "block_a".to_string(),
+                            block_parameters: HashMap::from([
+                                ("param1".to_string(), 1.into()),
+                                ("param2".to_string(), "asdf".into()),
+                                ("param3".to_string(), 81.into()),
+                            ]),
+                            incoming: None,
+                            outgoing: None,
+                            block_position: BlockPosition { x: 0.0, y: 0.0 },
+                            block_id: 1,
+                        }],
+                    },
+                ),
+                (
+                    "tm2".to_string(),
+                    TriggerModelState {
+                        model_name: "tm2".to_string(),
+                        slot_index: SlotIndex(2),
+                        blocks: vec![TriggerModelBlock {
+                            block_type: "block_a".to_string(),
+                            block_parameters: HashMap::from([
+                                ("param1".to_string(), 3.into()),
+                                ("param2".to_string(), "zxcv".into()),
+                                ("param3".to_string(), 90.into()),
+                            ]),
+                            incoming: None,
+                            outgoing: None,
+                            block_position: BlockPosition { x: 0.0, y: 0.0 },
+                            block_id: 1,
+                        }],
+                    },
+                ),
+            ]),
+        };
+
+        let Ok(actual) = Script::from_state(&catalog, &input) else {
+            panic!("should be able to create script");
+        };
+
+        let expected = Script {
+            contents: r#"slot[1].trigger.model.create("tm1")
+slot[1].block_a("asdf", 81)
+--slot[1].trigger.model.initialize("tm1")
+slot[2].trigger.model.create("tm2")
+slot[3].block_a("zxcv", 90)
+--slot[2].trigger.model.initialize("tm2")
+"#.to_string(),
             ..Default::default()
         };
 
