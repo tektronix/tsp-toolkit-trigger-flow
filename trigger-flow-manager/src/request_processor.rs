@@ -1,8 +1,6 @@
 use crate::{
     TriggerBlocks, api::{
-        request::{RequestType, ResponseType},
-        state::TriggerFlowState,
-        system_config::{SlotChannelList, SystemConfiguration},
+        request::{RequestType, ResponseType}, slot_channel_list::{self, SlotChannelList}, state::TriggerFlowState
     }, validator::{ValidationChain, Validator, catalog_validator::CatalogValidator, slot_channel_hashmap::SlotChannelHashMap}
 };
 use anyhow::{Ok, Result};
@@ -29,12 +27,13 @@ impl RequestProcessor {
     pub fn process_request(
         &self,
         catalog: &'static TriggerBlocks,
+        slot_channel_list: &SlotChannelList,
         request: RequestType,
     ) -> Result<ResponseType> {
         match request {
             RequestType::InitialRequest => {
-                let response = self.handle_initial_request(catalog, slot_channel_list.clone()) //will be intialized
-                Ok(ResponseType::InitialResponse { slot_channel_list: response.slot_channel_list, catalog: response.catalog })
+                let response = self.handle_initial_request(catalog, slot_channel_list)?; //will be intialized
+                Ok(ResponseType::InitialResponse { slot_channel_list: slot_channel_list.clone(), catalog: catalog.clone() })
             }
             RequestType::EvaluateRequest { current_state } => {
                 let response = self.handle_evaluate_request(current_state.clone())?;
@@ -47,8 +46,9 @@ impl RequestProcessor {
     pub fn handle_initial_request(
         &self,
         catalog: &'static TriggerBlocks,
-        slot_channel_list: SlotChannelList,
+        slot_channel_list: &SlotChannelList,
     ) -> Result<ResponseType> {
+        //call process_system_config with update type systemconfig
         Ok(ResponseType::InitialResponse {
             slot_channel_list: slot_channel_list.clone(),
             catalog: catalog.clone(),
@@ -58,6 +58,7 @@ impl RequestProcessor {
         &self,
         current_state: TriggerFlowState,
     ) -> Result<TriggerFlowState> {
+        //call process_system_config with update type triggerflowstate
         Ok(current_state)
     }
 }

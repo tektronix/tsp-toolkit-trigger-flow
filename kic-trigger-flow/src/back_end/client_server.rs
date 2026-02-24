@@ -1,4 +1,5 @@
 //placeholder to prove server is running
+use crate::back_end::stdin_line::StdinLine;
 use actix_web::{web, App, Error, HttpRequest, HttpResponse, HttpServer};
 use actix_ws::{Message, Session};
 use futures::StreamExt;
@@ -7,9 +8,16 @@ use std::{
     fs::{self as other_fs},
     sync::Arc,
 };
-use tokio::sync::{broadcast, Mutex};
+use tokio::{
+    io::{self, AsyncBufReadExt},
+    sync::{broadcast, Mutex},
+};
 use trigger_flow_manager::{
-    api::request::{RequestType, ResponseWrapper},
+    api::{
+        request::{RequestType, ResponseWrapper},
+        slot_channel_list::SlotChannelList,
+        state::TriggerFlowState,
+    },
     request_processor::RequestProcessor,
     IpcData, TriggerBlocks,
 };
@@ -18,7 +26,8 @@ use trigger_flow_manager::{
 pub struct AppState {
     session: Arc<Mutex<Option<Session>>>,
     catalog: &'static TriggerBlocks,
-    gen_script_tx: broadcast::Sender<()>,
+    trigger_flow_state: Arc<Mutex<TriggerFlowState>>,
+    trigger_flow_tx: broadcast::Sender<()>,
 }
 
 impl AppState {
@@ -26,7 +35,11 @@ impl AppState {
         Self {
             session: Arc::new(Mutex::new(None)),
             catalog: catalog_ref,
-            gen_script_tx: broadcast::channel(100).0,
+            trigger_flow_state: Arc::new(Mutex::new(TriggerFlowState {
+                slot_channel_list: SlotChannelList::default(),
+                models: HashMap::new(),
+            })),
+            trigger_flow_tx: broadcast::channel(100).0,
         }
     }
 }
@@ -105,8 +118,14 @@ async fn ws_index(
                         Ok(ipc_data) => {
                             match RequestType::try_from(&ipc_data) {
                                 Ok(request) => {
-                                    let response_type =
-                                        RequestProcessor::process_request(&processor, &app_state.catalog, request);
+                                    let trigger_flow_state =
+                                        app_state.trigger_flow_state.lock().await;
+                                    let response_type = RequestProcessor::process_request(
+                                        &processor,
+                                        &app_state.catalog,
+                                        &trigger_flow_state.slot_channel_list.clone(),
+                                        request,
+                                    );
                                     let response_wrapper = match response_type {
                                         Ok(resp) => ResponseWrapper::Ok(resp),
                                         Err(e) => ResponseWrapper::Err(e.to_string()),
@@ -175,6 +194,43 @@ pub async fn start_web_server(app_state: Arc<AppState>) -> std::io::Result<()> {
 pub async fn start(catalog_ref: &'static TriggerBlocks) -> anyhow::Result<()> {
     let app_state = Arc::new(AppState::new(catalog_ref));
     let server = start_web_server(app_state.clone());
+
+    let mut trigger_flow_rx = app_state.trigger_flow_tx.subscribe();
+
+    tokio::spawn(async move {
+        let stdin: tokio::io::Stdin = io::stdin();
+        let mut reader: io::Lines<io::BufReader<io::Stdin>> =
+            io::BufReader::new(stdin).lines();
+
+        let app_state = app_state.clone();
+
+        while let Some(line) = reader.next_line().await.unwrap() {
+            let trimmed_line = line.trim();
+            match StdinLine::try_from(trimmed_line) {
+                Ok(StdinLine::Systems) => {
+                    //convert the trimmed_line to slotChannelList
+                    //use the triggerflowState mutex to update the state if slotChannelList already exists for it
+
+                    let mut triggerflow_state: tokio::sync::MutexGuard<'_, TriggerFlowState> =
+                        app_state.trigger_flow_state.lock().await;
+                    let response =
+                        triggerflow_state.process_system_config(trimmed_line, &app_state.catalog);
+
+                    println!("{}", response);
+
+                    //if session exists, change in system will be evaluate request and should be handled and response sent to UI
+                    let mut session = app_state.session.lock().await;
+                    if let Some(session) = session.as_mut() {
+                        session.text(response).await.unwrap();
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Failed to parse stdin line: {}", e);
+                }
+            }
+        }
+    });
+
     server.await?;
     Ok(())
 }

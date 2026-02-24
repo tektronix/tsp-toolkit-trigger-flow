@@ -1,7 +1,7 @@
-use crate::model::trigger_model::TriggerModel;
+use crate::api::state::TriggerModelState;
 use anyhow::Result;
 pub trait Validator {
-    fn validate(&self, model: &TriggerModel) -> Result<()>;
+    fn validate(&self, model: &TriggerModelState) -> Result<()>;
 }
 
 pub struct ValidationChain {
@@ -18,7 +18,7 @@ impl ValidationChain {
         self.validators.push(validator);
         self
     }
-    pub fn validate(&self, model: &TriggerModel) -> Result<()> {
+    pub fn validate(&self, model: &TriggerModelState) -> Result<()> {
         for validator in &self.validators {
             validator.validate(model)?;
         }
@@ -27,3 +27,4 @@ impl ValidationChain {
 }
 pub mod catalog_validator;
 pub mod instr_validator;
+pub mod slot_channel_hashmap;

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::api::system_config::{SlotChannelList};
+use crate::api::slot_channel_list::{SlotChannelList};
 //request types from angular to backend
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RequestType {
