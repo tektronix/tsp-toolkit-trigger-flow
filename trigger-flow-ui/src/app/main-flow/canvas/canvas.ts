@@ -3,11 +3,13 @@ import { FFlowModule, FFlowComponent } from '@foblex/flow';
 import { CommonModule } from '@angular/common';
 import { AngularSvgIconModule } from 'angular-svg-icon';
 import { SvgManagerService, SvgOptions } from '../../services/svg-manager.service';
+import { CanvasBlocksService } from '../../services/canvas-blocks.service';
 
 interface FlowNode {
   id: string;
   position: { x: number; y: number };
   svgPath: string;
+  catalogLabel?: string;
   input?: string;
   outputs: string[];
   color?: string;
@@ -26,6 +28,7 @@ interface FlowNode {
 export class Canvas {
   @ViewChild(FFlowComponent) flowComponent!: FFlowComponent;
   private svgManager = inject(SvgManagerService);
+  private canvasBlocksService = inject(CanvasBlocksService);
 
   nodes = signal<FlowNode[]>([]);
   private nodeCounter = 0;
@@ -38,11 +41,19 @@ export class Canvas {
         id: `node-${++this.nodeCounter}`,
         position: { x: event.rect.x, y: event.rect.y },
         svgPath: event.data.svgPath,
+        catalogLabel: event.data.catalogLabel,
         input: `input-${this.nodeCounter}`,
         outputs: [`output-${this.nodeCounter}`],
         color: '#FFFFFF'
       };
       this.nodes.update(current => [...current, newNode]);
+      
+      // Add block to canvas blocks service with catalogLabel
+      this.canvasBlocksService.addBlock(
+        newNode.id, 
+        newNode.catalogLabel || newNode.svgPath, 
+        newNode.position
+      );
     }
   }
 
@@ -69,6 +80,8 @@ export class Canvas {
     this.nodes.update(current => current.map((node): FlowNode => {
       const newPos = updates.get(node.id);
       if (newPos) {
+        // Update canvas blocks service with new position
+        this.canvasBlocksService.updateBlockPosition(node.id, newPos);
         return { ...node, position: newPos };
       }
       return node;

@@ -20,27 +20,26 @@ export class SidePanelAccordion {
         { 
           label: 'Actions', 
           shapes: [
-            { type: 'action-1', svgPath: 'assets/shapes/Actions/Config List Next.svg'}
-            //{  }
+            { type: 'action-1', svgPath: 'assets/shapes/Actions/Config List Next.svg', catalogLabel: 'configlist next' }
           ]
         },
         { 
           label: 'Branches',
           shapes: [
-            { type: 'branch-1', svgPath: 'assets/shapes/Branches/Always.svg' },
-            { type: 'branch-2', svgPath: 'assets/shapes/Branches/On Event.svg' }
+            { type: 'branch-1', svgPath: 'assets/shapes/Branches/Always.svg', catalogLabel: 'always' },
+            { type: 'branch-2', svgPath: 'assets/shapes/Branches/On Event.svg', catalogLabel: 'event' }
           ]
         },
         { 
           label: 'Notify',
           shapes: [
-            { type: 'notify-1', svgPath: 'assets/shapes/Notify/Notify Block Template.svg'}
+            { type: 'notify-1', svgPath: 'assets/shapes/Notify/Notify Block Template.svg', catalogLabel: 'notify' }
           ]
         },
         { 
           label: 'Timing',
           shapes: [
-            { type: 'timer-1', svgPath: 'assets/shapes/Timing/Constant Delay.svg'}
+            { type: 'timer-1', svgPath: 'assets/shapes/Timing/Constant Delay.svg', catalogLabel: 'delay constant' }
           ]
         }
       ]
