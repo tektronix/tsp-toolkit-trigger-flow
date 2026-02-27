@@ -1,6 +1,6 @@
 //temporary file to define HashMap
+use crate::api::slot_channel_list::{ChannelIndex, SlotIndex};
 use std::collections::HashMap;
-use crate::api::slot_channel_list::{ ChannelIndex, SlotIndex};
 
 pub struct SlotChannelHashMap {
     map: HashMap<String, (SlotIndex, Option<ChannelIndex>)>,
@@ -32,11 +32,10 @@ impl SlotChannelHashMap {
 /*
     One model-one slot
     modelA on slot1, then modelB on slot1 can be decided on UI?
-    backend gets model,slot. for channels, iterate through blocks, if any block has channel index, 
+    backend gets model,slot. for channels, iterate through blocks, if any block has channel index,
         check it against the slot's available channels
         and also put in HashMap if that slot, channel combination not already present in HashMap.
 
     modelA has (slot1,channel1), then modelB cannot have (slot1,channel1) -use HashMap for this check.
 
 */
-
