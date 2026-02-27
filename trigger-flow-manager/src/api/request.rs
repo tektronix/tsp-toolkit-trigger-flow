@@ -6,7 +6,7 @@ use crate::api::slot_channel_list::{SlotChannelList};
 pub enum RequestType {
     InitialRequest,
     EvaluateRequest {
-        current_state: crate::api::state::TriggerFlowState,
+        trigger_flow_state: crate::api::state::TriggerFlowState,
     },
 }
 
@@ -15,10 +15,10 @@ pub enum RequestType {
 pub enum ResponseType {
     InitialResponse {
         slot_channel_list: SlotChannelList,
-        catalog: crate::TriggerBlocks,
+        catalog: crate::Catalog,
     },
     EvaluateResponse {
-        current_state: crate::api::state::TriggerFlowState,
+        trigger_flow_state: crate::api::state::TriggerFlowState,
     },
 }
 

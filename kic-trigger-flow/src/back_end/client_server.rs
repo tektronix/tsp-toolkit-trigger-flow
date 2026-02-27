@@ -19,19 +19,19 @@ use trigger_flow_manager::{
         state::TriggerFlowState,
     },
     request_processor::RequestProcessor,
-    IpcData, TriggerBlocks,
+    IpcData, Catalog,
 };
 
 #[derive(Clone)]
 pub struct AppState {
     session: Arc<Mutex<Option<Session>>>,
-    catalog: &'static TriggerBlocks,
+    catalog: &'static Catalog,
     trigger_flow_state: Arc<Mutex<TriggerFlowState>>,
     trigger_flow_tx: broadcast::Sender<()>,
 }
 
 impl AppState {
-    pub fn new(catalog_ref: &'static TriggerBlocks) -> Self {
+    pub fn new(catalog_ref: &'static Catalog) -> Self {
         Self {
             session: Arc::new(Mutex::new(None)),
             catalog: catalog_ref,
@@ -118,12 +118,12 @@ async fn ws_index(
                         Ok(ipc_data) => {
                             match RequestType::try_from(&ipc_data) {
                                 Ok(request) => {
-                                    let trigger_flow_state =
+                                    let mut trigger_flow_state =
                                         app_state.trigger_flow_state.lock().await;
                                     let response_type = RequestProcessor::process_request(
                                         &processor,
                                         &app_state.catalog,
-                                        &trigger_flow_state.slot_channel_list.clone(),
+                                        &mut trigger_flow_state,
                                         request,
                                     );
                                     let response_wrapper = match response_type {
@@ -191,7 +191,7 @@ pub async fn start_web_server(app_state: Arc<AppState>) -> std::io::Result<()> {
     server.await
 }
 
-pub async fn start(catalog_ref: &'static TriggerBlocks) -> anyhow::Result<()> {
+pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
     let app_state = Arc::new(AppState::new(catalog_ref));
     let server = start_web_server(app_state.clone());
 

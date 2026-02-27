@@ -1,7 +1,7 @@
-use crate::api::state::TriggerModelState;
+use crate::api::state::{TriggerFlowState, TriggerModelState};
 use anyhow::Result;
 pub trait Validator {
-    fn validate(&self, model: &TriggerModelState) -> Result<()>;
+    fn validate(&self, model: &mut TriggerFlowState) -> Result<()>;
 }
 
 pub struct ValidationChain {
@@ -18,11 +18,11 @@ impl ValidationChain {
         self.validators.push(validator);
         self
     }
-    pub fn validate(&self, model: &TriggerModelState) -> Result<()> {
+    pub fn validate(&self, state: &mut TriggerFlowState) -> Result<TriggerFlowState> {
         for validator in &self.validators {
-            validator.validate(model)?;
+            validator.validate(state)?;
         }
-        Ok(())
+        Ok(state.clone())
     }
 }
 pub mod catalog_validator;

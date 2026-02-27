@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{TriggerBlocks, api::{request::ResponseType, slot_channel_list::{SlotChannelList, SlotChannelListUpdate, SlotIndex}}, model::trigger_model_block::TriggerModelBlock, trigger_model_blocks::catalog};
+use crate::{Catalog, api::{request::ResponseType, slot_channel_list::{SlotChannelList, SlotChannelListUpdate, SlotIndex}}, model::trigger_model_block::TriggerModelBlock, trigger_model_blocks::catalog};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TriggerFlowState {
     pub slot_channel_list: SlotChannelList,
@@ -16,7 +16,9 @@ pub struct TriggerModelState {
 }
 
 impl TriggerFlowState {
-    pub fn process_system_config(&mut self, system_config: &str, catalog: & 'static TriggerBlocks ) -> String {
+
+    //only when the system_config is updated
+    pub fn process_system_config(&mut self, system_config: &str, catalog: & 'static Catalog ) -> String {
         //if slot_channel_list does not exist for self, initialize
         //initialize the slot_channel_list with the new system_config
         //sent as initial_response
@@ -41,11 +43,14 @@ impl TriggerFlowState {
             match SlotChannelList::update_slot_channel_list(&mut self.slot_channel_list, SlotChannelListUpdate::SystemConfig(system_config.to_string())) {
                 Ok(new_list)=> {
                     self.slot_channel_list = new_list;
-                    // let response = ResponseType::EvaluateResponse { 
-                    //     current_state: () 
-                    // };
+                    let response = ResponseType::EvaluateResponse { 
+                        trigger_flow_state: self.clone() 
+                    };
+                    serde_json::to_string(&response).unwrap_or_else(|_| "{\"error\":\"Serialization failed\"}".to_string());
                 }
-                Err(e)=> {}
+                Err(e)=> {
+                    "".to_string();
+                }
             }
             "".to_string()
         }

@@ -86,13 +86,21 @@ impl SlotChannelList {
                     //slots, slotID, module, number of channels
                 let config_json: SystemConfigJson = serde_json::from_str(&system_config)
                 .map_err(|e| format!("Failed to parse system configuration JSON: {}", e))?;
-                // let slots
+                let slots = config_json
+                    .slots
+                    .iter()
+                    .map(|slot_json| Slot::try_from((&config_json.localnode, slot_json)))
+                    .collect::<Result<Vec<_>, _>>()?;
+
+                self.slots = slots;
                 
             }
             SlotChannelListUpdate::TriggerFlowState(triggerflow_state)=> {
                 //use triggerflow_state to update slot_channel_list
                 //what can change?
                     //in_use status of channels
+
+                
             }
         }
         Ok(SlotChannelList { slots:self.slots.clone() })
