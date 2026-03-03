@@ -26,6 +26,4 @@ pub struct TriggerModelBlock {
     //add the error tuple containing error_bool and error_message
 }
 
-impl TriggerModelBlock {
-    
-}
+impl TriggerModelBlock {}

@@ -11,5 +11,4 @@ pub struct TriggerModel {
     pub model_blocks: HashMap<u32, TriggerModelBlock>,
 }
 
-impl TriggerModel {
-}
+impl TriggerModel {}

@@ -13,11 +13,13 @@ use tokio::{
     sync::{broadcast, Mutex},
 };
 use trigger_flow_manager::{
-    Catalog, IpcData, api::{
+    api::{
         request::{RequestType, ResponseWrapper},
         slot_channel_list::{SlotChannelList, SystemConfigJson},
         state::TriggerFlowState,
-    }, request_processor::RequestProcessor
+    },
+    request_processor::RequestProcessor,
+    Catalog, IpcData,
 };
 
 #[derive(Clone)]
@@ -216,7 +218,8 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                         // Process each system in the systems array
                         let response = if let Some(system_config) = msg.systems.first() {
                             let system_json = serde_json::to_string(system_config).unwrap();
-                            triggerflow_state.process_system_config(&system_json, &app_state.catalog)
+                            triggerflow_state
+                                .process_system_config(&system_json, &app_state.catalog)
                         } else {
                             "No systems found in message".to_string()
                         };
@@ -227,7 +230,7 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                         let mut session = app_state.session.lock().await;
                         if let Some(session) = session.as_mut() {
                             session.text(response).await.unwrap();
-                        } 
+                        }
                     }
                 }
             } else {

@@ -5,8 +5,6 @@ pub mod trigger_model_blocks;
 pub mod validator;
 
 // Re-export commonly used types
-pub use trigger_model_blocks::catalog::{
-    BlockDefinition, EventDefinition, Parameter, Catalog,
-};
+pub use trigger_model_blocks::catalog::{BlockDefinition, Catalog, EventDefinition, Parameter};
 
 pub use api::ipc_data::IpcData;
