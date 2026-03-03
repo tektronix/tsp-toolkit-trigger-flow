@@ -13,13 +13,11 @@ use tokio::{
     sync::{broadcast, Mutex},
 };
 use trigger_flow_manager::{
-    api::{
+    Catalog, IpcData, api::{
         request::{RequestType, ResponseWrapper},
-        slot_channel_list::SlotChannelList,
+        slot_channel_list::{SlotChannelList, SystemConfigJson},
         state::TriggerFlowState,
-    },
-    request_processor::RequestProcessor,
-    IpcData, Catalog,
+    }, request_processor::RequestProcessor
 };
 
 #[derive(Clone)]
@@ -122,7 +120,6 @@ async fn ws_index(
                                         app_state.trigger_flow_state.lock().await;
                                     let response_type = RequestProcessor::process_request(
                                         &processor,
-                                        &app_state.catalog,
                                         &mut trigger_flow_state,
                                         request,
                                     );
@@ -132,6 +129,7 @@ async fn ws_index(
                                     };
                                     let response =
                                         serde_json::to_string(&response_wrapper).unwrap();
+                                    println!("Sending WebSocket response: {}", response);
                                     session.text(&*response).await.unwrap();
                                 }
                                 Err(err) => {
@@ -185,7 +183,7 @@ pub async fn start_web_server(app_state: Arc<AppState>) -> std::io::Result<()> {
                     .allowed_headers(vec!["Content-Type"]),
             )
     })
-    .bind(("127.0.0.1", 27950))?
+    .bind(("127.0.0.1", 27951))?
     .run();
 
     server.await
@@ -199,34 +197,41 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
 
     tokio::spawn(async move {
         let stdin: tokio::io::Stdin = io::stdin();
-        let mut reader: io::Lines<io::BufReader<io::Stdin>> =
-            io::BufReader::new(stdin).lines();
+        let mut reader: io::Lines<io::BufReader<io::Stdin>> = io::BufReader::new(stdin).lines();
 
         let app_state = app_state.clone();
-
+        println!("Listening for stdin input...");
         while let Some(line) = reader.next_line().await.unwrap() {
             let trimmed_line = line.trim();
-            match StdinLine::try_from(trimmed_line) {
-                Ok(StdinLine::Systems) => {
-                    //convert the trimmed_line to slotChannelList
-                    //use the triggerflowState mutex to update the state if slotChannelList already exists for it
+            println!("Received stdin line: {}", trimmed_line);
+            if let Ok(msg) = StdinLine::try_from(trimmed_line) {
+                print!("Received stdin message: {:?}", msg);
+                match msg {
+                    StdinLine::Systems(msg) => {
+                        //convert the systems_msg to slotChannelList
+                        //use the triggerflowState mutex to update the state if slotChannelList already exists for it
+                        println!("Received Systems command from stdin");
+                        let mut triggerflow_state: tokio::sync::MutexGuard<'_, TriggerFlowState> =
+                            app_state.trigger_flow_state.lock().await;
+                        // Process each system in the systems array
+                        let response = if let Some(system_config) = msg.systems.first() {
+                            let system_json = serde_json::to_string(system_config).unwrap();
+                            triggerflow_state.process_system_config(&system_json, &app_state.catalog)
+                        } else {
+                            "No systems found in message".to_string()
+                        };
 
-                    let mut triggerflow_state: tokio::sync::MutexGuard<'_, TriggerFlowState> =
-                        app_state.trigger_flow_state.lock().await;
-                    let response =
-                        triggerflow_state.process_system_config(trimmed_line, &app_state.catalog);
+                        println!("{}", response);
 
-                    println!("{}", response);
-
-                    //if session exists, change in system will be evaluate request and should be handled and response sent to UI
-                    let mut session = app_state.session.lock().await;
-                    if let Some(session) = session.as_mut() {
-                        session.text(response).await.unwrap();
+                        //if session exists, change in system will be evaluate request and should be handled and response sent to UI
+                        let mut session = app_state.session.lock().await;
+                        if let Some(session) = session.as_mut() {
+                            session.text(response).await.unwrap();
+                        } 
                     }
                 }
-                Err(e) => {
-                    eprintln!("Failed to parse stdin line: {}", e);
-                }
+            } else {
+                eprintln!("Failed to parse stdin JSON");
             }
         }
     });
