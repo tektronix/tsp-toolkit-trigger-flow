@@ -42,7 +42,7 @@ export interface EventDefinition {
   syntax: string;
 }
 
-export interface Catalog {
+export interface TriggerBlocks {
   blocks?: { [key: string]: BlockDefinition };
   trigger_events: { [key: string]: EventDefinition };
 }
