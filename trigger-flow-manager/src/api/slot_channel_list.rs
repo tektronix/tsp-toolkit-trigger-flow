@@ -37,7 +37,13 @@ pub struct SlotJson {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Systems{
+    pub systems: Vec<SystemConfigJson>, 
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SystemConfigJson {
+    pub name: String,
     #[serde(rename = "localNode")]
     pub localnode: String,
     #[serde(rename = "isActive")]

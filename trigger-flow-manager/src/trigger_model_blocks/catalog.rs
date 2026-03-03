@@ -25,9 +25,9 @@ impl BlockDefinition {
     pub fn validate(&self, block: &mut TriggerModelBlock) -> Result<()> {
         // For each parameter in the catalog definition
         for param in &self.parameters {
-            let value = block.block_parameters.get(&param.param_name).cloned();
+            let value = block.block_parameters.get(&param.name).cloned();
             if value.is_none() {
-                let err = (true, format!("Missing parameter '{}'", param.param_name));
+                let err = (true, format!("Missing parameter '{}'", param.name));
                 if let Some(errors) = block.block_error.as_mut() {
                     errors.push(err);
                 } else {
@@ -50,7 +50,7 @@ pub struct EventDefinition {
 /// A parameter definition for a block
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Parameter {
-    pub param_name: String,
+    pub name: String,
     #[serde(rename = "type")]
     pub param_type: ParamTypeName,
     pub options: Option<Vec<ParameterOptions>>,
@@ -70,7 +70,7 @@ impl Parameter {
             if let Some(num) = value.and_then(|v| v.as_f64()) {
                 if let Some(min) = range.min.as_ref().and_then(|v| v.as_f64()) {
                     if num < min {
-                        let err = (true, format!("Parameter '{}' value {} below min {}", self.param_name, num, min));
+                        let err = (true, format!("Parameter '{}' value {} below min {}", self.name, num, min));
                         if let Some(errors) = block.block_error.as_mut() {
                             errors.push(err);
                         } else {
@@ -80,7 +80,7 @@ impl Parameter {
                 }
                 if let Some(max) = range.max.as_ref().and_then(|v| v.as_f64()) {
                     if num > max {
-                        let err = (true, format!("Parameter '{}' value {} above max {}", self.param_name, num, max));
+                        let err = (true, format!("Parameter '{}' value {} above max {}", self.name, num, max));
                         if let Some(errors) = block.block_error.as_mut() {
                             errors.push(err);
                         } else {
@@ -97,7 +97,7 @@ impl Parameter {
                 Some(Value::String(val_str)) => {
                     let valid = options.iter().any(|opt| opt.value == *val_str);
                     if !valid {
-                        let err = (true, format!("Parameter '{}' value '{}' is not a valid option", self.param_name, val_str));
+                        let err = (true, format!("Parameter '{}' value '{}' is not a valid option", self.name, val_str));
                         if let Some(errors) = block.block_error.as_mut() {
                             errors.push(err);
                         } else {
@@ -168,13 +168,13 @@ impl BlockDefinition {
     pub fn get_parameter_names(&self) -> Vec<&str> {
         self.parameters
             .iter()
-            .map(|p| p.param_name.as_str())
+            .map(|p| p.name.as_str())
             .collect()
     }
 
     /// Find a parameter by name
     pub fn get_parameter(&self, name: &str) -> Option<&Parameter> {
-        self.parameters.iter().find(|p| p.param_name == name)
+        self.parameters.iter().find(|p| p.name == name)
     }
 }
 
@@ -183,13 +183,13 @@ impl EventDefinition {
     pub fn get_parameter_names(&self) -> Vec<&str> {
         self.parameters
             .iter()
-            .map(|p| p.param_name.as_str())
+            .map(|p| p.name.as_str())
             .collect()
     }
 
     /// Find a parameter by name
     pub fn get_parameter(&self, name: &str) -> Option<&Parameter> {
-        self.parameters.iter().find(|p| p.param_name == name)
+        self.parameters.iter().find(|p| p.name == name)
     }
 }
 

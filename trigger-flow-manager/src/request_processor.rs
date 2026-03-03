@@ -26,17 +26,17 @@ impl RequestProcessor {
     }
     pub fn process_request(
         &self,
-        catalog: &'static Catalog,
         trigger_flow_state: &mut TriggerFlowState,
         request: RequestType,
     ) -> Result<String> {
         match request {
             RequestType::InitialRequest => {
                 let response = "instrument data requested".to_string();
+                println!("Generated InitialRequest response: {}", response);
                 Ok(response)
             }
             RequestType::EvaluateRequest { .. } => {
-                let response = self.handle_evaluate_request(catalog, trigger_flow_state)?;
+                let response = self.handle_evaluate_request(trigger_flow_state)?;
                 Ok(response)
             }
         }
@@ -56,7 +56,6 @@ impl RequestProcessor {
     // }
     pub fn handle_evaluate_request(
         &self,
-        catalog: &'static Catalog,
         trigger_flow_state: &mut TriggerFlowState,
     ) -> Result<String> {
         //call process_system_config with update type triggerflowstate
@@ -69,6 +68,8 @@ impl RequestProcessor {
         self.validation_chain.validate(trigger_flow_state)?;
 
         let response = ResponseType::EvaluateResponse { trigger_flow_state: trigger_flow_state.clone() };
-        Ok(serde_json::to_string(&response)?)
+        let serialized_response = serde_json::to_string(&response)?;
+        println!("Generated EvaluateResponse: {}", serialized_response);
+        Ok(serialized_response)
     }
 }
