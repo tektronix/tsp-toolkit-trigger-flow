@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::api::slot_channel_list::{SlotChannelList};
+use crate::{api::slot_channel_list::SlotChannelList, Catalog};
 //request types from angular to backend
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RequestType {
@@ -15,7 +15,7 @@ pub enum RequestType {
 pub enum ResponseType {
     InitialResponse {
         slot_channel_list: SlotChannelList,
-        catalog: crate::TriggerBlocks,
+        catalog: Catalog,
     },
     EvaluateResponse {
         current_state: crate::api::state::TriggerFlowState,

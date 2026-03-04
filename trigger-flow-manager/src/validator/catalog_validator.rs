@@ -1,13 +1,13 @@
-use crate::{TriggerBlocks, api::state::TriggerModelState, model::trigger_model::TriggerModel, validator::Validator};
+use crate::{api::state::TriggerModelState, trigger_model_blocks::Catalog, validator::Validator};
 use anyhow::Result;
 use std::sync::Arc;
 
 pub struct CatalogValidator {
-    catalog: Arc<TriggerBlocks>,
+    catalog: Arc<Catalog>,
 }
 
 impl CatalogValidator {
-    pub fn new(catalog: Arc<TriggerBlocks>) -> Self {
+    pub fn new(catalog: Arc<Catalog>) -> Self {
         Self { catalog }
     }
 }
@@ -16,7 +16,6 @@ impl Validator for CatalogValidator {
     fn validate(&self, state: &TriggerModelState) -> Result<()> {
         Ok(())
     }
-
 }
 
 impl CatalogValidator {

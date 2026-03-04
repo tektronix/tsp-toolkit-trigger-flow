@@ -46,7 +46,7 @@ pub struct SystemConfigJson {
 }
 
 #[derive(Debug, Clone)]
-pub enum SlotChannelListUpdate{
+pub enum SlotChannelListUpdate {
     SystemConfig(String),
     TriggerFlowState(TriggerFlowState),
 }
@@ -79,23 +79,24 @@ impl SlotChannelList {
         update: SlotChannelListUpdate,
     ) -> Result<Self, String> {
         match update {
-            SlotChannelListUpdate::SystemConfig(system_config)=> {
+            SlotChannelListUpdate::SystemConfig(system_config) => {
                 //use system_config to update slot_channel_list
                 //what can change?
-                    //node
-                    //slots, slotID, module, number of channels
+                //node
+                //slots, slotID, module, number of channels
                 let config_json: SystemConfigJson = serde_json::from_str(&system_config)
-                .map_err(|e| format!("Failed to parse system configuration JSON: {}", e))?;
+                    .map_err(|e| format!("Failed to parse system configuration JSON: {}", e))?;
                 // let slots
-
             }
-            SlotChannelListUpdate::TriggerFlowState(triggerflow_state)=> {
+            SlotChannelListUpdate::TriggerFlowState(triggerflow_state) => {
                 //use triggerflow_state to update slot_channel_list
                 //what can change?
-                    //in_use status of channels
+                //in_use status of channels
             }
         }
-        Ok(SlotChannelList { slots:self.slots.clone() })
+        Ok(SlotChannelList {
+            slots: self.slots.clone(),
+        })
     }
 }
 

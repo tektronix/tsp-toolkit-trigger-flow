@@ -16,10 +16,10 @@ use trigger_flow_manager::{
     api::{
         request::{RequestType, ResponseWrapper},
         slot_channel_list::SlotChannelList,
-        state::{TriggerFlowState, TriggerModelState},
+        state::TriggerFlowState,
     },
     request_processor::RequestProcessor,
-    IpcData, TriggerBlocks,
+    Catalog, IpcData,
 };
 
 use handlebars::Handlebars;
@@ -27,19 +27,19 @@ use handlebars::Handlebars;
 #[derive(Clone)]
 pub struct AppState {
     session: Arc<Mutex<Option<Session>>>,
-    catalog: &'static TriggerBlocks,
+    catalog: &'static Catalog,
     trigger_flow_state: Arc<Mutex<TriggerFlowState>>,
     trigger_flow_tx: broadcast::Sender<()>,
 }
 
 impl AppState {
-    pub fn new(catalog_ref: &'static TriggerBlocks) -> Self {
+    pub fn new(catalog_ref: &'static Catalog) -> Self {
         Self {
             session: Arc::new(Mutex::new(None)),
             catalog: catalog_ref,
             trigger_flow_state: Arc::new(Mutex::new(TriggerFlowState {
                 slot_channel_list: SlotChannelList::default(),
-                models: Vec::new(),
+                trigger_models: Vec::new(),
             })),
             trigger_flow_tx: broadcast::channel(100).0,
         }
@@ -193,7 +193,7 @@ pub async fn start_web_server(app_state: Arc<AppState>) -> std::io::Result<()> {
     server.await
 }
 
-pub async fn start(catalog_ref: &'static TriggerBlocks) -> anyhow::Result<()> {
+pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
     let app_state = Arc::new(AppState::new(catalog_ref));
     let server = start_web_server(app_state.clone());
 
@@ -250,39 +250,60 @@ pub struct Script {
 impl Script {
     /// Take the current [`TriggerFlowState`] and, using the provided [`TriggerBlocks`] catalog,
     /// generate the appropriate [`Script`].
-    pub fn from_state(catalog: &TriggerBlocks, state: &TriggerFlowState) -> Result<Self, Error> {
-        let mut contents = String::new();
-        for v in state.models.clone() {
-            let hb = Handlebars::new();
-            contents = format!(
-                "{contents}{}\n",
-                format!(
-                    "slot[{}].trigger.model.create(\"{}\")",
-                    v.slot_index.0, v.model_name
-                )
-            );
-            for b in v.blocks {
-                let Some(catalog) = catalog.blocks.get(&b.block_type) else {
-                    panic!("should find block in catalog");
-                };
-                let template = catalog.syntax.clone();
-                let Ok(s) = hb.render_template(&template, &b.block_parameters) else {
-                    panic!("should render template");
-                };
-                contents = format!("{contents}{s}\n");
-            }
-            contents = format!(
-                "{contents}{}\n",
-                format!(
-                    "--slot[{}].trigger.model.initialize(\"{}\")",
-                    v.slot_index.0, v.model_name
-                )
-            );
+    pub fn from_state(catalog: &Catalog, state: &TriggerFlowState) -> Result<Self, Error> {
+        let mut hb = Handlebars::new();
+
+        // load the script templates into hb
+        hb.register_template_string("preamble", catalog.script_template.preamble.clone())
+            .expect("should have loaded 'preamble' template");
+
+        hb.register_template_string("postamble", catalog.script_template.postamble.clone())
+            .expect("should have loaded 'postamble' template");
+
+        hb.register_template_string("contents", catalog.script_template.contents.clone())
+            .expect("should have loaded 'contents' template");
+
+        hb.register_template_string(
+            "begin_sentinel",
+            catalog.script_template.begin_sentinel.clone(),
+        )
+        .expect("should have loaded 'begin_sentinel' template");
+
+        hb.register_template_string("end_sentinel", catalog.script_template.end_sentinel.clone())
+            .expect("should have loaded 'end_sentinel' template");
+
+        // load the block templates into hb
+        for (name, block) in catalog.blocks.clone().into_iter() {
+            hb.register_template_string(&name, block.syntax.clone())
+                .expect(format!("should have loaded '{name}' block template").as_str());
+            eprintln!("registered \"{name}\" block template")
         }
 
-        Ok(Self {
+        // load the event templates into hb
+        for (name, event) in catalog.trigger_events.clone().into_iter() {
+            hb.register_template_string(&name, event.syntax.clone())
+                .expect(format!("should have loaded '{name}' trigger event template").as_str());
+        }
+
+        // render preamble
+        let preamble = hb
+            .render("preamble", state)
+            .expect("should render preamble");
+
+        // render contents
+        let contents = hb
+            .render("contents", state)
+            .expect("should render contents");
+
+        // render postamble
+        let postamble = hb
+            .render("postamble", state)
+            .expect("should render postamble");
+
+        Ok(Script {
+            preamble,
             contents,
-            ..Default::default()
+            postamble,
         })
     }
 }
@@ -297,21 +318,25 @@ mod script_tests {
             state::{TriggerFlowState, TriggerModelState},
         },
         model::trigger_model_block::{BlockPosition, TriggerModelBlock},
-        trigger_model_blocks::{catalog::ParameterRange, param_types::ParamTypeName},
-        BlockDefinition, EventDefinition, Parameter, TriggerBlocks,
+        trigger_model_blocks::{
+            catalog::{ParameterRange, ScriptTemplate},
+            param_types::ParamTypeName,
+        },
+        BlockDefinition, Catalog, EventDefinition, Parameter,
     };
 
     use crate::back_end::client_server::Script;
 
-    fn catalog() -> TriggerBlocks {
+    fn catalog() -> Catalog {
         let blocks: HashMap<String, BlockDefinition> = HashMap::from([
             (
-                "block_a".to_string(),
+                "always".to_string(),
                 BlockDefinition {
                     parameters: vec![
                         Parameter {
-                            name: "param1".to_string(),
+                            name: "slot_index".to_string(),
                             param_type: ParamTypeName::SlotIndex,
+                            required: true,
                             options: None,
                             default: Some(1.into()),
                             range: Some(ParameterRange {
@@ -320,32 +345,47 @@ mod script_tests {
                             }),
                         },
                         Parameter {
-                            name: "param2".to_string(),
+                            name: "trigger_model_name".to_string(),
                             param_type: ParamTypeName::String,
+                            required: true,
                             options: None,
                             default: Some("model_name".into()),
                             range: None,
                         },
                         Parameter {
-                            name: "param3".to_string(),
-                            param_type: ParamTypeName::Number,
+                            name: "trigger_block_name".to_string(),
+                            param_type: ParamTypeName::String,
+                            required: true,
                             options: None,
-                            default: Some(80.into()),
+                            default: None,
+                            range: None,
+                        },
+                        Parameter {
+                            name: "branch_to_block_name".to_string(),
+                            param_type: ParamTypeName::String,
+                            required: true,
+                            options: None,
+                            default: None,
                             range: None,
                         },
                     ],
-                    syntax: "slot[{{param1}}].block_a(\"{{param2}}\", {{param3}})".to_string(),
+                    syntax: "slot[{{slot_index}}].trigger.model.addblock.branch.always(\
+                        \"{{trigger_model_name}}\", \
+                        \"{{trigger_block_name}}\", \
+                        \"{{branch_to_block_name}}\")"
+                        .to_string(),
                     description: Some("".to_string()),
                     shape: "".to_string(),
                 },
             ),
             (
-                "block_b".to_string(),
+                "measure".to_string(),
                 BlockDefinition {
                     parameters: vec![
                         Parameter {
-                            name: "param1".to_string(),
+                            name: "slot_index".to_string(),
                             param_type: ParamTypeName::SlotIndex,
+                            required: true,
                             options: None,
                             default: Some(1.into()),
                             range: Some(ParameterRange {
@@ -354,21 +394,68 @@ mod script_tests {
                             }),
                         },
                         Parameter {
-                            name: "param2".to_string(),
+                            name: "trigger_model_name".to_string(),
                             param_type: ParamTypeName::String,
+                            required: true,
                             options: None,
                             default: Some("model_name".into()),
                             range: None,
                         },
+                        Parameter {
+                            name: "trigger_block_name".to_string(),
+                            param_type: ParamTypeName::String,
+                            required: true,
+                            options: None,
+                            default: None,
+                            range: None,
+                        },
+                        Parameter {
+                            name: "channel_list".to_string(),
+                            param_type: ParamTypeName::ChannelList,
+                            required: true,
+                            options: None,
+                            default: None,
+                            range: None,
+                        },
+                        Parameter {
+                            name: "measure_count".to_string(),
+                            param_type: ParamTypeName::Number,
+                            required: false,
+                            options: None,
+                            default: None,
+                            range: None,
+                        },
                     ],
-                    syntax: "slot[{{param1}}].block_b(\"{{param2}}\")".to_string(),
+                    syntax: "slot[{{slot_index}}].trigger.model.addblock.measure(\
+                        \"{{trigger_model_name}}\", \
+                        \"{{trigger_block_name}}\", \
+                        { {{#each channel_list}}{{this}}{{#unless @last}}, {{/unless}}{{/each}} }\
+                        {{#if measure_count}}, {{measure_count}}{{/if}})"
+                        .to_string(),
                     description: Some("".to_string()),
                     shape: "".to_string(),
                 },
             ),
         ]);
-        let mut trigger_events: HashMap<String, EventDefinition> = HashMap::from([]);
-        TriggerBlocks {
+        let trigger_events: HashMap<String, EventDefinition> = HashMap::from([]);
+        Catalog {
+            script_template: ScriptTemplate {
+                preamble: "-- Preamble Text\n{{> begin_sentinel}}".to_string(),
+                postamble: "{{> end_sentinel}}\n\n-- Postamble Text".to_string(),
+                contents: r##"{{#each trigger_models}}
+-- {{this.model_name}}
+slot[{{this.slot_index}}].trigger.model.create("{{this.model_name}}")
+{{#each this.blocks}}
+{{> (lookup this "type") this.block_parameters}}
+
+{{/each}}
+-- slot[{{this.slot_index}}].trigger.model.initialize("{{this.model_name}}")
+{{/each}}
+"##
+                .to_string(),
+                begin_sentinel: "-- BEGIN GENERATED TRIGGER MODEL --".to_string(),
+                end_sentinel: "-- END GENERATED TRIGGER MODEL --".to_string(),
+            },
             blocks,
             trigger_events,
         }
@@ -418,16 +505,24 @@ mod script_tests {
 
         let input = TriggerFlowState {
             slot_channel_list,
-            models: vec![],
+            trigger_models: vec![],
         };
 
         let Ok(actual) = Script::from_state(&catalog, &input) else {
             panic!("should be able to create script");
         };
 
-        let expected = Script::default();
+        let expected = Script {
+            preamble: r#"-- Preamble Text
+-- BEGIN GENERATED TRIGGER MODEL --"#
+                .to_string(),
+            postamble: r#"-- END GENERATED TRIGGER MODEL --
+-- Postamble Text"#
+                .to_string(),
+            contents: "".to_string(),
+        };
 
-        assert_eq!(expected, actual,);
+        assert_eq!(expected, actual);
     }
 
     #[test]
@@ -437,15 +532,16 @@ mod script_tests {
 
         let input = TriggerFlowState {
             slot_channel_list,
-            models: vec![TriggerModelState {
+            trigger_models: vec![TriggerModelState {
                 model_name: "tm1".to_string(),
                 slot_index: SlotIndex(1),
                 blocks: vec![TriggerModelBlock {
-                    block_type: "block_a".to_string(),
+                    block_type: "always".to_string(),
                     block_parameters: HashMap::from([
-                        ("param1".to_string(), 1.into()),
-                        ("param2".to_string(), "asdf".into()),
-                        ("param3".to_string(), 81.into()),
+                        ("slot_index".to_string(), 1.into()),
+                        ("trigger_model_name".to_string(), "tm1".into()),
+                        ("trigger_block_name".to_string(), "tm1_always_001".into()),
+                        ("branch_to_block_name".to_string(), "other_block".into()),
                     ]),
                     incoming: None,
                     outgoing: None,
@@ -460,8 +556,18 @@ mod script_tests {
         };
 
         let expected = Script {
-            contents: "slot[1].trigger.model.create(\"tm1\")\nslot[1].block_a(\"asdf\", 81)\n--slot[1].trigger.model.initialize(\"tm1\")\n".to_string(),
-            ..Default::default()
+            preamble: r#"-- Preamble Text
+-- BEGIN GENERATED TRIGGER MODEL --"#
+                .to_string(),
+            postamble: r#"-- END GENERATED TRIGGER MODEL --
+-- Postamble Text"#
+                .to_string(),
+            contents: r##"-- tm1
+slot[1].trigger.model.create("tm1")
+slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_block")
+-- slot[1].trigger.model.initialize("tm1")
+"##
+            .to_string(),
         };
 
         assert_eq!(expected, actual);
@@ -474,16 +580,17 @@ mod script_tests {
 
         let input = TriggerFlowState {
             slot_channel_list,
-            models: vec![TriggerModelState {
+            trigger_models: vec![TriggerModelState {
                 model_name: "tm1".to_string(),
                 slot_index: SlotIndex(1),
                 blocks: vec![
                     TriggerModelBlock {
-                        block_type: "block_a".to_string(),
+                        block_type: "always".to_string(),
                         block_parameters: HashMap::from([
-                            ("param1".to_string(), 1.into()),
-                            ("param2".to_string(), "asdf".into()),
-                            ("param3".to_string(), 81.into()),
+                            ("slot_index".to_string(), 1.into()),
+                            ("trigger_model_name".to_string(), "tm1".into()),
+                            ("trigger_block_name".to_string(), "tm1_always_001".into()),
+                            ("branch_to_block_name".to_string(), "other_block".into()),
                         ]),
                         incoming: None,
                         outgoing: None,
@@ -491,10 +598,13 @@ mod script_tests {
                         block_id: 1,
                     },
                     TriggerModelBlock {
-                        block_type: "block_b".to_string(),
+                        block_type: "measure".to_string(),
                         block_parameters: HashMap::from([
-                            ("param1".to_string(), 2.into()),
-                            ("param2".to_string(), "qwerty".into()),
+                            ("slot_index".to_string(), 1.into()),
+                            ("trigger_model_name".to_string(), "tm1".into()),
+                            ("trigger_block_name".to_string(), "tm1_measure_001".into()),
+                            ("channel_list".to_string(), vec![1].into()),
+                            ("measure_count".to_string(), 5.into()),
                         ]),
                         incoming: None,
                         outgoing: None,
@@ -510,8 +620,19 @@ mod script_tests {
         };
 
         let expected = Script {
-            contents: "slot[1].trigger.model.create(\"tm1\")\nslot[1].block_a(\"asdf\", 81)\nslot[2].block_b(\"qwerty\")\n--slot[1].trigger.model.initialize(\"tm1\")\n".to_string(),
-            ..Default::default()
+            preamble: r#"-- Preamble Text
+-- BEGIN GENERATED TRIGGER MODEL --"#
+                .to_string(),
+            postamble: r#"-- END GENERATED TRIGGER MODEL --
+-- Postamble Text"#
+                .to_string(),
+            contents: r##"-- tm1
+slot[1].trigger.model.create("tm1")
+slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_block")
+slot[1].trigger.model.addblock.measure("tm1", "tm1_measure_001", { 1 }, 5)
+-- slot[1].trigger.model.initialize("tm1")
+"##
+            .to_string(),
         };
 
         assert_eq!(expected, actual);
@@ -524,38 +645,45 @@ mod script_tests {
 
         let input = TriggerFlowState {
             slot_channel_list,
-            models: vec![
+            trigger_models: vec![
                 TriggerModelState {
                     model_name: "tm1".to_string(),
                     slot_index: SlotIndex(1),
-                    blocks: vec![TriggerModelBlock {
-                        block_type: "block_a".to_string(),
-                        block_parameters: HashMap::from([
-                            ("param1".to_string(), 1.into()),
-                            ("param2".to_string(), "asdf".into()),
-                            ("param3".to_string(), 81.into()),
-                        ]),
-                        incoming: None,
-                        outgoing: None,
-                        block_position: BlockPosition { x: 0.0, y: 0.0 },
-                        block_id: 1,
-                    }],
+                    blocks: vec![
+                        TriggerModelBlock {
+                            block_type: "always".to_string(),
+                            block_parameters: HashMap::from([
+                                ("slot_index".to_string(), 1.into()),
+                                ("trigger_model_name".to_string(), "tm1".into()),
+                                ("trigger_block_name".to_string(), "tm1_always_001".into()),
+                                ("branch_to_block_name".to_string(), "other_block".into()),
+                            ]),
+                            incoming: None,
+                            outgoing: None,
+                            block_position: BlockPosition { x: 0.0, y: 0.0 },
+                            block_id: 1,
+                        },
+                    ],
                 },
                 TriggerModelState {
                     model_name: "tm2".to_string(),
                     slot_index: SlotIndex(2),
-                    blocks: vec![TriggerModelBlock {
-                        block_type: "block_a".to_string(),
-                        block_parameters: HashMap::from([
-                            ("param1".to_string(), 3.into()),
-                            ("param2".to_string(), "zxcv".into()),
-                            ("param3".to_string(), 90.into()),
-                        ]),
-                        incoming: None,
-                        outgoing: None,
-                        block_position: BlockPosition { x: 0.0, y: 0.0 },
-                        block_id: 1,
-                    }],
+                    blocks: vec![
+                        TriggerModelBlock {
+                            block_type: "measure".to_string(),
+                            block_parameters: HashMap::from([
+                                ("slot_index".to_string(), 2.into()),
+                                ("trigger_model_name".to_string(), "tm2".into()),
+                                ("trigger_block_name".to_string(), "tm2_measure_001".into()),
+                                ("channel_list".to_string(), vec![1].into()),
+                                ("measure_count".to_string(), 5.into()),
+                            ]),
+                            incoming: None,
+                            outgoing: None,
+                            block_position: BlockPosition { x: 0.0, y: 0.0 },
+                            block_id: 1,
+                        },
+                    ],
                 },
             ],
         };
@@ -565,15 +693,22 @@ mod script_tests {
         };
 
         let expected = Script {
-            contents: r#"slot[1].trigger.model.create("tm1")
-slot[1].block_a("asdf", 81)
---slot[1].trigger.model.initialize("tm1")
+            preamble: r#"-- Preamble Text
+-- BEGIN GENERATED TRIGGER MODEL --"#
+                .to_string(),
+            postamble: r#"-- END GENERATED TRIGGER MODEL --
+-- Postamble Text"#
+                .to_string(),
+            contents: r##"-- tm1
+slot[1].trigger.model.create("tm1")
+slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_block")
+-- slot[1].trigger.model.initialize("tm1")
+-- tm2
 slot[2].trigger.model.create("tm2")
-slot[3].block_a("zxcv", 90)
---slot[2].trigger.model.initialize("tm2")
-"#
+slot[2].trigger.model.addblock.measure("tm2", "tm2_measure_001", { 1 }, 5)
+-- slot[2].trigger.model.initialize("tm2")
+"##
             .to_string(),
-            ..Default::default()
         };
 
         assert_eq!(expected, actual);
@@ -586,17 +721,18 @@ slot[3].block_a("zxcv", 90)
 
         let input = TriggerFlowState {
             slot_channel_list,
-            models: vec![
+            trigger_models: vec![
                 TriggerModelState {
                     model_name: "tm1".to_string(),
                     slot_index: SlotIndex(1),
                     blocks: vec![
                         TriggerModelBlock {
-                            block_type: "block_a".to_string(),
+                            block_type: "always".to_string(),
                             block_parameters: HashMap::from([
-                                ("param1".to_string(), 1.into()),
-                                ("param2".to_string(), "asdf".into()),
-                                ("param3".to_string(), 81.into()),
+                                ("slot_index".to_string(), 1.into()),
+                                ("trigger_model_name".to_string(), "tm1".into()),
+                                ("trigger_block_name".to_string(), "tm1_always_001".into()),
+                                ("branch_to_block_name".to_string(), "other_block".into()),
                             ]),
                             incoming: None,
                             outgoing: None,
@@ -604,10 +740,13 @@ slot[3].block_a("zxcv", 90)
                             block_id: 1,
                         },
                         TriggerModelBlock {
-                            block_type: "block_b".to_string(),
+                            block_type: "measure".to_string(),
                             block_parameters: HashMap::from([
-                                ("param1".to_string(), 2.into()),
-                                ("param2".to_string(), "qwerty".into()),
+                                ("slot_index".to_string(), 1.into()),
+                                ("trigger_model_name".to_string(), "tm1".into()),
+                                ("trigger_block_name".to_string(), "tm1_measure_001".into()),
+                                ("channel_list".to_string(), vec![1].into()),
+                                ("measure_count".to_string(), 5.into()),
                             ]),
                             incoming: None,
                             outgoing: None,
@@ -621,11 +760,12 @@ slot[3].block_a("zxcv", 90)
                     slot_index: SlotIndex(2),
                     blocks: vec![
                         TriggerModelBlock {
-                            block_type: "block_a".to_string(),
+                            block_type: "always".to_string(),
                             block_parameters: HashMap::from([
-                                ("param1".to_string(), 1.into()),
-                                ("param2".to_string(), "asdf".into()),
-                                ("param3".to_string(), 81.into()),
+                                ("slot_index".to_string(), 2.into()),
+                                ("trigger_model_name".to_string(), "tm2".into()),
+                                ("trigger_block_name".to_string(), "tm2_always_001".into()),
+                                ("branch_to_block_name".to_string(), "other_block".into()),
                             ]),
                             incoming: None,
                             outgoing: None,
@@ -633,10 +773,12 @@ slot[3].block_a("zxcv", 90)
                             block_id: 1,
                         },
                         TriggerModelBlock {
-                            block_type: "block_b".to_string(),
+                            block_type: "measure".to_string(),
                             block_parameters: HashMap::from([
-                                ("param1".to_string(), 2.into()),
-                                ("param2".to_string(), "qwerty".into()),
+                                ("slot_index".to_string(), 2.into()),
+                                ("trigger_model_name".to_string(), "tm2".into()),
+                                ("trigger_block_name".to_string(), "tm2_measure_001".into()),
+                                ("channel_list".to_string(), vec![1].into()),
                             ]),
                             incoming: None,
                             outgoing: None,
@@ -653,17 +795,24 @@ slot[3].block_a("zxcv", 90)
         };
 
         let expected = Script {
-            contents: r#"slot[1].trigger.model.create("tm1")
-slot[1].block_a("asdf", 81)
-slot[2].block_b("qwerty")
---slot[1].trigger.model.initialize("tm1")
+            preamble: r#"-- Preamble Text
+-- BEGIN GENERATED TRIGGER MODEL --"#
+                .to_string(),
+            postamble: r#"-- END GENERATED TRIGGER MODEL --
+-- Postamble Text"#
+                .to_string(),
+            contents: r##"-- tm1
+slot[1].trigger.model.create("tm1")
+slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_block")
+slot[1].trigger.model.addblock.measure("tm1", "tm1_measure_001", { 1 }, 5)
+-- slot[1].trigger.model.initialize("tm1")
+-- tm2
 slot[2].trigger.model.create("tm2")
-slot[1].block_a("asdf", 81)
-slot[2].block_b("qwerty")
---slot[2].trigger.model.initialize("tm2")
-"#
+slot[2].trigger.model.addblock.branch.always("tm2", "tm2_always_001", "other_block")
+slot[2].trigger.model.addblock.measure("tm2", "tm2_measure_001", { 1 })
+-- slot[2].trigger.model.initialize("tm2")
+"##
             .to_string(),
-            ..Default::default()
         };
 
         assert_eq!(expected, actual);

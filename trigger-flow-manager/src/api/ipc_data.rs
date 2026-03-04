@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 use crate::api::{
     request::{ErrorType, RequestType, ResponseType},
     state::TriggerFlowState,
-    slot_channel_list::SystemConfigJson,
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -20,9 +19,7 @@ impl TryFrom<&IpcData> for RequestType {
 
     fn try_from(ipc_data: &IpcData) -> Result<Self, Self::Error> {
         match ipc_data.request_type.as_str() {
-            "initial_request" => {
-                Ok(RequestType::InitialRequest)
-            }
+            "initial_request" => Ok(RequestType::InitialRequest),
             "evaluate_request" => {
                 let current_state: TriggerFlowState = serde_json::from_str(&ipc_data.json_value)
                     .map_err(|e| ErrorType::DeserializationError(e.to_string()))?;

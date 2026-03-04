@@ -1,13 +1,24 @@
 use super::param_types::ParamTypeName;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path};
 
 /// The root structure representing all available trigger blocks
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct TriggerBlocks {
+pub struct Catalog {
+    pub script_template: ScriptTemplate,
     pub blocks: HashMap<String, BlockDefinition>,
     pub trigger_events: HashMap<String, EventDefinition>,
 }
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ScriptTemplate {
+    pub preamble: String,
+    pub postamble: String,
+    pub contents: String,
+    pub begin_sentinel: String,
+    pub end_sentinel: String,
+}
+
 
 /// Definition of a single block type with its parameters and syntax
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -30,6 +41,7 @@ pub struct Parameter {
     pub name: String,
     #[serde(rename = "type")]
     pub param_type: ParamTypeName,
+    pub required: bool,
     pub options: Option<Vec<ParameterOptions>>,
     pub default: Option<serde_json::Value>,
     pub range: Option<ParameterRange>,
@@ -47,16 +59,30 @@ pub struct ParameterRange {
     pub max: Option<serde_json::Value>,
 }
 
-impl TriggerBlocks {
+impl Catalog {
     /// Initialize trigger blocks from our JSON
-    pub fn from_file(path: &str) -> anyhow::Result<Self> {
-        let json_str = std::fs::read_to_string(path)?;
-        let blocks: TriggerBlocks = serde_json::from_str(&json_str)?;
+    pub fn from_file(path: &Path) -> anyhow::Result<Self> {
+        let config_str = std::fs::read_to_string(path)?;
+        let blocks: Catalog = match path
+            .extension()
+            .map(|x| x.to_ascii_lowercase().into_string().unwrap_or_default())
+            .unwrap_or_default()
+            .as_str()
+        {
+            "yaml" | "yml" => Self::from_yaml(&config_str)?,
+            "json" => Self::from_json(&config_str)?,
+            _ => panic!("TODO: Return error"),
+        };
         Ok(blocks)
     }
 
-    pub fn from_str(json: &str) -> anyhow::Result<Self> {
-        let blocks: TriggerBlocks = serde_json::from_str(json)?;
+    pub fn from_json(json: &str) -> anyhow::Result<Self> {
+        let blocks: Catalog = serde_json::from_str(json)?;
+        Ok(blocks)
+    }
+
+    pub fn from_yaml(yaml: &str) -> anyhow::Result<Self> {
+        let blocks: Catalog = serde_saphyr::from_str(yaml)?;
         Ok(blocks)
     }
 

@@ -1,6 +1,5 @@
 use crate::{
-    api::state::TriggerModelState, api::slot_channel_list::SlotChannelList,
-    model::trigger_model::TriggerModel, validator::Validator,
+    api::slot_channel_list::SlotChannelList, api::state::TriggerModelState, validator::Validator,
 };
 use anyhow::Result;
 

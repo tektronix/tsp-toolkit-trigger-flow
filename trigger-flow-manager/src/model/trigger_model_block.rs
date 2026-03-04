@@ -2,7 +2,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::TriggerBlocks;
+use crate::trigger_model_blocks::catalog::Catalog;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockPosition {
@@ -37,7 +37,7 @@ impl TriggerModelBlock {
     }
 
     pub fn default_block(
-        catalog: &TriggerBlocks,
+        catalog: &Catalog,
         _block_type: &str,
         _position: BlockPosition,
         _block_id: u32,

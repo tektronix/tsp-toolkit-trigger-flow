@@ -9,8 +9,8 @@ impl TryFrom<&str> for StdinLine {
     type Error = String;
     fn try_from(s: &str) -> Result<Self, Self::Error> {
         match s.trim() {
-        s if s.contains("systems") => Ok(StdinLine::Systems),
-        _ => Err(format!("Unknown stdin line: {}", s)),
+            s if s.contains("systems") => Ok(StdinLine::Systems),
+            _ => Err(format!("Unknown stdin line: {}", s)),
         }
     }
 }
