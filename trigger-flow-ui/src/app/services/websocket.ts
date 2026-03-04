@@ -6,15 +6,25 @@ import { v4 as uuidv4 } from 'uuid';
   providedIn: 'root',
 })
 export class Websocket {
-  private socket: WebSocket;
+  private socket: WebSocket | undefined;
   private messageSubject: Subject<string> = new Subject<string>();
   private readonly CHUNK_SIZE = 30 * 1024; // 30 KB per chunk
 
   constructor() {
-    this.socket = new WebSocket('ws://localhost:27951');
+    //this.socket = new WebSocket('ws://localhost:27950');
+    try {
+      console.log('Attempting to create WebSocket connection to ws://localhost:27950');
+      this.socket = new WebSocket('ws://localhost:27950/ws');
+    } catch (error) {
+      console.error('WebSocket creation error:', error);
+    }
   }
 
   connect(): void {
+    if (!this.socket) {
+      console.error('WebSocket is not initialized.');
+      return;
+    }
     this.socket.onopen = () => {
       console.log('WebSocket connection established');
       this.sendInitialDataRequest();
@@ -39,6 +49,10 @@ export class Websocket {
   }
 
   send(message: string): void {
+    if (!this.socket) {
+      console.error('WebSocket is not initialized.');
+      return;
+    }
     if (this.socket.readyState === WebSocket.OPEN) {
       console.log(`Input size is: ${(message.length / (1024 * 1024)).toFixed(2)} MB)`);
       if (message.length > this.CHUNK_SIZE) {
@@ -87,6 +101,10 @@ export class Websocket {
   }
 
   close(): void {
+    if (!this.socket) {
+      console.error('WebSocket is not initialized.');
+      return;
+    }
     this.socket.close();
   }
 }
