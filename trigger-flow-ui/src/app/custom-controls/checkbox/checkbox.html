@@ -1,1 +1,14 @@
-<p>checkbox works!</p>
+<div class="checkbox-container">
+  <label class="checkbox-label">
+    <input
+      type="checkbox"
+      class="checkbox-input"
+      [attr.aria-label]="automationID"
+      [checked]="checked"
+      (change)="onCheckboxChange($event)"
+      (blur)="onBlur()"
+      [disabled]="disabled"
+    />
+    <span class="checkbox-text">{{ label }}</span>
+  </label>
+</div>
