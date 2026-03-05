@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::api::{
     request::{ErrorType, RequestType, ResponseType},
-    slot_channel_list::SystemConfigJson,
     state::TriggerFlowState,
 };
 

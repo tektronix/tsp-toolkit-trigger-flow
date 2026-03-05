@@ -1,18 +1,15 @@
 use crate::{
     api::{
-        request::{ErrorType, RequestType, ResponseType},
-        slot_channel_list::{self, SlotChannelList},
+        request::{RequestType, ResponseType},
+        slot_channel_list::{self},
         state::TriggerFlowState,
     },
     validator::{
-        catalog_validator::CatalogValidator, instr_validator::InstrumentValidator,
-        slot_channel_hashmap::SlotChannelHashMap, ValidationChain, Validator,
+        catalog_validator::CatalogValidator, instr_validator::InstrumentValidator, ValidationChain,
     },
     Catalog,
 };
 use anyhow::{Ok, Result};
-use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
 pub struct RequestProcessor {
     validation_chain: ValidationChain,
@@ -24,9 +21,7 @@ impl RequestProcessor {
             .add_validator(Box::new(CatalogValidator::new(&catalog)))
             .add_validator(Box::new(InstrumentValidator::new())); //pass initial empty slot_channel_list, will be updated with each request
 
-        Self {
-            validation_chain,
-        }
+        Self { validation_chain }
     }
     pub fn process_request(
         &self,
@@ -45,7 +40,7 @@ impl RequestProcessor {
             }
         }
     }
-    
+
     pub fn handle_evaluate_request(
         &self,
         trigger_flow_state: &mut TriggerFlowState,

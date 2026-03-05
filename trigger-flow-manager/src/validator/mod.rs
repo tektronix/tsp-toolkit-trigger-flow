@@ -1,5 +1,6 @@
-use crate::api::state::{TriggerFlowState, TriggerModelState};
+use crate::api::state::{TriggerFlowState};
 use anyhow::Result;
+
 pub trait Validator {
     fn validate(&self, model: &mut TriggerFlowState) -> Result<()>;
 }

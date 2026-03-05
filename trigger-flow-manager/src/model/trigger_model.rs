@@ -1,7 +1,4 @@
-use crate::{
-    api::state::TriggerModelState, model::trigger_model_block::TriggerModelBlock, Catalog,
-};
-use anyhow::Result;
+use crate::model::trigger_model_block::TriggerModelBlock;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
