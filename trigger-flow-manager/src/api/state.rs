@@ -3,13 +3,10 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    api::{
+    Catalog, api::{
         request::ResponseType,
-        slot_channel_list::{SlotChannelList, SlotChannelListUpdate, SlotIndex},
-    },
-    model::trigger_model_block::TriggerModelBlock,
-    trigger_model_blocks::catalog,
-    Catalog,
+        slot_channel_list::{self, ChannelIndex, SlotChannelList, SlotChannelListUpdate, SlotIndex},
+    }, model::trigger_model_block::TriggerModelBlock, trigger_model_blocks::catalog
 };
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TriggerFlowState {
@@ -69,5 +66,19 @@ impl TriggerFlowState {
             }
             "".to_string()
         }
+    }
+
+    pub fn is_channel_in_use(&self, slot_index: SlotIndex, channel_index: ChannelIndex) -> bool {
+        for model in self.models.values() {
+        if model.slot_index == slot_index {
+            for block in &model.blocks {
+                let used_channels = block.get_used_channels();
+                if used_channels.contains(&channel_index.0) {
+                    return true;
+                }
+            }
+        }
+    }
+    false
     }
 }

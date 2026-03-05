@@ -47,19 +47,7 @@ impl RequestProcessor {
             }
         }
     }
-
-    // pub fn handle_initial_request(
-    //     &self,
-    //     catalog: &'static Catalog,
-    //     trigger_flow_state: &TriggerFlowState,
-    // ) -> Result<String> {
-    //     //call process_system_config with update type systemconfig
-    //     trigger_flow_state.process_system_config(self, );
-    //     Ok(ResponseType::InitialResponse {
-    //         slot_channel_list: trigger_flow_state.slot_channel_list.clone(),
-    //         catalog: catalog.clone(),
-    //     })
-    // }
+    
     pub fn handle_evaluate_request(
         &self,
         trigger_flow_state: &mut TriggerFlowState,

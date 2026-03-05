@@ -1,41 +1,48 @@
-//temporary file to define HashMap
 use crate::api::slot_channel_list::{ChannelIndex, SlotIndex};
 use std::collections::HashMap;
 
+#[derive(Debug, Clone)]
+pub struct ChannelUsage {
+    pub model_name: String,
+    pub block_id: String,
+}
 pub struct SlotChannelHashMap {
-    map: HashMap<String, (SlotIndex, Option<ChannelIndex>)>,
+    channel_usage_map: HashMap<(SlotIndex, ChannelIndex), ChannelUsage>,
 }
 
 impl SlotChannelHashMap {
     pub fn new() -> Self {
         Self {
-            map: HashMap::new(),
+            channel_usage_map: HashMap::new(),
         }
     }
 
-    // pub fn insert(&mut self, block_id: String, slot_index: SlotIndex, channel_index: Option<ChannelIndex>) -> bool {
-    //     //returns false if the slot, channel combination already exists in the hashmap
-    //     let key = format!("slot{:?}_channel{:?}", slot_index, channel_index.unwrap_or(slot_channel_list::ChannelIndex(0)));
-    //     if self.map.contains_key(&key) {
-    //         return false;
-    //     }
-    //     self.map.insert(key, (slot_index, channel_index));
-    //     true
-    // }
+    pub fn check_channel_conflict(&self, slot: SlotIndex, channel: ChannelIndex, model: &str) -> Option<String> {
+        if let Some(existing_usage) = self.channel_usage_map.get(&(slot,channel)) {
+            if existing_usage.model_name != model {
+                return Some(format!(
+                    "Channel conflict: Slot {:?} Channel {:?} already used by model '{}' block '{}'",
+                    slot, channel, existing_usage.model_name, existing_usage.block_id
+                ))
+            }
+        }
+        None
+    }
 
-    // pub fn contains(&self, slot_index: SlotIndex, channel_index: Option<ChannelIndex>) -> bool {
-    //     let key = format!("slot{:?}_channel{:?}", slot_index, channel_index.unwrap_or(0));
-    //     self.map.contains_key(&key)
-    // }
+    pub fn add_usage(&mut self, slot: SlotIndex, channel: ChannelIndex, model: &str, block_id: &str) {
+        self.channel_usage_map.insert((slot, channel), ChannelUsage {
+            model_name: model.to_string(),
+            block_id: block_id.to_string(),
+        });
+    }
+
+    pub fn clear(&mut self) {
+        self.channel_usage_map.clear();
+    }
 }
 
 /*
-    One model-one slot
-    modelA on slot1, then modelB on slot1 can be decided on UI?
-    backend gets model,slot. for channels, iterate through blocks, if any block has channel index,
-        check it against the slot's available channels
-        and also put in HashMap if that slot, channel combination not already present in HashMap.
-
-    modelA has (slot1,channel1), then modelB cannot have (slot1,channel1) -use HashMap for this check.
-
+ modelA on slot 1 exits, modelB on slot 1 can exist if there is a channel available on slot 1 that is not in use by modelA.
+    if modelA is using slot 1 and has block(s) that use channel 1, then modelB can use slot 1 and other channels that are not in use only. If modelA is using slot 1 and channel 1, and modelB wants to use slot 1 and channel 1, then modelB cannot use slot 1 because channel 1 is already in use by modelA.
+    if modelA is using slot 1 and has block(S) that use all channels on slot1, then modelB cannot use slot 1 at all because all channels are in use by modelA.
 */

@@ -15,7 +15,7 @@ use tokio::{
 use trigger_flow_manager::{
     api::{
         request::{RequestType, ResponseWrapper},
-        slot_channel_list::{SlotChannelList, SystemConfigJson},
+        slot_channel_list::SlotChannelList,
         state::TriggerFlowState,
     },
     request_processor::RequestProcessor,

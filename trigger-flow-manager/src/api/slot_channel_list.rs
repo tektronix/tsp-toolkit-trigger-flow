@@ -3,17 +3,18 @@ use serde::{Deserialize, Serialize};
 use crate::api::state::TriggerFlowState;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Module {
+    #[serde(rename = "MPSU50-2ST")]
     MPSU50_2ST,
+    #[serde(rename = "MSMU60-2")]
     MSMU60_2,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-pub struct SlotIndex(u8);
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct SlotIndex(pub u8);
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-pub struct ChannelIndex(u8);
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct ChannelIndex(pub u8);
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Channel {
@@ -86,10 +87,6 @@ impl SlotChannelList {
     ) -> Result<Self, String> {
         match update {
             SlotChannelListUpdate::SystemConfig(system_config) => {
-                //use system_config to update slot_channel_list
-                //what can change?
-                //node
-                //slots, slotID, module, number of channels
                 let config_json: SystemConfigJson = serde_json::from_str(&system_config)
                     .map_err(|e| format!("Failed to parse system configuration JSON: {}", e))?;
                 let slots = config_json
@@ -101,15 +98,18 @@ impl SlotChannelList {
                 self.slots = slots;
             }
             SlotChannelListUpdate::TriggerFlowState(triggerflow_state) => {
-                //use triggerflow_state to update slot_channel_list
-                //what can change?
-                //in_use status of channels
+                    for slot in &mut self.slots {
+                        for channel in &mut slot.channels {
+                            channel.in_use = triggerflow_state.is_channel_in_use(slot.slot_index, channel.channel_index);
+                        }
+                    }
             }
         }
         Ok(SlotChannelList {
             slots: self.slots.clone(),
         })
     }
+
 }
 
 impl TryFrom<(&String, &SlotJson)> for Slot {
