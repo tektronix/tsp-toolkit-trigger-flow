@@ -15,7 +15,6 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 pub struct RequestProcessor {
-    catalog: &'static Catalog,
     validation_chain: ValidationChain,
 }
 
@@ -26,7 +25,6 @@ impl RequestProcessor {
             .add_validator(Box::new(InstrumentValidator::new())); //pass initial empty slot_channel_list, will be updated with each request
 
         Self {
-            catalog,
             validation_chain,
         }
     }

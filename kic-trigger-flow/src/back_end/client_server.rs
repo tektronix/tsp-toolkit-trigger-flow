@@ -47,7 +47,6 @@ async fn ws_index(
     req: HttpRequest,
     body: web::Payload,
     app_state: web::Data<AppState>,
-    processor: web::Data<RequestProcessor>,
 ) -> Result<HttpResponse, Error> {
     let (response, mut session, mut msg_stream) = actix_ws::handle(&req, body)?;
     {
@@ -120,8 +119,8 @@ async fn ws_index(
                                 Ok(request) => {
                                     let mut trigger_flow_state =
                                         app_state.trigger_flow_state.lock().await;
-                                    let response_type = RequestProcessor::process_request(
-                                        &processor,
+                                    let processor = RequestProcessor::new(app_state.catalog); //check if this is needed --needs refactoring
+                                    let response_type = processor.process_request(
                                         &mut trigger_flow_state,
                                         request,
                                     );
