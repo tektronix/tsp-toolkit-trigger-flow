@@ -1,5 +1,6 @@
 //placeholder to prove server is running
 use crate::back_end::stdin_line::StdinLine;
+use actix_files as fs;
 use actix_web::{web, App, Error, HttpRequest, HttpResponse, HttpServer};
 use actix_ws::{Message, Session};
 use futures::StreamExt;
@@ -15,7 +16,7 @@ use tokio::{
 use trigger_flow_manager::{
     api::{
         request::{RequestType, ResponseWrapper},
-        slot_channel_list::SlotChannelList,
+        slot_channel_list::{SlotChannelList, SystemConfigJson},
         state::TriggerFlowState,
     },
     request_processor::RequestProcessor,
@@ -43,12 +44,34 @@ impl AppState {
         }
     }
 }
+
+async fn serve_index_html() -> Result<HttpResponse, Error> {
+    // Try to get the html path
+    let mut html_path =
+        std::env::current_dir().expect("should be able to get the path of current directory");
+    html_path.push("trigger-flow-ui");
+    html_path.push("dist\\trigger-flow-ui");
+    html_path.push("browser");
+    html_path.push("index.html");
+
+    let html_content = other_fs::read_to_string(&html_path).map_err(|e| {
+        eprintln!("Failed to read HTML file at {}: {}", html_path.display(), e);
+        actix_web::error::ErrorInternalServerError("Failed to load HTML")
+    })?;
+
+    Ok(HttpResponse::Ok()
+        .content_type("text/html; charset=utf-8")
+        .body(html_content))
+}
+
 async fn ws_index(
     req: HttpRequest,
     body: web::Payload,
-    app_state: web::Data<AppState>,
+    app_state: web::Data<Arc<AppState>>,
 ) -> Result<HttpResponse, Error> {
     let (response, mut session, mut msg_stream) = actix_ws::handle(&req, body)?;
+
+    // Use the app_state here
     {
         let mut session_lock = app_state.session.lock().await;
         *session_lock = Some(session.clone());
@@ -117,21 +140,22 @@ async fn ws_index(
                         Ok(ipc_data) => {
                             match RequestType::try_from(&ipc_data) {
                                 Ok(request) => {
-                                    let mut trigger_flow_state =
-                                        app_state.trigger_flow_state.lock().await;
-                                    let processor = RequestProcessor::new(app_state.catalog); //check if this is needed --needs refactoring
-                                    let response_type = processor.process_request(
-                                        &mut trigger_flow_state,
-                                        request,
-                                    );
-                                    let response_wrapper = match response_type {
-                                        Ok(resp) => ResponseWrapper::Ok(resp),
-                                        Err(e) => ResponseWrapper::Err(e.to_string()),
-                                    };
-                                    let response =
-                                        serde_json::to_string(&response_wrapper).unwrap();
-                                    println!("Sending WebSocket response: {}", response);
-                                    session.text(&*response).await.unwrap();
+                                    println!("Received WebSocket request: {:?}", request);
+                                    // let mut trigger_flow_state =
+                                    //     app_state.trigger_flow_state.lock().await;
+                                    // let response_type = RequestProcessor::process_request(
+                                    //     &processor,
+                                    //     &mut trigger_flow_state,
+                                    //     request,
+                                    // );
+                                    // let response_wrapper = match response_type {
+                                    //     Ok(resp) => ResponseWrapper::Ok(resp),
+                                    //     Err(e) => ResponseWrapper::Err(e.to_string()),
+                                    // };
+                                    // let response =
+                                    //     serde_json::to_string(&response_wrapper).unwrap();
+                                    // println!("Sending WebSocket response: {}", response);
+                                    session.text("hello from server").await.unwrap();
                                 }
                                 Err(err) => {
                                     eprintln!("Failed to convert IpcData to RequestType: {err:?}");
@@ -158,25 +182,18 @@ async fn ws_index(
     Ok(response)
 }
 
-async fn serve_index_html() -> Result<HttpResponse, Error> {
-    let html_path = "index.html";
-
-    let html_content = other_fs::read_to_string(html_path).map_err(|e| {
-        eprintln!("Failed to read HTML file at {}: {}", html_path, e);
-        actix_web::error::ErrorInternalServerError("Failed to load HTML")
-    })?;
-
-    Ok(HttpResponse::Ok()
-        .content_type("text/html; charset=utf-8")
-        .body(html_content))
-}
-
 pub async fn start_web_server(app_state: Arc<AppState>) -> std::io::Result<()> {
     let server = HttpServer::new(move || {
+        let mut browser_path =
+            std::env::current_dir().expect("should be able to get the path of current directory");
+        browser_path.push("trigger-flow-ui");
+        browser_path.push("dist\\trigger-flow-ui");
+        browser_path.push("browser");
         App::new()
             .app_data(web::Data::new(app_state.clone()))
             .route("/", web::get().to(serve_index_html))
             .route("/ws", web::get().to(ws_index))
+            .service(fs::Files::new("/", browser_path).index_file("index.html"))
             .wrap(
                 actix_cors::Cors::default()
                     .allow_any_origin()
