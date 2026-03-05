@@ -1,1 +1,13 @@
-<p>dropdown works!</p>
+<div class="dropdown">
+  <label for="dropdown">{{ label }}</label>
+  <select
+    [attr.aria-label]="automationID"
+    [value]="selected"
+    (change)="onSelectionChanged($event)"
+    [disabled]="disabled"
+  >
+    <option *ngFor="let option of options" [value]="option">
+      {{ option }}
+    </option>
+  </select>
+</div>
