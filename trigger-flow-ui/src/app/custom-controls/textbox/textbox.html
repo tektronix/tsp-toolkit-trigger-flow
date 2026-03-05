@@ -1,1 +1,11 @@
-<p>textbox works!</p>
+<div class="input-plain">
+  <label for="input">{{ label }}</label>
+  <input
+    type="text"
+    [value]="value"
+    (input)="onInputChange($event)"
+    (blur)="onBlur($event)"
+    (keydown)="onKeyDown($event)"
+    [disabled]="disabled"
+  />
+</div>
