@@ -1,30 +1,21 @@
 import { Injectable } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
 import { v4 as uuidv4 } from 'uuid';
+import { IpcData } from '../models/ipcData';
 
 @Injectable({
   providedIn: 'root',
 })
 export class Websocket {
-  private socket: WebSocket | undefined;
+  private socket: WebSocket;
   private messageSubject: Subject<string> = new Subject<string>();
   private readonly CHUNK_SIZE = 30 * 1024; // 30 KB per chunk
 
   constructor() {
-    //this.socket = new WebSocket('ws://localhost:27950');
-    try {
-      console.log('Attempting to create WebSocket connection to ws://localhost:27950');
-      this.socket = new WebSocket('ws://localhost:27950/ws');
-    } catch (error) {
-      console.error('WebSocket creation error:', error);
-    }
+    this.socket = new WebSocket('ws://localhost:27951/ws');
   }
 
   connect(): void {
-    if (!this.socket) {
-      console.error('WebSocket is not initialized.');
-      return;
-    }
     this.socket.onopen = () => {
       console.log('WebSocket connection established');
       this.sendInitialDataRequest();
@@ -45,14 +36,15 @@ export class Websocket {
   }
 
   sendInitialDataRequest(): void {
-    // TODO: Send a message to the server to request initial data if needed
+    const ipcData = new IpcData({
+      request_type: 'initial_request',
+      additional_info: '',
+      json_value: '{}',
+    });
+    this.send(JSON.stringify(ipcData));
   }
 
   send(message: string): void {
-    if (!this.socket) {
-      console.error('WebSocket is not initialized.');
-      return;
-    }
     if (this.socket.readyState === WebSocket.OPEN) {
       console.log(`Input size is: ${(message.length / (1024 * 1024)).toFixed(2)} MB)`);
       if (message.length > this.CHUNK_SIZE) {
@@ -101,10 +93,6 @@ export class Websocket {
   }
 
   close(): void {
-    if (!this.socket) {
-      console.error('WebSocket is not initialized.');
-      return;
-    }
     this.socket.close();
   }
 }
