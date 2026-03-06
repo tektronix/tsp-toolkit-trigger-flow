@@ -140,22 +140,19 @@ async fn ws_index(
                         Ok(ipc_data) => {
                             match RequestType::try_from(&ipc_data) {
                                 Ok(request) => {
-                                    println!("Received WebSocket request: {:?}", request);
-                                    // let mut trigger_flow_state =
-                                    //     app_state.trigger_flow_state.lock().await;
-                                    // let response_type = RequestProcessor::process_request(
-                                    //     &processor,
-                                    //     &mut trigger_flow_state,
-                                    //     request,
-                                    // );
-                                    // let response_wrapper = match response_type {
-                                    //     Ok(resp) => ResponseWrapper::Ok(resp),
-                                    //     Err(e) => ResponseWrapper::Err(e.to_string()),
-                                    // };
-                                    // let response =
-                                    //     serde_json::to_string(&response_wrapper).unwrap();
-                                    // println!("Sending WebSocket response: {}", response);
-                                    session.text("hello from server").await.unwrap();
+                                    let mut trigger_flow_state =
+                                        app_state.trigger_flow_state.lock().await;
+                                    let processor = RequestProcessor::new(app_state.catalog); //check if this is needed --needs refactoring
+                                    let response_type =
+                                        processor.process_request(&mut trigger_flow_state, request);
+                                    let response_wrapper = match response_type {
+                                        Ok(resp) => ResponseWrapper::Ok(resp),
+                                        Err(e) => ResponseWrapper::Err(e.to_string()),
+                                    };
+                                    let response =
+                                        serde_json::to_string(&response_wrapper).unwrap();
+                                    println!("Sending WebSocket response: {}", response);
+                                    session.text(&*response).await.unwrap();
                                 }
                                 Err(err) => {
                                     eprintln!("Failed to convert IpcData to RequestType: {err:?}");

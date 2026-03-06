@@ -1,6 +1,3 @@
-use crate::model::trigger_model_block::TriggerModelBlock;
-use anyhow::Result;
-use serde_json::Value;
 use super::param_types::ParamTypeName;
 use crate::model::trigger_model_block::TriggerModelBlock;
 use anyhow::Result;
@@ -66,14 +63,16 @@ impl Parameter {
         // 1. Name check
         //Names of each block within a model should be unique
         //Name can be an empty string but if not empty, should be unique across the model
-        
 
         // 2. Range check (for numbers)
         if let Some(range) = &self.range {
             if let Some(num) = value.and_then(|v| v.as_f64()) {
                 if let Some(min) = range.min.as_ref().and_then(|v| v.as_f64()) {
                     if num < min {
-                        let err = (true, format!("Parameter '{}' value {} below min {}", self.name, num, min));
+                        let err = (
+                            true,
+                            format!("Parameter '{}' value {} below min {}", self.name, num, min),
+                        );
                         if let Some(errors) = block.block_error.as_mut() {
                             errors.push(err);
                         } else {
@@ -83,7 +82,10 @@ impl Parameter {
                 }
                 if let Some(max) = range.max.as_ref().and_then(|v| v.as_f64()) {
                     if num > max {
-                        let err = (true, format!("Parameter '{}' value {} above max {}", self.name, num, max));
+                        let err = (
+                            true,
+                            format!("Parameter '{}' value {} above max {}", self.name, num, max),
+                        );
                         if let Some(errors) = block.block_error.as_mut() {
                             errors.push(err);
                         } else {
@@ -100,7 +102,13 @@ impl Parameter {
                 Some(Value::String(val_str)) => {
                     let valid = options.iter().any(|opt| opt.value == *val_str);
                     if !valid {
-                        let err = (true, format!("Parameter '{}' value '{}' is not a valid option", self.name, val_str));
+                        let err = (
+                            true,
+                            format!(
+                                "Parameter '{}' value '{}' is not a valid option",
+                                self.name, val_str
+                            ),
+                        );
                         if let Some(errors) = block.block_error.as_mut() {
                             errors.push(err);
                         } else {
@@ -169,10 +177,7 @@ impl Catalog {
 impl BlockDefinition {
     /// Get parameter names as a vector
     pub fn get_parameter_names(&self) -> Vec<&str> {
-        self.parameters
-            .iter()
-            .map(|p| p.name.as_str())
-            .collect()
+        self.parameters.iter().map(|p| p.name.as_str()).collect()
     }
 
     /// Find a parameter by name
@@ -184,10 +189,7 @@ impl BlockDefinition {
 impl EventDefinition {
     /// Get parameter names as a vector
     pub fn get_parameter_names(&self) -> Vec<&str> {
-        self.parameters
-            .iter()
-            .map(|p| p.name.as_str())
-            .collect()
+        self.parameters.iter().map(|p| p.name.as_str()).collect()
     }
 
     /// Find a parameter by name
