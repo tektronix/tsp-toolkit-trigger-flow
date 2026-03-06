@@ -15,11 +15,7 @@ use tokio::{
     sync::{broadcast, Mutex},
 };
 use trigger_flow_manager::{
-    api::{
-        request::{RequestType, ResponseWrapper},
-        slot_channel_list::SlotChannelList,
-        state::TriggerFlowState,
-    },
+    api::{request::RequestType, slot_channel_list::SlotChannelList, state::TriggerFlowState},
     request_processor::RequestProcessor,
     Catalog, IpcData,
 };

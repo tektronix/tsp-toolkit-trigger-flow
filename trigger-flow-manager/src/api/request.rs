@@ -28,8 +28,3 @@ pub enum ErrorType {
     DeserializationError(String),
     RequestConversionError(String),
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum ResponseWrapper<T> {
-    Ok(T),
-    Err(String),
-}
