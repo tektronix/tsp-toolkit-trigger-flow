@@ -15,17 +15,19 @@ impl Validator for CatalogValidator {
     fn validate(&self, state: &mut TriggerFlowState) -> Result<()> {
         use std::collections::HashSet;
         //iterate over the models in triggerflow state
-        for model_state in state.models.iter_mut() {
+        Ok(for model_state in state.models.iter_mut() {
             // Uniqueness check for block names (non-empty only)
             let mut seen_names = HashSet::new();
 
             for block in &mut model_state.1.blocks {
-                let name = &block.block_name;
-                if !name.is_empty() {
-                    if !seen_names.insert(name.clone()) {
-                        let err = (
-                            true,
-                            format!("Block name '{}' is not unique within the model", name),
+                let name = block.block_parameters.get("trigger_block_name");
+                if let Some(name) = name {
+                    if let Some(name_str) = name.as_str() {
+                        if !name_str.is_empty() {
+                        if !seen_names.insert(name.clone()) {
+                            let err = (
+                                true,
+                                format!("Block name '{}' is not unique within the model", name),
                         );
                         if let Some(errors) = block.block_error.as_mut() {
                             errors.push(err);
@@ -51,7 +53,7 @@ impl Validator for CatalogValidator {
                 }
             }
         }
-        Ok(())
-    }
+    }})
 }
 
+}

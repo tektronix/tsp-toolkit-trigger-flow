@@ -1,5 +1,6 @@
-use std::collections::HashMap;
+// use std::collections::{HashMap};
 
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -13,10 +14,11 @@ use crate::{
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TriggerFlowState {
     pub slot_channel_list: SlotChannelList,
-    pub models: HashMap<String, TriggerModelState>,
+    pub models: IndexMap<String, TriggerModelState>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TriggerModelState {
+    #[serde(rename = "trigger_model_name")]
     pub model_name: String,
     pub slot_index: SlotIndex,
     pub blocks: Vec<TriggerModelBlock>,

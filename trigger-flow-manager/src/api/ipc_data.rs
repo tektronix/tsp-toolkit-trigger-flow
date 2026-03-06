@@ -21,8 +21,10 @@ impl TryFrom<&IpcData> for RequestType {
         match ipc_data.request_type.as_str() {
             "initial_request" => Ok(RequestType::InitialRequest),
             "evaluate_request" => {
+                println!("Deserializing TriggerFlowState from IPC data: {}", ipc_data.json_value);
                 let current_state: TriggerFlowState = serde_json::from_str(&ipc_data.json_value)
                     .map_err(|e| ErrorType::DeserializationError(e.to_string()))?;
+                println!("Deserialized TriggerFlowState: {:?}", current_state);
                 Ok(RequestType::EvaluateRequest {
                     trigger_flow_state: current_state.clone(),
                 })

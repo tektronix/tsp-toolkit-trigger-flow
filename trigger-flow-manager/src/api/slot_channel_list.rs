@@ -4,9 +4,9 @@ use crate::api::state::TriggerFlowState;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Module {
-    #[serde(rename = "MPSU50-2ST")]
+    #[serde(rename = "MPSU50_2ST")]
     MPSU50_2ST,
-    #[serde(rename = "MSMU60-2")]
+    #[serde(rename = "MSMU60_2")]
     MSMU60_2,
 }
 

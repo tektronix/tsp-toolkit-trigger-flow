@@ -9,10 +9,9 @@ pub struct BlockPosition {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TriggerModelBlock {
+    pub block_id: String,
     #[serde(rename = "type")]
     pub block_type: String,
-    pub block_name: String,
-    pub block_id: String,
     pub block_parameters: HashMap<String, serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub incoming: Option<String>,
@@ -20,7 +19,6 @@ pub struct TriggerModelBlock {
     pub outgoing: Option<String>,
     pub block_position: BlockPosition,
     pub block_error: Option<Vec<(bool, String)>>,
-    //add the error tuple containing error_bool and error_message
 }
 
 impl TriggerModelBlock {

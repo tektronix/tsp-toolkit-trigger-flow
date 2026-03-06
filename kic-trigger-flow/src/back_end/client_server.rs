@@ -4,8 +4,9 @@ use actix_files as fs;
 use actix_web::{web, App, Error, HttpRequest, HttpResponse, HttpServer};
 use actix_ws::{Message, Session};
 use futures::StreamExt;
+use indexmap::IndexMap;
 use std::{
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     fs::{self as other_fs},
     sync::Arc,
 };
@@ -16,7 +17,7 @@ use tokio::{
 use trigger_flow_manager::{
     api::{
         request::{RequestType, ResponseWrapper},
-        slot_channel_list::{SlotChannelList, SystemConfigJson},
+        slot_channel_list::{SlotChannelList},
         state::TriggerFlowState,
     },
     request_processor::RequestProcessor,
@@ -38,7 +39,7 @@ impl AppState {
             catalog: catalog_ref,
             trigger_flow_state: Arc::new(Mutex::new(TriggerFlowState {
                 slot_channel_list: SlotChannelList::default(),
-                models: HashMap::new(),
+                models: IndexMap::new(),
             })),
             trigger_flow_tx: broadcast::channel(100).0,
         }
@@ -140,17 +141,19 @@ async fn ws_index(
                         Ok(ipc_data) => {
                             match RequestType::try_from(&ipc_data) {
                                 Ok(request) => {
-                                    let mut trigger_flow_state =
-                                        app_state.trigger_flow_state.lock().await;
-                                    let processor = RequestProcessor::new(app_state.catalog); //check if this is needed --needs refactoring
+                                    // Stateless processing - no backend state needed
+                                    let processor = RequestProcessor::new(app_state.catalog);
                                     let response_type =
-                                        processor.process_request(&mut trigger_flow_state, request);
-                                    let response_wrapper = match response_type {
-                                        Ok(resp) => ResponseWrapper::Ok(resp),
-                                        Err(e) => ResponseWrapper::Err(e.to_string()),
+                                        processor.process_request(request);
+                                    let response = match response_type {
+                                        Ok(resp ) => resp,
+                                        Err(e) => {
+                                            let error_response = serde_json::json!({
+                                                "error": e.to_string()
+                                            });
+                                            error_response.to_string()
+                                        }
                                     };
-                                    let response =
-                                        serde_json::to_string(&response_wrapper).unwrap();
                                     println!("Sending WebSocket response: {}", response);
                                     session.text(&*response).await.unwrap();
                                 }

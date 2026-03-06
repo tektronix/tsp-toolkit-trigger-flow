@@ -25,7 +25,6 @@ impl RequestProcessor {
     }
     pub fn process_request(
         &self,
-        trigger_flow_state: &mut TriggerFlowState,
         request: RequestType,
     ) -> Result<String> {
         match request {
@@ -34,8 +33,13 @@ impl RequestProcessor {
                 println!("Generated InitialRequest response: {}", response);
                 Ok(response)
             }
-            RequestType::EvaluateRequest { .. } => {
-                let response = self.handle_evaluate_request(trigger_flow_state)?;
+            RequestType::EvaluateRequest { trigger_flow_state: request_state } => {
+                // Process only the state from the request - no backend state persistence
+                let mut working_state = request_state;
+                println!("Processing EvaluateRequest with TriggerFlowState: {:?}", working_state);
+                let response = self.handle_evaluate_request(&mut working_state)?;
+                
+                // Return response without persisting state (stateless)
                 Ok(response)
             }
         }
