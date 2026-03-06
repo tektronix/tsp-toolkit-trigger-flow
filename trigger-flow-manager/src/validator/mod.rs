@@ -1,4 +1,4 @@
-use crate::api::state::{TriggerFlowState};
+use crate::api::state::TriggerFlowState;
 use anyhow::Result;
 
 pub trait Validator {

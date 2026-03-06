@@ -41,11 +41,7 @@ impl Validator for InstrumentValidator {
                         if block.block_error.is_none() {
                             block.block_error = Some(Vec::new());
                         }
-                        block
-                            .block_error
-                            .as_mut()
-                            .unwrap()
-                            .push((true, conflict));
+                        block.block_error.as_mut().unwrap().push((true, conflict));
                     } else {
                         // No conflict, register usage
                         validator.add_usage(
@@ -61,4 +57,3 @@ impl Validator for InstrumentValidator {
         Ok(())
     }
 }
-

@@ -98,18 +98,18 @@ impl SlotChannelList {
                 self.slots = slots;
             }
             SlotChannelListUpdate::TriggerFlowState(triggerflow_state) => {
-                    for slot in &mut self.slots {
-                        for channel in &mut slot.channels {
-                            channel.in_use = triggerflow_state.is_channel_in_use(slot.slot_index, channel.channel_index);
-                        }
+                for slot in &mut self.slots {
+                    for channel in &mut slot.channels {
+                        channel.in_use = triggerflow_state
+                            .is_channel_in_use(slot.slot_index, channel.channel_index);
                     }
+                }
             }
         }
         Ok(SlotChannelList {
             slots: self.slots.clone(),
         })
     }
-
 }
 
 impl TryFrom<(&String, &SlotJson)> for Slot {

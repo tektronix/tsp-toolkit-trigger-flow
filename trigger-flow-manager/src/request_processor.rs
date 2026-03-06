@@ -23,22 +23,24 @@ impl RequestProcessor {
 
         Self { validation_chain }
     }
-    pub fn process_request(
-        &self,
-        request: RequestType,
-    ) -> Result<String> {
+    pub fn process_request(&self, request: RequestType) -> Result<String> {
         match request {
             RequestType::InitialRequest => {
                 let response = "instrument data requested".to_string();
                 println!("Generated InitialRequest response: {}", response);
                 Ok(response)
             }
-            RequestType::EvaluateRequest { trigger_flow_state: request_state } => {
+            RequestType::EvaluateRequest {
+                trigger_flow_state: request_state,
+            } => {
                 // Process only the state from the request - no backend state persistence
                 let mut working_state = request_state;
-                println!("Processing EvaluateRequest with TriggerFlowState: {:?}", working_state);
+                println!(
+                    "Processing EvaluateRequest with TriggerFlowState: {:?}",
+                    working_state
+                );
                 let response = self.handle_evaluate_request(&mut working_state)?;
-                
+
                 // Return response without persisting state (stateless)
                 Ok(response)
             }

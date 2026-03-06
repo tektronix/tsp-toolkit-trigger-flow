@@ -17,23 +17,37 @@ impl SlotChannelHashMap {
         }
     }
 
-    pub fn check_channel_conflict(&self, slot: SlotIndex, channel: ChannelIndex, model: &str) -> Option<String> {
-        if let Some(existing_usage) = self.channel_usage_map.get(&(slot,channel)) {
+    pub fn check_channel_conflict(
+        &self,
+        slot: SlotIndex,
+        channel: ChannelIndex,
+        model: &str,
+    ) -> Option<String> {
+        if let Some(existing_usage) = self.channel_usage_map.get(&(slot, channel)) {
             if existing_usage.model_name != model {
                 return Some(format!(
                     "Channel conflict: Slot {:?} Channel {:?} already used by model '{}' block '{}'",
                     slot, channel, existing_usage.model_name, existing_usage.block_id
-                ))
+                ));
             }
         }
         None
     }
 
-    pub fn add_usage(&mut self, slot: SlotIndex, channel: ChannelIndex, model: &str, block_id: &str) {
-        self.channel_usage_map.insert((slot, channel), ChannelUsage {
-            model_name: model.to_string(),
-            block_id: block_id.to_string(),
-        });
+    pub fn add_usage(
+        &mut self,
+        slot: SlotIndex,
+        channel: ChannelIndex,
+        model: &str,
+        block_id: &str,
+    ) {
+        self.channel_usage_map.insert(
+            (slot, channel),
+            ChannelUsage {
+                model_name: model.to_string(),
+                block_id: block_id.to_string(),
+            },
+        );
     }
 
     pub fn clear(&mut self) {

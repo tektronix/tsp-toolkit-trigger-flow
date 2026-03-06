@@ -1,4 +1,4 @@
-use crate::{Catalog, api::state::TriggerFlowState, validator::Validator};
+use crate::{api::state::TriggerFlowState, validator::Validator, Catalog};
 use anyhow::Result;
 
 pub struct CatalogValidator {
@@ -24,36 +24,36 @@ impl Validator for CatalogValidator {
                 if let Some(name) = name {
                     if let Some(name_str) = name.as_str() {
                         if !name_str.is_empty() {
-                        if !seen_names.insert(name.clone()) {
+                            if !seen_names.insert(name.clone()) {
+                                let err = (
+                                    true,
+                                    format!("Block name '{}' is not unique within the model", name),
+                                );
+                                if let Some(errors) = block.block_error.as_mut() {
+                                    errors.push(err);
+                                } else {
+                                    block.block_error = Some(vec![err]);
+                                }
+                            }
+                        }
+
+                        if let Some(catalog_block) = self.catalog.blocks.get(&block.block_type) {
+                            catalog_block.validate(block)?;
+                        } else {
+                            //if block type not found in catalog, add error to block's error tuple
                             let err = (
                                 true,
-                                format!("Block name '{}' is not unique within the model", name),
-                        );
-                        if let Some(errors) = block.block_error.as_mut() {
-                            errors.push(err);
-                        } else {
-                            block.block_error = Some(vec![err]);
+                                format!("Block type '{}' not found in catalog", block.block_type),
+                            );
+                            if let Some(errors) = block.block_error.as_mut() {
+                                errors.push(err);
+                            } else {
+                                block.block_error = Some(vec![err]);
+                            }
                         }
                     }
                 }
-
-                if let Some(catalog_block) = self.catalog.blocks.get(&block.block_type) {
-                    catalog_block.validate(block)?;
-                } else {
-                    //if block type not found in catalog, add error to block's error tuple
-                    let err = (
-                        true,
-                        format!("Block type '{}' not found in catalog", block.block_type),
-                    );
-                    if let Some(errors) = block.block_error.as_mut() {
-                        errors.push(err);
-                    } else {
-                        block.block_error = Some(vec![err]);
-                    }
-                }
             }
-        }
-    }})
-}
-
+        })
+    }
 }
