@@ -6,7 +6,7 @@ use actix_ws::{Message, Session};
 use futures::StreamExt;
 use indexmap::IndexMap;
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::HashMap,
     fs::{self as other_fs},
     sync::Arc,
 };
@@ -43,11 +43,17 @@ impl AppState {
 }
 
 async fn serve_index_html() -> Result<HttpResponse, Error> {
-    // Try to get the html path
+    // Try to get the html path, this is temporary fix until the just file is ready for triggerFlow, when that is ready, we will use current_exe
+    println!("{}", std::env::current_dir().unwrap().display());
+    println!(
+        "{}",
+        std::env::current_exe().unwrap().parent().unwrap().display()
+    );
     let mut html_path =
         std::env::current_dir().expect("should be able to get the path of current directory");
     html_path.push("trigger-flow-ui");
-    html_path.push("dist\\trigger-flow-ui");
+    html_path.push("dist");
+    html_path.push("trigger-flow-ui");
     html_path.push("browser");
     html_path.push("index.html");
 
