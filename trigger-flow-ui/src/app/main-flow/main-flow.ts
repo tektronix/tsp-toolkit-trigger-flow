@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { Canvas } from './canvas/canvas';
 import { SidePanelAccordion } from './palette/side-panel-accordion/side-panel-accordion';
+import { BlockParameters } from './palette/block-parameters/block-parameters';
 import { MatIconModule } from '@angular/material/icon';
 import { CommonModule } from '@angular/common';
 import { TriggerBlocksService } from '../services/trigger-blocks.service';
@@ -9,7 +10,7 @@ import { TriggerBlocks } from '../models/trigger-blocks.model';
 
 @Component({
   selector: 'app-main-flow',
-  imports: [CommonModule, Canvas, SidePanelAccordion, MatIconModule],
+  imports: [CommonModule, Canvas, SidePanelAccordion, BlockParameters, MatIconModule],
   templateUrl: './main-flow.html',
   styleUrl: './main-flow.css',
 })
