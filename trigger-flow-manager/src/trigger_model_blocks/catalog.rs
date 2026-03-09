@@ -1,10 +1,13 @@
 use super::param_types::ParamTypeName;
+use crate::model::trigger_model_block::TriggerModelBlock;
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::HashMap;
 
 /// The root structure representing all available trigger blocks
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct TriggerBlocks {
+pub struct Catalog {
     pub blocks: HashMap<String, BlockDefinition>,
     pub trigger_events: HashMap<String, EventDefinition>,
 }
@@ -16,6 +19,26 @@ pub struct BlockDefinition {
     pub syntax: String,
     pub description: Option<String>,
     pub shape: String,
+}
+
+impl BlockDefinition {
+    pub fn validate(&self, block: &mut TriggerModelBlock) -> Result<()> {
+        // For each parameter in the catalog definition
+        for param in &self.parameters {
+            let value = block.block_parameters.get(&param.name).cloned();
+            if value.is_none() {
+                let err = (true, format!("Missing parameter '{}'", param.name));
+                if let Some(errors) = block.block_error.as_mut() {
+                    errors.push(err);
+                } else {
+                    block.block_error = Some(vec![err]);
+                }
+                continue;
+            }
+            param.validate(value.as_ref(), block)?;
+        }
+        Ok(())
+    }
 }
 /// Definition of a single event type with its parameters and syntaxs
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -35,6 +58,71 @@ pub struct Parameter {
     pub range: Option<ParameterRange>,
 }
 
+impl Parameter {
+    pub fn validate(&self, value: Option<&Value>, block: &mut TriggerModelBlock) -> Result<()> {
+        // 1. Name check
+        //Names of each block within a model should be unique
+        //Name can be an empty string but if not empty, should be unique across the model
+
+        // 2. Range check (for numbers)
+        if let Some(range) = &self.range {
+            if let Some(num) = value.and_then(|v| v.as_f64()) {
+                if let Some(min) = range.min.as_ref().and_then(|v| v.as_f64()) {
+                    if num < min {
+                        let err = (
+                            true,
+                            format!("Parameter '{}' value {} below min {}", self.name, num, min),
+                        );
+                        if let Some(errors) = block.block_error.as_mut() {
+                            errors.push(err);
+                        } else {
+                            block.block_error = Some(vec![err]);
+                        }
+                    }
+                }
+                if let Some(max) = range.max.as_ref().and_then(|v| v.as_f64()) {
+                    if num > max {
+                        let err = (
+                            true,
+                            format!("Parameter '{}' value {} above max {}", self.name, num, max),
+                        );
+                        if let Some(errors) = block.block_error.as_mut() {
+                            errors.push(err);
+                        } else {
+                            block.block_error = Some(vec![err]);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Options/Enum check
+        if let Some(options) = &self.options {
+            match value {
+                Some(Value::String(val_str)) => {
+                    let valid = options.iter().any(|opt| opt.value == *val_str);
+                    if !valid {
+                        let err = (
+                            true,
+                            format!(
+                                "Parameter '{}' value '{}' is not a valid option",
+                                self.name, val_str
+                            ),
+                        );
+                        if let Some(errors) = block.block_error.as_mut() {
+                            errors.push(err);
+                        } else {
+                            block.block_error = Some(vec![err]);
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ParameterOptions {
     pub label: String,
@@ -47,16 +135,16 @@ pub struct ParameterRange {
     pub max: Option<serde_json::Value>,
 }
 
-impl TriggerBlocks {
+impl Catalog {
     /// Initialize trigger blocks from our JSON
     pub fn from_file(path: &str) -> anyhow::Result<Self> {
         let json_str = std::fs::read_to_string(path)?;
-        let blocks: TriggerBlocks = serde_json::from_str(&json_str)?;
+        let blocks: Catalog = serde_json::from_str(&json_str)?;
         Ok(blocks)
     }
 
     pub fn from_str(json: &str) -> anyhow::Result<Self> {
-        let blocks: TriggerBlocks = serde_json::from_str(json)?;
+        let blocks: Catalog = serde_json::from_str(json)?;
         Ok(blocks)
     }
 

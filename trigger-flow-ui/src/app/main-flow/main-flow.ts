@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { Canvas } from './canvas/canvas';
 import { SidePanelAccordion } from './palette/side-panel-accordion/side-panel-accordion';
 import { BlockParameters } from './palette/block-parameters/block-parameters';
@@ -15,13 +15,11 @@ import { TriggerBlocks } from '../models/trigger-blocks.model';
   styleUrl: './main-flow.css',
 })
 export class MainFlow implements OnInit {
+  private triggerBlocksService = inject(TriggerBlocksService);
+  private canvasBlocksService = inject(CanvasBlocksService);
+
   sidebarCollapsed = false;
   catalogData: TriggerBlocks | null = null;
-  
-  constructor(
-    private triggerBlocksService: TriggerBlocksService,
-    private canvasBlocksService: CanvasBlocksService
-  ) {}
 
   ngOnInit(): void {
     this.loadCatalogData();

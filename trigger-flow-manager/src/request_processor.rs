@@ -1,59 +1,75 @@
 use crate::{
     api::{
         request::{RequestType, ResponseType},
-        state::{SystemConfiguration, TriggerFlowState},
+        slot_channel_list::{self},
+        state::TriggerFlowState,
     },
-    validator::{catalog_validator::CatalogValidator, ValidationChain, Validator},
-    TriggerBlocks,
+    validator::{
+        catalog_validator::CatalogValidator, instr_validator::InstrumentValidator, ValidationChain,
+    },
+    Catalog,
 };
 use anyhow::{Ok, Result};
-use std::sync::Arc;
 
 pub struct RequestProcessor {
-    catalog: Arc<TriggerBlocks>,
     validation_chain: ValidationChain,
 }
 
 impl RequestProcessor {
-    pub fn new(catalog: TriggerBlocks) -> Self {
-        let catalog = Arc::new(catalog);
-
+    pub fn new(catalog: &'static Catalog) -> Self {
         let validation_chain = ValidationChain::new()
-            .add_validator(Box::new(CatalogValidator::new(Arc::clone(&catalog))));
+            .add_validator(Box::new(CatalogValidator::new(&catalog)))
+            .add_validator(Box::new(InstrumentValidator::new())); //pass initial empty slot_channel_list, will be updated with each request
 
-        Self {
-            catalog,
-            validation_chain,
-        }
+        Self { validation_chain }
     }
-    pub fn process_request(&self, request: RequestType) -> Result<ResponseType> {
+    pub fn process_request(&self, request: RequestType) -> Result<String> {
         match request {
-            RequestType::InitialRequest { system_config } => {
-                self.handle_initial_request(system_config.clone())?;
-                Ok(ResponseType::InitialResponse {
-                    system_config: system_config.clone(),
-                    catalog: self.catalog.as_ref().clone(),
-                })
+            RequestType::InitialRequest => {
+                let response = "instrument data requested".to_string();
+                println!("Generated InitialRequest response: {}", response);
+                Ok(response)
             }
-            RequestType::EvaluateRequest { current_state } => {
-                let state = current_state.clone();
-                self.handle_evaluate_request(state)?;
+            RequestType::EvaluateRequest {
+                trigger_flow_state: request_state,
+            } => {
+                // Process only the state from the request - no backend state persistence
+                let mut working_state = request_state;
+                println!(
+                    "Processing EvaluateRequest with TriggerFlowState: {:?}",
+                    working_state
+                );
+                let response = self.handle_evaluate_request(&mut working_state)?;
 
-                Ok(ResponseType::EvaluateResponse { current_state })
+                // Return response without persisting state (stateless)
+                Ok(response)
             }
         }
     }
 
-    pub fn handle_initial_request(&self, config: SystemConfiguration) -> Result<()> {
-        //validate the config
-        //send catalog
-        Ok(())
-    }
     pub fn handle_evaluate_request(
         &self,
-        current_state: TriggerFlowState,
-    ) -> Result<TriggerFlowState> {
-        //validate against catalog
-        Ok(current_state)
+        trigger_flow_state: &mut TriggerFlowState,
+    ) -> Result<String> {
+        //call process_system_config with update type triggerflowstate
+
+        let new_slot_channel_list = trigger_flow_state
+            .slot_channel_list
+            .update_slot_channel_list(slot_channel_list::SlotChannelListUpdate::TriggerFlowState(
+                trigger_flow_state.clone(),
+            ));
+        trigger_flow_state.slot_channel_list =
+            new_slot_channel_list.unwrap_or_else(|_| trigger_flow_state.slot_channel_list.clone());
+
+        //evaluate models in state
+        //validation chain validates the models first, then hashmap
+        self.validation_chain.validate(trigger_flow_state)?;
+
+        let response = ResponseType::EvaluateResponse {
+            trigger_flow_state: trigger_flow_state.clone(),
+        };
+        let serialized_response = serde_json::to_string(&response)?;
+        println!("Generated EvaluateResponse: {}", serialized_response);
+        Ok(serialized_response)
     }
 }
