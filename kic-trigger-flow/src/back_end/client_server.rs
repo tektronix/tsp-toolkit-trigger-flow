@@ -188,7 +188,8 @@ pub async fn start_web_server(app_state: Arc<AppState>) -> std::io::Result<()> {
         let mut browser_path =
             std::env::current_dir().expect("should be able to get the path of current directory");
         browser_path.push("trigger-flow-ui");
-        browser_path.push("dist\\trigger-flow-ui");
+        browser_path.push("dist");
+        browser_path.push("trigger-flow-ui");
         browser_path.push("browser");
         App::new()
             .app_data(web::Data::new(app_state.clone()))
