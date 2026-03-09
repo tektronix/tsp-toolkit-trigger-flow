@@ -19,7 +19,6 @@ pub struct ScriptTemplate {
     pub end_sentinel: String,
 }
 
-
 /// Definition of a single block type with its parameters and syntax
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct BlockDefinition {

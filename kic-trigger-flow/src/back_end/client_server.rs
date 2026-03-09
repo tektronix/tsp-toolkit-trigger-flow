@@ -276,7 +276,6 @@ impl Script {
         for (name, block) in catalog.blocks.clone().into_iter() {
             hb.register_template_string(&name, block.syntax.clone())
                 .expect(format!("should have loaded '{name}' block template").as_str());
-            eprintln!("registered \"{name}\" block template")
         }
 
         // load the event templates into hb
@@ -649,41 +648,37 @@ slot[1].trigger.model.addblock.measure("tm1", "tm1_measure_001", { 1 }, 5)
                 TriggerModelState {
                     model_name: "tm1".to_string(),
                     slot_index: SlotIndex(1),
-                    blocks: vec![
-                        TriggerModelBlock {
-                            block_type: "always".to_string(),
-                            block_parameters: HashMap::from([
-                                ("slot_index".to_string(), 1.into()),
-                                ("trigger_model_name".to_string(), "tm1".into()),
-                                ("trigger_block_name".to_string(), "tm1_always_001".into()),
-                                ("branch_to_block_name".to_string(), "other_block".into()),
-                            ]),
-                            incoming: None,
-                            outgoing: None,
-                            block_position: BlockPosition { x: 0.0, y: 0.0 },
-                            block_id: 1,
-                        },
-                    ],
+                    blocks: vec![TriggerModelBlock {
+                        block_type: "always".to_string(),
+                        block_parameters: HashMap::from([
+                            ("slot_index".to_string(), 1.into()),
+                            ("trigger_model_name".to_string(), "tm1".into()),
+                            ("trigger_block_name".to_string(), "tm1_always_001".into()),
+                            ("branch_to_block_name".to_string(), "other_block".into()),
+                        ]),
+                        incoming: None,
+                        outgoing: None,
+                        block_position: BlockPosition { x: 0.0, y: 0.0 },
+                        block_id: 1,
+                    }],
                 },
                 TriggerModelState {
                     model_name: "tm2".to_string(),
                     slot_index: SlotIndex(2),
-                    blocks: vec![
-                        TriggerModelBlock {
-                            block_type: "measure".to_string(),
-                            block_parameters: HashMap::from([
-                                ("slot_index".to_string(), 2.into()),
-                                ("trigger_model_name".to_string(), "tm2".into()),
-                                ("trigger_block_name".to_string(), "tm2_measure_001".into()),
-                                ("channel_list".to_string(), vec![1].into()),
-                                ("measure_count".to_string(), 5.into()),
-                            ]),
-                            incoming: None,
-                            outgoing: None,
-                            block_position: BlockPosition { x: 0.0, y: 0.0 },
-                            block_id: 1,
-                        },
-                    ],
+                    blocks: vec![TriggerModelBlock {
+                        block_type: "measure".to_string(),
+                        block_parameters: HashMap::from([
+                            ("slot_index".to_string(), 2.into()),
+                            ("trigger_model_name".to_string(), "tm2".into()),
+                            ("trigger_block_name".to_string(), "tm2_measure_001".into()),
+                            ("channel_list".to_string(), vec![1].into()),
+                            ("measure_count".to_string(), 5.into()),
+                        ]),
+                        incoming: None,
+                        outgoing: None,
+                        block_position: BlockPosition { x: 0.0, y: 0.0 },
+                        block_id: 1,
+                    }],
                 },
             ],
         };

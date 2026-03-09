@@ -25,7 +25,7 @@ script_template:
     {{#each trigger_models}}
 
     -- {{this.model_name}} --
-    slot[{{this.slot_index}}].trigger.model.create({{this.model_name}}
+    slot[{{this.slot_index}}].trigger.model.create("{{this.model_name}}")
     {{#each this.blocks}}
     {{> (lookup this "block_type") this.parameters}}
 
@@ -379,7 +379,7 @@ blocks:
       slot[{{slot_index}}].trigger.model.addblock.measure("{{trigger_model_name}}",
       "{{trigger_block_name}}",
       { {{#each channel_list}}{{this}}{{#unless @last}}, {{/unless}}{{/each}} }
-      {{#if measure_count}},{{measure_count}}{{/if}})
+      {{#if measure_count}}, {{measure_count}}{{/if}})
     description: >-
       The measure block triggers measurements based on the measurement function
       that is selected when the trigger model is initiated.
@@ -407,7 +407,7 @@ blocks:
       slot[{{slot_index}}].trigger.model.addblock.measureoverlapped("{{trigger_model_name}}",
       "{{trigger_block_name}}",
       { {{#each channel_list}}{{this}}{{#unless @last}}, {{/unless}}{{/each}} }
-      {{#if measure_count}},{{measure_count}}{{/if}})
+      {{#if measure_count}}, {{measure_count}}{{/if}})
     description: >-
       The measure overlapped block starts a measurement in an overlap state (in
       the background), allowing the trigger model to continue execution without
@@ -642,6 +642,11 @@ blocks:
       The wait block causes the trigger model to stop and wait for an event or
       set of events to occur before continuing.
     shape: conditional
+
+    {
+      type: event_notify_in
+      parameters: {
+        slot_index: 1,
 
 trigger_events:
   event_notify_in:
