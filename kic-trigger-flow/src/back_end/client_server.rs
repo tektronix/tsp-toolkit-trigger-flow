@@ -1,8 +1,10 @@
 //placeholder to prove server is running
 use crate::back_end::stdin_line::StdinLine;
+use actix_files as fs;
 use actix_web::{web, App, Error, HttpRequest, HttpResponse, HttpServer};
 use actix_ws::{Message, Session};
 use futures::StreamExt;
+use indexmap::IndexMap;
 use std::{
     collections::HashMap,
     fs::{self as other_fs},
@@ -13,11 +15,7 @@ use tokio::{
     sync::{broadcast, Mutex},
 };
 use trigger_flow_manager::{
-    api::{
-        request::{RequestType, ResponseWrapper},
-        slot_channel_list::SlotChannelList,
-        state::TriggerFlowState,
-    },
+    api::{request::RequestType, slot_channel_list::SlotChannelList, state::TriggerFlowState},
     request_processor::RequestProcessor,
     Catalog, IpcData,
 };
@@ -39,19 +37,46 @@ impl AppState {
             catalog: catalog_ref,
             trigger_flow_state: Arc::new(Mutex::new(TriggerFlowState {
                 slot_channel_list: SlotChannelList::default(),
-                trigger_models: Vec::new(),
+                models: IndexMap::new(),
             })),
             trigger_flow_tx: broadcast::channel(100).0,
         }
     }
 }
+
+async fn serve_index_html() -> Result<HttpResponse, Error> {
+    // Try to get the html path, this is temporary fix until the just file is ready for triggerFlow, when that is ready, we will use current_exe
+    println!("{}", std::env::current_dir().unwrap().display());
+    println!(
+        "{}",
+        std::env::current_exe().unwrap().parent().unwrap().display()
+    );
+    let mut html_path =
+        std::env::current_dir().expect("should be able to get the path of current directory");
+    html_path.push("trigger-flow-ui");
+    html_path.push("dist");
+    html_path.push("trigger-flow-ui");
+    html_path.push("browser");
+    html_path.push("index.html");
+
+    let html_content = other_fs::read_to_string(&html_path).map_err(|e| {
+        eprintln!("Failed to read HTML file at {}: {}", html_path.display(), e);
+        actix_web::error::ErrorInternalServerError("Failed to load HTML")
+    })?;
+
+    Ok(HttpResponse::Ok()
+        .content_type("text/html; charset=utf-8")
+        .body(html_content))
+}
+
 async fn ws_index(
     req: HttpRequest,
     body: web::Payload,
-    app_state: web::Data<AppState>,
-    processor: web::Data<RequestProcessor>,
+    app_state: web::Data<Arc<AppState>>,
 ) -> Result<HttpResponse, Error> {
     let (response, mut session, mut msg_stream) = actix_ws::handle(&req, body)?;
+
+    // Use the app_state here
     {
         let mut session_lock = app_state.session.lock().await;
         *session_lock = Some(session.clone());
@@ -120,20 +145,19 @@ async fn ws_index(
                         Ok(ipc_data) => {
                             match RequestType::try_from(&ipc_data) {
                                 Ok(request) => {
-                                    let trigger_flow_state =
-                                        app_state.trigger_flow_state.lock().await;
-                                    let response_type = RequestProcessor::process_request(
-                                        &processor,
-                                        &app_state.catalog,
-                                        &trigger_flow_state.slot_channel_list.clone(),
-                                        request,
-                                    );
-                                    let response_wrapper = match response_type {
-                                        Ok(resp) => ResponseWrapper::Ok(resp),
-                                        Err(e) => ResponseWrapper::Err(e.to_string()),
+                                    // Stateless processing - no backend state needed
+                                    let processor = RequestProcessor::new(app_state.catalog);
+                                    let response_type = processor.process_request(request);
+                                    let response = match response_type {
+                                        Ok(resp) => resp,
+                                        Err(e) => {
+                                            let error_response = serde_json::json!({
+                                                "error": e.to_string()
+                                            });
+                                            error_response.to_string()
+                                        }
                                     };
-                                    let response =
-                                        serde_json::to_string(&response_wrapper).unwrap();
+                                    println!("Sending WebSocket response: {}", response);
                                     session.text(&*response).await.unwrap();
                                 }
                                 Err(err) => {
@@ -161,25 +185,19 @@ async fn ws_index(
     Ok(response)
 }
 
-async fn serve_index_html() -> Result<HttpResponse, Error> {
-    let html_path = "index.html";
-
-    let html_content = other_fs::read_to_string(html_path).map_err(|e| {
-        eprintln!("Failed to read HTML file at {}: {}", html_path, e);
-        actix_web::error::ErrorInternalServerError("Failed to load HTML")
-    })?;
-
-    Ok(HttpResponse::Ok()
-        .content_type("text/html; charset=utf-8")
-        .body(html_content))
-}
-
 pub async fn start_web_server(app_state: Arc<AppState>) -> std::io::Result<()> {
     let server = HttpServer::new(move || {
+        let mut browser_path =
+            std::env::current_dir().expect("should be able to get the path of current directory");
+        browser_path.push("trigger-flow-ui");
+        browser_path.push("dist");
+        browser_path.push("trigger-flow-ui");
+        browser_path.push("browser");
         App::new()
             .app_data(web::Data::new(app_state.clone()))
             .route("/", web::get().to(serve_index_html))
             .route("/ws", web::get().to(ws_index))
+            .service(fs::Files::new("/", browser_path).index_file("index.html"))
             .wrap(
                 actix_cors::Cors::default()
                     .allow_any_origin()
@@ -187,7 +205,7 @@ pub async fn start_web_server(app_state: Arc<AppState>) -> std::io::Result<()> {
                     .allowed_headers(vec!["Content-Type"]),
             )
     })
-    .bind(("127.0.0.1", 27950))?
+    .bind(("127.0.0.1", 27951))?
     .run();
 
     server.await
@@ -204,30 +222,39 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
         let mut reader: io::Lines<io::BufReader<io::Stdin>> = io::BufReader::new(stdin).lines();
 
         let app_state = app_state.clone();
-
+        println!("Listening for stdin input...");
         while let Some(line) = reader.next_line().await.unwrap() {
             let trimmed_line = line.trim();
-            match StdinLine::try_from(trimmed_line) {
-                Ok(StdinLine::Systems) => {
-                    //convert the trimmed_line to slotChannelList
-                    //use the triggerflowState mutex to update the state if slotChannelList already exists for it
+            println!("Received stdin line: {}", trimmed_line);
+            if let Ok(msg) = StdinLine::try_from(trimmed_line) {
+                print!("Received stdin message: {:?}", msg);
+                match msg {
+                    StdinLine::Systems(msg) => {
+                        //convert the systems_msg to slotChannelList
+                        //use the triggerflowState mutex to update the state if slotChannelList already exists for it
+                        println!("Received Systems command from stdin");
+                        let mut triggerflow_state: tokio::sync::MutexGuard<'_, TriggerFlowState> =
+                            app_state.trigger_flow_state.lock().await;
+                        // Process each system in the systems array
+                        let response = if let Some(system_config) = msg.systems.first() {
+                            let system_json = serde_json::to_string(system_config).unwrap();
+                            triggerflow_state
+                                .process_system_config(&system_json, &app_state.catalog)
+                        } else {
+                            "No systems found in message".to_string()
+                        };
 
-                    let mut triggerflow_state: tokio::sync::MutexGuard<'_, TriggerFlowState> =
-                        app_state.trigger_flow_state.lock().await;
-                    let response =
-                        triggerflow_state.process_system_config(trimmed_line, &app_state.catalog);
+                        println!("{}", response);
 
-                    println!("{}", response);
-
-                    //if session exists, change in system will be evaluate request and should be handled and response sent to UI
-                    let mut session = app_state.session.lock().await;
-                    if let Some(session) = session.as_mut() {
-                        session.text(response).await.unwrap();
+                        //if session exists, change in system will be evaluate request and should be handled and response sent to UI
+                        let mut session = app_state.session.lock().await;
+                        if let Some(session) = session.as_mut() {
+                            session.text(response).await.unwrap();
+                        }
                     }
                 }
-                Err(e) => {
-                    eprintln!("Failed to parse stdin line: {}", e);
-                }
+            } else {
+                eprintln!("Failed to parse stdin JSON");
             }
         }
     });

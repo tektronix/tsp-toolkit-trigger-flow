@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { TriggerBlocks } from '../models/trigger-blocks.model';
@@ -7,8 +7,8 @@ import { TriggerBlocks } from '../models/trigger-blocks.model';
   providedIn: 'root'
 })
 export class TriggerBlocksService {
-  
-  constructor(private http: HttpClient) { }
+  private http = inject(HttpClient);
+
 
   getTriggerBlocks(): Observable<TriggerBlocks> {
     return this.http.get<TriggerBlocks>('assets/triggerBlocks.json');

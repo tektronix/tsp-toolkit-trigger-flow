@@ -11,6 +11,7 @@ pub static CATALOG: Lazy<Catalog> = Lazy::new(|| {
     Catalog::from_file(&PathBuf::from("triggerBlocks.yaml"))
         .expect("Failed to load triggerBlocks.yaml")
 });
+
 #[actix_web::main]
 async fn main() -> anyhow::Result<()> {
     println!("Welcome to KIC Script Generator!");

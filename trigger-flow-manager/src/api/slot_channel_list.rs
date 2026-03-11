@@ -3,16 +3,17 @@ use serde::{Deserialize, Serialize};
 use crate::api::state::TriggerFlowState;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Module {
+    #[serde(rename = "MPSU50_2ST")]
     MPSU50_2ST,
+    #[serde(rename = "MSMU60_2")]
     MSMU60_2,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct SlotIndex(pub u8);
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct ChannelIndex(pub u8);
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -37,7 +38,13 @@ pub struct SlotJson {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Systems {
+    pub systems: Vec<SystemConfigJson>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SystemConfigJson {
+    pub name: String,
     #[serde(rename = "localNode")]
     pub localnode: String,
     #[serde(rename = "isActive")]
@@ -80,18 +87,23 @@ impl SlotChannelList {
     ) -> Result<Self, String> {
         match update {
             SlotChannelListUpdate::SystemConfig(system_config) => {
-                //use system_config to update slot_channel_list
-                //what can change?
-                //node
-                //slots, slotID, module, number of channels
                 let config_json: SystemConfigJson = serde_json::from_str(&system_config)
                     .map_err(|e| format!("Failed to parse system configuration JSON: {}", e))?;
-                // let slots
+                let slots = config_json
+                    .slots
+                    .iter()
+                    .map(|slot_json| Slot::try_from((&config_json.localnode, slot_json)))
+                    .collect::<Result<Vec<_>, _>>()?;
+
+                self.slots = slots;
             }
             SlotChannelListUpdate::TriggerFlowState(triggerflow_state) => {
-                //use triggerflow_state to update slot_channel_list
-                //what can change?
-                //in_use status of channels
+                for slot in &mut self.slots {
+                    for channel in &mut slot.channels {
+                        channel.in_use = triggerflow_state
+                            .is_channel_in_use(slot.slot_index, channel.channel_index);
+                    }
+                }
             }
         }
         Ok(SlotChannelList {

@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { SvgIconRegistryService } from 'angular-svg-icon';
 
 export interface SvgOptions {
@@ -13,7 +13,8 @@ export interface SvgOptions {
   providedIn: 'root'
 })
 export class SvgManagerService {
-  constructor(private iconRegistry: SvgIconRegistryService) {}
+  private iconRegistry = inject(SvgIconRegistryService);
+
 
   registerIcon(name: string, path: string): void {
     this.iconRegistry.loadSvg(path, name)?.subscribe();

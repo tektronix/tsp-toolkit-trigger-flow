@@ -51,6 +51,29 @@
   overflow: hidden;
 }
 
+.parameters-sidebar {
+  width: 320px;
+  flex-shrink: 0;
+  background: #fafbfc;
+  box-shadow: -2px 0 4px rgba(0, 0, 0, 0.06);
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.parameters-box {
+  background: white;
+  border: 1px solid #e1e4e8;
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+.parameters-box h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #24292e;
+}
+
 .mat-icon {
   height: 1.5rem;
   width: 1rem;

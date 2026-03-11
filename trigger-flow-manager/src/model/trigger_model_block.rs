@@ -1,8 +1,5 @@
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-
-use crate::trigger_model_blocks::catalog::Catalog;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockPosition {
@@ -11,8 +8,8 @@ pub struct BlockPosition {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-
 pub struct TriggerModelBlock {
+    pub block_id: String,
     #[serde(rename = "type")]
     pub block_type: String,
     pub block_parameters: HashMap<String, serde_json::Value>,
@@ -21,46 +18,32 @@ pub struct TriggerModelBlock {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub outgoing: Option<String>,
     pub block_position: BlockPosition,
-    pub block_id: u32,
+    pub block_error: Option<Vec<(bool, String)>>,
 }
 
 impl TriggerModelBlock {
-    pub fn new() -> Self {
-        TriggerModelBlock {
-            block_type: String::new(),
-            block_parameters: HashMap::new(),
-            incoming: None,
-            outgoing: None,
-            block_position: BlockPosition { x: 0.0, y: 0.0 },
-            block_id: 0,
-        }
-    }
+    /// Extract all channel numbers used by this block as u8 values
+    pub fn get_used_channels(&self) -> Vec<u8> {
+        let mut channels = Vec::new();
 
-    pub fn default_block(
-        catalog: &Catalog,
-        _block_type: &str,
-        _position: BlockPosition,
-        _block_id: u32,
-    ) -> Result<Self> {
-        let definition = catalog
-            .get_block(_block_type)
-            .ok_or_else(|| anyhow::anyhow!("Block type '{}' not found in catalog", _block_type))?;
-
-        let mut block_parameters = HashMap::new();
-
-        for param in &definition.parameters {
-            if let Some(default_value) = &param.default {
-                block_parameters.insert(param.name.clone(), default_value.clone());
+        // Extract single channel_index
+        if let Some(channel_idx_param) = self.block_parameters.get("channel_index") {
+            if let Some(channel_idx) = channel_idx_param.as_u64() {
+                channels.push(channel_idx as u8);
             }
         }
 
-        Ok(TriggerModelBlock {
-            block_type: _block_type.to_string(),
-            block_parameters,
-            incoming: None,
-            outgoing: None,
-            block_position: _position,
-            block_id: _block_id,
-        })
+        // Extract channel_list (comma-separated)
+        if let Some(channel_list_param) = self.block_parameters.get("channel_list") {
+            if let Some(channel_list_str) = channel_list_param.as_str() {
+                let channel_numbers: Vec<u8> = channel_list_str
+                    .split(',')
+                    .filter_map(|s| s.trim().parse().ok())
+                    .collect();
+                channels.extend(channel_numbers);
+            }
+        }
+
+        channels
     }
 }

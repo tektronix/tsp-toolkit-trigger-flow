@@ -6,7 +6,7 @@ use crate::{api::slot_channel_list::SlotChannelList, Catalog};
 pub enum RequestType {
     InitialRequest,
     EvaluateRequest {
-        current_state: crate::api::state::TriggerFlowState,
+        trigger_flow_state: crate::api::state::TriggerFlowState,
     },
 }
 
@@ -18,7 +18,7 @@ pub enum ResponseType {
         catalog: Catalog,
     },
     EvaluateResponse {
-        current_state: crate::api::state::TriggerFlowState,
+        trigger_flow_state: crate::api::state::TriggerFlowState,
     },
 }
 
@@ -28,8 +28,4 @@ pub enum ErrorType {
     DeserializationError(String),
     RequestConversionError(String),
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum ResponseWrapper<T> {
-    Ok(T),
-    Err(String),
-}
+
