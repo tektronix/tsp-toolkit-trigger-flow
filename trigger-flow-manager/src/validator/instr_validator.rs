@@ -1,7 +1,7 @@
 use crate::{
     api::{slot_channel_list::ChannelIndex, state::TriggerFlowState},
     model::trigger_model_block::TriggerModelBlock,
-    validator::{slot_channel_hashmap::SlotChannelHashMap, Validator},
+    validator::{Validator, slot_channel_hashmap::SlotChannelHashMap},
 };
 use anyhow::Result;
 

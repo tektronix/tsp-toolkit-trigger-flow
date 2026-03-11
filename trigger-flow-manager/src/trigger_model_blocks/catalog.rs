@@ -3,7 +3,7 @@ use crate::model::trigger_model_block::TriggerModelBlock;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path};
 
 /// The root structure representing all available trigger blocks
 #[derive(Debug, Deserialize, Serialize, Clone)]

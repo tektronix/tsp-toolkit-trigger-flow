@@ -22,17 +22,17 @@ script_template:
     -- TriggerFlow UI in TSP Toolkit. Any manual changes between these two comments will
     -- be lost.
 
-    {{#each trigger_models}}
+    {{#each models}}
 
-    -- {{this.model_name}} --
-    slot[{{this.slot_index}}].trigger.model.create("{{this.model_name}}")
+    -- {{this.trigger_model_name}} --
+    slot[{{this.slot_index}}].trigger.model.create("{{this.trigger_model_name}}")
     {{#each this.blocks}}
-    {{> (lookup this "block_type") this.parameters}}
+    {{> (lookup this "type") this.block_parameters}}
 
     {{/each}}
     -- IMPORTANT: Don't forget to start your trigger model by
     -- uncommenting the following line (after you complete the setup)
-    -- slot[{{this.slot_index}}].trigger.model.initialize({{this.model_name}})
+    -- slot[{{this.slot_index}}].trigger.model.initialize({{this.trigger_model_name}})
     {{/each}}
 
     -- do not remove the line below

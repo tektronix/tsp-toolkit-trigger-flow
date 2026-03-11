@@ -5,6 +5,7 @@ resolver = "2"
 [workspace.dependencies]
 trigger-flow-manager = {path = "trigger-flow-manager"}
 kic-trigger-flow = {path = "kic-trigger-flow"}
+indexmap = { version = "2.13.0", features = ["serde"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 serde-saphyr = "0.0.21"
