@@ -1,6 +1,7 @@
 pub mod api;
 pub mod model;
 pub mod request_processor;
+pub mod script;
 pub mod trigger_model_blocks;
 pub mod validator;
 

@@ -1,32 +1,49 @@
 {
-    "script_comments_start": [
-    "-- Set up the instrument before running this script.",
-    "-- Adjust slot_index (currently: {{slot_index}}) and channel_index (currently: {{channel_index}}) as needed.",
-    "-- Define aliases here",
-    "-- e.g. local smu = slot[{{slot_index}}].smu[{{channel_index}}]",
-
-    
-    "-- If your trigger model requires TSP-Linked instruments, be sure to initialize TSP-Link here",
-    "-- tsplink.initialize()",
-
-    "-- Initialize and configure any reading buffers into which you wish to put your readings",
-    "-- e.g. local rb = slot[{{slot_index}}].smu[{{channel_index}}].makebuffer(1000000)",
-    
-    "-- BEGIN GENERATED TRIGGER MODEL",
-
-    "-- Create a trigger model",
-    "slot[{{slot_index}}].trigger.model.create({{trigger_model_name}})"
-  ],
-  "script_comments_end": [    
-    "-- END GENERATED TRIGGER MODEL",
-    "-- IMPORTANT: Don't forget to start your trigger model!",
-    "{{#each trigger_models}}",
-    "slot[{{slot_index}}].trigger.model.initiate({{trigger_model_name}})",
-    "{{/each}}",
-    
-    "-- Process and/or print your data as needed after this point.",
-    "-- e.g. printbuffer(startIndex, endIndex, buffername)"
-  ],
+    "script_template": {
+        "initial": [
+            "{{> script_comments_start}}",
+            "",
+            "{{> generated_begin_sentinel}}",
+            "{{> generated_script_contents}}",
+            "{{> generated_end_sentinel}}",
+            "",
+            "{{> script_comments_end}}"
+        ],
+        "generated_begin_sentinel": "-- BEGIN GENERATED TRIGGER MODEL --",
+        "generated_end_sentinel": "-- END GENERATED TRIGGER MODEL --",
+        "generated_script_contents": [
+            "-- do not remove the line above",
+            "{{#each trigger_models}}",
+            "",
+            "-- {{this.model_name}} --",
+            "slot[{{this.slot_index}}].trigger.model.create({{this.model_name}})",
+            "{{#each this.blocks}}",
+            "{{> (lookup . 'block_type') this.parameters}}",
+            "",
+            "{{/each}}",
+            "-- IMPORTANT: Don't forget to start your trigger model by ",
+            "-- uncommenting the following line (after you complete the setup)",
+            "-- slot[{{this.slot_index}}].trigger.model.initialize({{this.model_name}})",
+            "{{/each}}",
+            "",
+            "-- do not remove the line below"
+        ],
+        "script_comments_start": [
+        "-- Set up the instrument before running this script.",
+        "-- Define aliases here",
+        "-- e.g. local smu = slot[SLOT_INDEX].smu[CHANNEL_INDEX]",
+        "",
+        "-- If your trigger model requires TSP-Linked instruments, be sure to initialize TSP-Link here",
+        "-- tsplink.initialize()",
+        "",
+        "-- Initialize and configure any reading buffers into which you wish to put your readings",
+        "-- e.g. local rb = slot[SLOT_INDEX].smu[CHANNEL_INDEX].makebuffer(1000000)"
+        ],
+        "script_comments_end": [
+            "-- Process and/or print your data as needed after this point.",
+            "-- e.g. printbuffer(startIndex, endIndex, buffername)"
+        ]
+    },
     "blocks": {
         "always": {
             "parameters": [
@@ -417,7 +434,7 @@
                     "type": "ChannelList"
                 }
             ],
-            "syntax": "slot[{{slot_index}}].trigger.model.addblock.measure({{trigger_model_name}}, {{trigger_block_name}}, {{channel_index}}, {{measure_count}}, {{channel_list}})",
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.measure({{trigger_model_name}}, {{trigger_block_name}}, {{#if channel_list}}{ {{#each channel_list}}{{this}}{{#unless @last}}, {{/unless}}{{/each}} }{{else}}{{channel_index}}{{/if}}, {{#if measure_count}}{{measure_count}}{{/if}})",
             "description": "The measure block triggers measurements based on the measurement function that is selected when the trigger model is initiated.",
             "shape": "conditional"
         },
