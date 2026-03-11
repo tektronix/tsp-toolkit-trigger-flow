@@ -28,4 +28,3 @@ pub enum ErrorType {
     DeserializationError(String),
     RequestConversionError(String),
 }
-
