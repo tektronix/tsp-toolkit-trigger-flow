@@ -11,7 +11,7 @@ const EXTENSION = (() =>{
 
 const TRIGGER_FLOW_PATH = path.join(__dirname, "bin")
 
-const TRIGGER_FLOW_NAME = `kic-script-gen${EXTENSION}`
+const TRIGGER_FLOW_NAME = `kic-trigger-flow${EXTENSION}`
 const TRIGGER_FLOW_EXECUTABLE = path.join(TRIGGER_FLOW_PATH, TRIGGER_FLOW_NAME)
 
 module.exports = {
