@@ -4,12 +4,9 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    api::{
-        request::ResponseType,
-        slot_channel_list::{ChannelIndex, SlotChannelList, SlotChannelListUpdate, SlotIndex},
-    },
-    model::trigger_model_block::TriggerModelBlock,
-    Catalog,
+    Catalog, IpcData, api::{
+        ipc_data, request::ResponseType, slot_channel_list::{ChannelIndex, SlotChannelList, SlotChannelListUpdate, SlotIndex}
+    }, model::trigger_model_block::TriggerModelBlock
 };
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TriggerFlowState {
@@ -38,12 +35,24 @@ impl TriggerFlowState {
             match SlotChannelList::new(&system_config) {
                 Ok(new_list) => {
                     self.slot_channel_list = new_list;
+                    
                     let response = ResponseType::InitialResponse {
                         slot_channel_list: self.slot_channel_list.clone(),
                         catalog: catalog.clone(),
                     };
-                    serde_json::to_string(&response)
-                        .unwrap_or_else(|_| "{\"error\":\"Serialization failed\"}".to_string())
+                    
+                    match serde_json::to_string(&response) {
+                        Ok(response_json) => {
+                            let ipc_response = IpcData {
+                                request_type: "initial_response".to_string(),
+                                additional_info: "".to_string(),
+                                json_value: response_json,
+                            };
+                            serde_json::to_string(&ipc_response)
+                                .unwrap_or_else(|_| "{\"error\":\"Serialization failed\"}".to_string())
+                        }
+                        Err(_) => "{\"error\":\"Response serialization failed\"}".to_string()
+                    }
                 }
                 Err(_e) => {
                     //ToDo- add error handling
@@ -58,18 +67,29 @@ impl TriggerFlowState {
             ) {
                 Ok(new_list) => {
                     self.slot_channel_list = new_list;
+                    
                     let response = ResponseType::EvaluateResponse {
                         trigger_flow_state: self.clone(),
                     };
-                    serde_json::to_string(&response)
-                        .unwrap_or_else(|_| "{\"error\":\"Serialization failed\"}".to_string());
+                    
+                    match serde_json::to_string(&response) {
+                        Ok(response_json) => {
+                            let ipc_response = IpcData {
+                                request_type: "evaluate_response".to_string(),
+                                additional_info: "".to_string(),
+                                json_value: response_json,
+                            };
+                            serde_json::to_string(&ipc_response)
+                                .unwrap_or_else(|_| "{\"error\":\"Serialization failed\"}".to_string())
+                        }
+                        Err(_) => "{\"error\":\"Response serialization failed\"}".to_string()
+                    }
                 }
                 Err(_e) => {
                     //ToDo- add error handling
-                    "".to_string();
+                    "".to_string()
                 }
             }
-            "".to_string()
         }
     }
 

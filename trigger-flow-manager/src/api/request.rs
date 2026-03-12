@@ -12,6 +12,7 @@ pub enum RequestType {
 
 //response types from backend to angular
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum ResponseType {
     InitialResponse {
         slot_channel_list: SlotChannelList,

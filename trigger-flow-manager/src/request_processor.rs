@@ -5,16 +5,13 @@ use std::{
 };
 
 use crate::{
-    api::{
+    Catalog, IpcData, api::{
         request::{RequestType, ResponseType},
         slot_channel_list::{self},
         state::TriggerFlowState,
-    },
-    script::Script,
-    validator::{
-        catalog_validator::CatalogValidator, instr_validator::InstrumentValidator, ValidationChain,
-    },
-    Catalog,
+    }, script::Script, validator::{
+        ValidationChain, catalog_validator::CatalogValidator, instr_validator::InstrumentValidator
+    }
 };
 use anyhow::{Ok, Result};
 
@@ -51,7 +48,6 @@ impl RequestProcessor {
                     working_state
                 );
                 let response = self.handle_evaluate_request(&mut working_state)?;
-
                 // Return response without persisting state (stateless)
                 Ok(response)
             }
@@ -100,8 +96,17 @@ impl RequestProcessor {
         let response = ResponseType::EvaluateResponse {
             trigger_flow_state: trigger_flow_state.clone(),
         };
-        let serialized_response = serde_json::to_string(&response)?;
-        println!("Generated EvaluateResponse: {}", serialized_response);
-        Ok(serialized_response)
+        
+        match IpcData::try_from(&response) {
+            Result::Ok(ipc_response) => {
+                let serialized_response = serde_json::to_string(&ipc_response)?;
+                println!("Generated EvaluateResponse: {}", serialized_response);
+                Ok(serialized_response)
+            }
+            Result::Err(e) => {
+                println!("Failed to convert to IpcData: {:?}", e);
+                Ok("{\"error\":\"IPC conversion failed\"}".to_string())
+            }
+        }
     }
 }
