@@ -34,7 +34,6 @@ lint: lint-rust
 
 #lint: lint-trigger-flow-ui lint-rust
 
-#build triple=native-triple: (build-rust triple)
 
 build triple=native-triple: build-trigger-flow-ui (build-rust triple)
 
