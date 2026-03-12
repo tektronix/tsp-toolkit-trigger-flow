@@ -43,7 +43,7 @@ impl AppState {
 }
 
 async fn serve_index_html() -> Result<HttpResponse, Error> {
-   let exe_path =
+    let exe_path =
         std::env::current_exe().expect("should be able to get path of server executable");
 
     // Get the directory of the executable (this will be `script-gen-win32-x64/bin`)
@@ -191,8 +191,7 @@ async fn ws_index(
 
 pub async fn start_web_server(app_state: Arc<AppState>) -> std::io::Result<()> {
     let server = HttpServer::new(move || {
-        
-    let exe_path =
+        let exe_path =
             std::env::current_exe().expect("should be able to get path of server executable");
         let exe_dir = exe_path
             .parent()

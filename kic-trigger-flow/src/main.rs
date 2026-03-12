@@ -8,8 +8,7 @@ pub static CATALOG: Lazy<Catalog> = Lazy::new(|| {
     // TODO: Make sure we are getting the triggerBlocks file from the path where this
     // executable lives, not in the current working directory. Even better, when not
     // in debug, we should load the file at compile-time.
-    Catalog::from_yaml(TRIGGER_BLOCKS_YAML)
-        .expect("Failed to load triggerBlocks.yaml")
+    Catalog::from_yaml(TRIGGER_BLOCKS_YAML).expect("Failed to load triggerBlocks.yaml")
 });
 
 #[actix_web::main]
