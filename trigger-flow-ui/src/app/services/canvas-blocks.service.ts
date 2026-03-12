@@ -10,6 +10,11 @@ export interface CanvasBlock {
   svgPath: string;
 }
 
+
+declare const acquireVsCodeApi: unknown;
+// eslint-disable-next-line @typescript-eslint/no-empty-function
+const vscode = typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : { postMessage: () => {} };
+
 export interface CanvasBlocksData {
   blocks: CanvasBlock[];
   timestamp: string;
@@ -60,6 +65,7 @@ export class CanvasBlocksService {
 
     this.canvasBlocks.push(canvasBlock);
     this.updateAndPrint();
+    vscode.postMessage({ command: 'open_manual' , payload: "block_name: " + blockName});
   }
 
   removeBlock(nodeId: string): void {
