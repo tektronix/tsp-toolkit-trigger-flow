@@ -18,7 +18,6 @@ default triple=native-triple:
 
 pr triple=native-triple: init fmt lint (build triple) test (package triple)
 
-#init: init-rust init-root
 
 init: init-trigger-flow-ui init-rust init-root
 
