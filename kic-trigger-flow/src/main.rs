@@ -13,7 +13,7 @@ pub static CATALOG: Lazy<Catalog> = Lazy::new(|| {
 
 #[actix_web::main]
 async fn main() -> anyhow::Result<()> {
-    println!("Welcome to KIC trigger flow!");
+    println!("Welcome to KIC TriggerFlow!");
 
     start(&*CATALOG).await?;
 
