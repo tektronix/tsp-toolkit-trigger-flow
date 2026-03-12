@@ -46,12 +46,12 @@ async fn serve_index_html() -> Result<HttpResponse, Error> {
     let exe_path =
         std::env::current_exe().expect("should be able to get path of server executable");
 
-    // Get the directory of the executable (this will be `script-gen-win32-x64/bin`)
+    // Get the directory of the executable (this will be `trigger-flow-win32-x64/bin`)
     let exe_dir = exe_path
         .parent()
         .expect("should be able to get directory of server executable");
 
-    //browser directory and kic-script-gen.exe are on the same level in npm package
+    //browser directory and trigger-flow.exe are on the same level in npm package
     let browser_dir = exe_dir.join("browser");
 
     // Path to the HTML file
