@@ -37,7 +37,7 @@ impl RequestProcessor {
     pub fn process_request(&self, request: RequestType) -> Result<Option<String>> {
         match request {
             RequestType::InitialRequest => {
-                println!("Instrument data requested");
+                println!("instrument data requested");
                 Ok(None)
             }
             RequestType::EvaluateRequest {
