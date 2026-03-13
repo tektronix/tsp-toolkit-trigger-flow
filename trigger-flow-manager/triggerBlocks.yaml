@@ -286,6 +286,7 @@ blocks:
         default: Delay
       - name: reference_block_name
         type: string
+        required: true
       - name: delay_list
         type: DelayList
         required: true
@@ -319,31 +320,31 @@ blocks:
         required: true
         options:
           - label: Information 1
-            syntax: 'INFO1'
+            value: 'INFO1'
           - label: Information 2
-            syntax: 'INFO2'
+            value: 'INFO2'
           - label: Information 3
-            syntax: 'INFO3'
+            value: 'INFO3'
           - label: Information 4
-            syntax: 'INFO4'
+            value: 'INFO4'
           - label: Warning 1
-            syntax: 'WARN1'
+            value: 'WARN1'
           - label: Warning 2
-            syntax: 'WARN2'
+            value: 'WARN2'
           - label: Warning 3
-            syntax: 'WARN3'
+            value: 'WARN3'
           - label: Warning 4
-            syntax: 'WARN4'
+            value: 'WARN4'
           - label: Error 1
-            syntax: 'ERROR1'
+            value: 'ERROR1'
           - label: Error 2
-            syntax: 'ERROR2'
+            value: 'ERROR2'
           - label: Error 3
-            syntax: 'ERROR3'
+            value: 'ERROR3'
           - label: Error 4
-            syntax: 'ERROR4'
+            value: 'ERROR4'
           - label: Abort
-            syntax: 'WARN_ABORT'
+            value: 'WARN_ABORT'
       - name: event_message
         type: string
         required: true
@@ -642,11 +643,6 @@ blocks:
       The wait block causes the trigger model to stop and wait for an event or
       set of events to occur before continuing.
     shape: conditional
-
-    {
-      type: event_notify_in
-      parameters: {
-        slot_index: 1,
 
 trigger_events:
   event_notify_in:

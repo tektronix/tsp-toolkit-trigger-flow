@@ -43,28 +43,34 @@ impl AppState {
 }
 
 async fn serve_index_html() -> Result<HttpResponse, Error> {
-    // Try to get the html path, this is temporary fix until the just file is ready for triggerFlow, when that is ready, we will use current_exe
-    println!("{}", std::env::current_dir().unwrap().display());
-    println!(
-        "{}",
-        std::env::current_exe().unwrap().parent().unwrap().display()
-    );
-    let mut html_path =
-        std::env::current_dir().expect("should be able to get the path of current directory");
-    html_path.push("trigger-flow-ui");
-    html_path.push("dist");
-    html_path.push("trigger-flow-ui");
-    html_path.push("browser");
-    html_path.push("index.html");
+    let exe_path =
+        std::env::current_exe().expect("should be able to get path of server executable");
+
+    // Get the directory of the executable (this will be `trigger-flow-win32-x64/bin`)
+    let exe_dir = exe_path
+        .parent()
+        .expect("should be able to get directory of server executable");
+
+    //browser directory and trigger-flow.exe are on the same level in npm package
+    let browser_dir = exe_dir.join("browser");
+
+    // Path to the HTML file
+    let html_path = browser_dir.join("index.html");
 
     let html_content = other_fs::read_to_string(&html_path).map_err(|e| {
         eprintln!("Failed to read HTML file at {}: {}", html_path.display(), e);
         actix_web::error::ErrorInternalServerError("Failed to load HTML")
     })?;
 
+    // Rewrite resource URLs to absolute URLs pointing to the local server
+    let base_url = "http://127.0.0.1:27951";
+    let modified_html = html_content
+        .replace("src=\"", &format!("src=\"{base_url}/"))
+        .replace("href=\"", &format!("href=\"{base_url}/"));
+
     Ok(HttpResponse::Ok()
         .content_type("text/html; charset=utf-8")
-        .body(html_content))
+        .body(modified_html))
 }
 
 async fn ws_index(
@@ -185,17 +191,18 @@ async fn ws_index(
 
 pub async fn start_web_server(app_state: Arc<AppState>) -> std::io::Result<()> {
     let server = HttpServer::new(move || {
-        let mut browser_path =
-            std::env::current_dir().expect("should be able to get the path of current directory");
-        browser_path.push("trigger-flow-ui");
-        browser_path.push("dist");
-        browser_path.push("trigger-flow-ui");
-        browser_path.push("browser");
+        let exe_path =
+            std::env::current_exe().expect("should be able to get path of server executable");
+        let exe_dir = exe_path
+            .parent()
+            .expect("should be able to get directory of server executable");
+        let browser_dir = exe_dir.join("browser");
+
         App::new()
             .app_data(web::Data::new(app_state.clone()))
             .route("/", web::get().to(serve_index_html))
             .route("/ws", web::get().to(ws_index))
-            .service(fs::Files::new("/", browser_path).index_file("index.html"))
+            .service(fs::Files::new("/", browser_dir).index_file("index.html"))
             .wrap(
                 actix_cors::Cors::default()
                     .allow_any_origin()

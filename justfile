@@ -18,9 +18,8 @@ default triple=native-triple:
 
 pr triple=native-triple: init fmt lint (build triple) test (package triple)
 
-init: init-rust init-root
 
-#init: init-trigger-flow-ui init-rust init-root
+init: init-trigger-flow-ui init-rust init-root
 
 check-fmt: check-fmt-rust
 
@@ -34,12 +33,11 @@ lint: lint-rust
 
 #lint: lint-trigger-flow-ui lint-rust
 
-build triple=native-triple: (build-rust triple)
 
-#build triple=native-triple: build-trigger-flow-ui (build-rust triple)
+build triple=native-triple: build-trigger-flow-ui (build-rust triple)
 
 build-release triple=native-triple:
-    #just build-release-trigger-flow-ui
+    just build-release-trigger-flow-ui
     just build-release-rust {{ triple }}
 
 test: test-rust
@@ -50,8 +48,7 @@ sbom: sbom-rust sbom-root
 
 #sbom: sbom-trigger-flow-ui sbom-rust sbom-root
 
-# pre-package triple=native-triple target-dir="": pre-package-trigger-flow-ui (pre-package-rust triple)
-pre-package triple=native-triple target-dir="": (pre-package-rust triple)
+pre-package triple=native-triple target-dir="": pre-package-trigger-flow-ui (pre-package-rust triple)
     {{ if target-dir != "" { "rm -r " + target-dir + "/bin" + "/*" } else { "" } }}
     {{ if target-dir != "" { "cp -r bin/* '" + target-dir + "/bin'" } else { "" } }}
 
@@ -77,11 +74,11 @@ init-root:
     npm install --devDependencies
 
 # Initialize the trigger-flow-ui project
-#[group("init")]
-#[group("trigger-flow-ui")]
-#[working-directory: 'trigger-flow-ui']
-#init-trigger-flow-ui:
-#    npm install --devDependencies
+[group("init")]
+[group("trigger-flow-ui")]
+[working-directory: 'trigger-flow-ui']
+init-trigger-flow-ui:
+    npm install --devDependencies
 
 # Initialize all rust projects
 [group("init")]
@@ -136,11 +133,11 @@ lint-rust: init-root
 # BUILD ########################################################################
 ################################################################################
 # trigger-flow-ui
-#[group("build")]
-#[group("trigger-flow-ui")]
-#[working-directory: 'trigger-flow-ui']
-#build-trigger-flow-ui: init-trigger-flow-ui
-#    npx ng build
+[group("build")]
+[group("trigger-flow-ui")]
+[working-directory: 'trigger-flow-ui']
+build-trigger-flow-ui: init-trigger-flow-ui
+    npx ng build
 
 # Rust
 [group("build")]
@@ -152,11 +149,11 @@ build-rust triple=native-triple:
 # BUILD-RELEASE ################################################################
 ################################################################################
 # trigger-flow-ui
-#[group("build-release")]
-#[group("trigger-flow-ui")]
-#[working-directory: 'trigger-flow-ui']
-#build-release-trigger-flow-ui: init-trigger-flow-ui
-#    npx ng build --configuration production
+[group("build-release")]
+[group("trigger-flow-ui")]
+[working-directory: 'trigger-flow-ui']
+build-release-trigger-flow-ui: init-trigger-flow-ui
+    npx ng build --configuration production
 
 # Rust
 [group("build-release")]
@@ -249,13 +246,13 @@ prep-package:
 
 # Build must be run first. Not a hard requirement here because we don't want to build
 # again in CI
-#[group("package")]
-#[group("trigger-flow-ui")]
-#[working-directory: 'trigger-flow-ui']
-#pre-package-trigger-flow-ui: prep-package
-#    cp -r dist/trigger-flow-ui/* ../bin
-# Build must be run first. Not a hard requirement here because we don't want to build
+[group("package")]
+[group("trigger-flow-ui")]
+[working-directory: 'trigger-flow-ui']
+pre-package-trigger-flow-ui: prep-package
+    cp -r dist/trigger-flow-ui/* ../bin
 
+# Build must be run first. Not a hard requirement here because we don't want to build
 # again in CI
 [group("package")]
 [group("rust")]
