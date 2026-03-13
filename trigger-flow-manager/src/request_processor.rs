@@ -5,13 +5,16 @@ use std::{
 };
 
 use crate::{
-    Catalog, IpcData, api::{
+    api::{
         request::{RequestType, ResponseType},
         slot_channel_list::{self},
         state::TriggerFlowState,
-    }, script::Script, validator::{
-        ValidationChain, catalog_validator::CatalogValidator, instr_validator::InstrumentValidator
-    }
+    },
+    script::Script,
+    validator::{
+        catalog_validator::CatalogValidator, instr_validator::InstrumentValidator, ValidationChain,
+    },
+    Catalog, IpcData,
 };
 use anyhow::{Ok, Result};
 
@@ -96,7 +99,7 @@ impl RequestProcessor {
         let response = ResponseType::EvaluateResponse {
             trigger_flow_state: trigger_flow_state.clone(),
         };
-        
+
         match IpcData::try_from(&response) {
             Result::Ok(ipc_response) => {
                 let serialized_response = serde_json::to_string(&ipc_response)?;
