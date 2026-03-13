@@ -153,7 +153,9 @@ async fn ws_index(
                                     let processor = RequestProcessor::new(app_state.catalog);
                                     let response_type = processor.process_request(request);
                                     let response = match response_type {
-                                        Ok(resp) => resp,
+                                        Ok(Some(resp)) => resp,
+                                        Ok(None) => continue,
+
                                         Err(e) => {
                                             let error_response = serde_json::json!({
                                                 "error": e.to_string()

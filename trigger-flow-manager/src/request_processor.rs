@@ -34,12 +34,11 @@ impl RequestProcessor {
             catalog,
         }
     }
-    pub fn process_request(&self, request: RequestType) -> Result<String> {
+    pub fn process_request(&self, request: RequestType) -> Result<Option<String>> {
         match request {
             RequestType::InitialRequest => {
-                let response = "instrument data requested".to_string();
-                println!("Generated InitialRequest response: {}", response);
-                Ok(response)
+                println!("Instrument data requested");
+                Ok(None)
             }
             RequestType::EvaluateRequest {
                 trigger_flow_state: request_state,
@@ -52,7 +51,7 @@ impl RequestProcessor {
                 );
                 let response = self.handle_evaluate_request(&mut working_state)?;
                 // Return response without persisting state (stateless)
-                Ok(response)
+                Ok(Some(response))
             }
         }
     }
