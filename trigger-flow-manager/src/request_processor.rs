@@ -14,7 +14,7 @@ use crate::{
     validator::{
         catalog_validator::CatalogValidator, instr_validator::InstrumentValidator, ValidationChain,
     },
-    Catalog,
+    Catalog, IpcData,
 };
 use anyhow::{Ok, Result};
 
@@ -34,12 +34,11 @@ impl RequestProcessor {
             catalog,
         }
     }
-    pub fn process_request(&self, request: RequestType) -> Result<String> {
+    pub fn process_request(&self, request: RequestType) -> Result<Option<String>> {
         match request {
             RequestType::InitialRequest => {
-                let response = "instrument data requested".to_string();
-                println!("Generated InitialRequest response: {}", response);
-                Ok(response)
+                println!("instrument data requested");
+                Ok(None)
             }
             RequestType::EvaluateRequest {
                 trigger_flow_state: request_state,
@@ -51,9 +50,8 @@ impl RequestProcessor {
                     working_state
                 );
                 let response = self.handle_evaluate_request(&mut working_state)?;
-
                 // Return response without persisting state (stateless)
-                Ok(response)
+                Ok(Some(response))
             }
         }
     }
@@ -100,8 +98,17 @@ impl RequestProcessor {
         let response = ResponseType::EvaluateResponse {
             trigger_flow_state: trigger_flow_state.clone(),
         };
-        let serialized_response = serde_json::to_string(&response)?;
-        println!("Generated EvaluateResponse: {}", serialized_response);
-        Ok(serialized_response)
+
+        match IpcData::try_from(&response) {
+            Result::Ok(ipc_response) => {
+                let serialized_response = serde_json::to_string(&ipc_response)?;
+                println!("Generated EvaluateResponse: {}", serialized_response);
+                Ok(serialized_response)
+            }
+            Result::Err(e) => {
+                println!("Failed to convert to IpcData: {:?}", e);
+                Ok("{\"error\":\"IPC conversion failed\"}".to_string())
+            }
+        }
     }
 }
