@@ -8,6 +8,7 @@ use std::{collections::HashMap, path::Path};
 /// The root structure representing all available trigger blocks
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Catalog {
+    #[serde(skip_serializing)]
     pub script_template: ScriptTemplate,
     pub blocks: HashMap<String, BlockDefinition>,
     pub trigger_events: HashMap<String, EventDefinition>,
@@ -174,8 +175,8 @@ impl Catalog {
     }
 
     /// Get a block definition by name
-    pub fn get_block(&self, name: &str) -> Option<&BlockDefinition> {
-        self.blocks.get(name)
+    pub fn get_block(&self, block_type: &str) -> Option<&BlockDefinition> {
+        self.blocks.get(block_type)
     }
 
     /// Get all block names
