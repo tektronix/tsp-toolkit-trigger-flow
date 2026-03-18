@@ -8,6 +8,7 @@ pub enum Module {
     MPSU50_2ST,
     #[serde(rename = "MSMU60_2")]
     MSMU60_2,
+    Empty,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -49,7 +50,7 @@ pub struct SystemConfigJson {
     pub localnode: String,
     #[serde(rename = "isActive")]
     pub is_active: Option<bool>, // Optionally handle isActive
-    pub slots: Vec<SlotJson>,
+    pub slots: Option<Vec<SlotJson>>,
 }
 
 #[derive(Debug, Clone)]
@@ -75,6 +76,7 @@ impl SlotChannelList {
             .map_err(|e| format!("Failed to parse system configuration JSON: {}", e))?;
         let slots = config_json
             .slots
+            .unwrap_or_default()
             .iter()
             .map(|slot_json| Slot::try_from((&config_json.localnode, slot_json)))
             .collect::<Result<Vec<_>, _>>()?;
@@ -91,6 +93,7 @@ impl SlotChannelList {
                     .map_err(|e| format!("Failed to parse system configuration JSON: {}", e))?;
                 let slots = config_json
                     .slots
+                    .unwrap_or_default()
                     .iter()
                     .map(|slot_json| Slot::try_from((&config_json.localnode, slot_json)))
                     .collect::<Result<Vec<_>, _>>()?;
@@ -116,9 +119,11 @@ impl TryFrom<(&String, &SlotJson)> for Slot {
     type Error = String;
 
     fn try_from((localnode, slot_json): (&String, &SlotJson)) -> Result<Self, Self::Error> {
+        println!("Parsing slot with ID '{}' and module '{}' for local node '{}'", slot_json.slot_id, slot_json.module, localnode);
         let module = match slot_json.module.as_str() {
             "MPSU50-2ST" => Module::MPSU50_2ST,
             "MSMU60-2" => Module::MSMU60_2,
+            "Empty" => Module::Empty,
             _ => return Err(format!("Unknown module type: {}", slot_json.module)),
         };
 

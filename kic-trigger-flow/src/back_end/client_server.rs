@@ -254,9 +254,13 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                         println!("{}", response);
 
                         //if session exists, change in system will be evaluate request and should be handled and response sent to UI
-                        let mut session = app_state.session.lock().await;
-                        if let Some(session) = session.as_mut() {
-                            session.text(response).await.unwrap();
+                        let mut session_lock = app_state.session.lock().await;
+                        if let Some(ref mut session) = session_lock.as_mut() {
+                            if let Err(e) = session.text(response).await {
+                                eprintln!("Failed to send response to WebSocket: {:?}", e);
+                                // Clear the closed session
+                                *session_lock = None;
+                            }
                         }
                     }
                 }
