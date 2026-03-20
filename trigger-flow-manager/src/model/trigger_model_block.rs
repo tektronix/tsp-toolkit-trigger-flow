@@ -48,7 +48,6 @@ impl TriggerModelBlock {
     }
 
     pub fn get_parameter(&self, param_name: &str) -> Option<&serde_json::Value> {
-        self.block_parameters
-            .get(param_name)
+        self.block_parameters.get(param_name)
     }
 }

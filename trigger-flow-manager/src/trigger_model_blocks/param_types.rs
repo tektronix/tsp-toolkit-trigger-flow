@@ -8,7 +8,6 @@ pub enum ParamTypeName {
     #[serde(alias = "number")]
     Number,
     SlotIndex,
-    EventID,
     ChannelIndex,
     DelayList,
     DelayTime,

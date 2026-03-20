@@ -119,7 +119,6 @@ impl TryFrom<(&String, &SlotJson)> for Slot {
     type Error = String;
 
     fn try_from((localnode, slot_json): (&String, &SlotJson)) -> Result<Self, Self::Error> {
-        println!("Parsing slot with ID '{}' and module '{}' for local node '{}'", slot_json.slot_id, slot_json.module, localnode);
         let module = match slot_json.module.as_str() {
             "MPSU50-2ST" => Module::MPSU50_2ST,
             "MSMU60-2" => Module::MSMU60_2,
