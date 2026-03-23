@@ -29,12 +29,24 @@ export class CanvasBlocksService {
   public canvasBlocks$ = this.canvasBlocksSubject.asObservable();
   
   private catalogData: TriggerBlocks | null = null;
+  private slotChannelList: any = null;
 
   setCatalogData(catalog: TriggerBlocks): void {
     this.catalogData = catalog;
   }
 
-  addBlock(nodeId: string, blockLabel: string, position: { x: number; y: number }): void {
+  setSlotChannelList(slotChannelList: any): void {
+    this.slotChannelList = slotChannelList;
+  }
+
+  // Support multiple models per canvas
+  private models: { [modelName: string]: {
+    trigger_model_name: string;
+    slot_index: number;
+    blocks: CanvasBlock[];
+  }} = {};
+
+  addBlock(nodeId: string, blockLabel: string, position: { x: number; y: number }, modelName: string, slotIndex: number): void {
     if (!this.catalogData) {
       console.warn('Catalog data not loaded yet');
       return;
@@ -55,6 +67,14 @@ export class CanvasBlocksService {
       return;
     }
 
+    if (!this.models[modelName]) {
+      this.models[modelName] = {
+        trigger_model_name: modelName,
+        slot_index: slotIndex,
+        blocks: []
+      };
+    }
+
     const canvasBlock: CanvasBlock = {
       id: nodeId,
       blockName: blockName,
@@ -63,29 +83,39 @@ export class CanvasBlocksService {
       svgPath: blockLabel
     };
 
-    this.canvasBlocks.push(canvasBlock);
+    this.models[modelName].blocks.push(canvasBlock);
     this.updateAndPrint();
     vscode.postMessage({ command: 'open_manual' , payload: "block_name: " + blockName});
   }
 
+  // Remove block by nodeId from the model where it exists
   removeBlock(nodeId: string): void {
-    const index = this.canvasBlocks.findIndex(b => b.id === nodeId);
-    if (index !== -1) {
-      this.canvasBlocks.splice(index, 1);
-      this.updateAndPrint();
+    for (const model of Object.values(this.models)) {
+      const index = model.blocks.findIndex(b => b.id === nodeId);
+      if (index !== -1) {
+        model.blocks.splice(index, 1);
+        this.updateAndPrint();
+        break;
+      }
     }
+
   }
 
   updateBlockPosition(nodeId: string, position: { x: number; y: number }): void {
-    const block = this.canvasBlocks.find(b => b.id === nodeId);
-    if (block) {
-      block.position = position;
-      this.updateAndPrint();
+    for (const model of Object.values(this.models)) {
+      const block = model.blocks.find(b => b.id === nodeId);
+      if (block) {
+        block.position = position;
+        this.updateAndPrint();
+        break;
+      }
     }
   }
 
   clearAll(): void {
-    this.canvasBlocks = [];
+    for (const model of Object.values(this.models)) {
+      model.blocks = [];
+    }
     this.updateAndPrint();
   }
 
@@ -131,7 +161,26 @@ export class CanvasBlocksService {
     console.log('=== Canvas Blocks JSON ===');
     console.log(JSON.stringify(data, null, 2));
     console.log('========================');
+    this.logIpcDataFormat();
   }
+
+  logIpcDataFormat(): void {
+    // Use slotChannelList from MainFlow if available
+    const slot_channel_list = this.slotChannelList || { slots: [] };
+    const models = this.models;
+    const ipcData = {
+      request_type: 'evaluate_request',
+      additional_info: '',
+      json_value: {
+        slot_channel_list,
+        models
+      }
+    };
+    console.log('=== Rust IpcData Format ===');
+    console.log(JSON.stringify(ipcData, null, 2));
+    console.log('==========================');
+  }
+
 
   getCanvasDataAsJson(): string {
     return JSON.stringify(this.getCanvasData(), null, 2);
