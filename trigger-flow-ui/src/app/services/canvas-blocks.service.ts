@@ -167,13 +167,35 @@ export class CanvasBlocksService {
   logIpcDataFormat(): void {
     // Use slotChannelList from MainFlow if available
     const slot_channel_list = this.slotChannelList || { slots: [] };
-    const models = this.models;
+    // Build models object, omitting syntax, description, and shape from blocks
+    const filteredModels: any = {};
+    for (const [modelName, model] of Object.entries(this.models)) {
+      filteredModels[modelName] = {
+        trigger_model_name: model.trigger_model_name,
+        slot_index: model.slot_index,
+        blocks: model.blocks.map(block => {
+          // Copy only allowed properties from block and blockData
+          const { id, blockName, position, svgPath } = block;
+          // Extract block_parameters and other needed fields from blockData
+          const blockData = block.blockData as any;
+          // Remove syntax, description, shape if present
+          const { syntax, description, shape, ...blockDataRest } = blockData;
+          return {
+            id,
+            blockName,
+            position,
+            svgPath,
+            ...blockDataRest
+          };
+        })
+      };
+    }
     const ipcData = {
       request_type: 'evaluate_request',
       additional_info: '',
       json_value: {
         slot_channel_list,
-        models
+        models: filteredModels
       }
     };
     console.log('=== Rust IpcData Format ===');
