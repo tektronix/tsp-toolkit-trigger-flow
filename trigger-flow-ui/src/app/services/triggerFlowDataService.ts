@@ -13,7 +13,6 @@ export class TriggerFlowDataService {
   private statePayload = signal<TriggerFlowStatePayload | null>(null);
   readonly statePayload$ = this.statePayload.asReadonly();
 
-  // Computed selections for convenience
   readonly catalog = computed(() => this.initialPayload()?.catalog);
   readonly slotChannelList = computed(() => this.initialPayload()?.slot_channel_list);
   //readonly state = computed(() => this.statePayload()?.state);
