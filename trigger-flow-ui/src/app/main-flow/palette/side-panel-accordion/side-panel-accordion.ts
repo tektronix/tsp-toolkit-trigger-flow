@@ -8,7 +8,7 @@ import { FFlowModule } from '@foblex/flow';
   standalone: true,
   imports: [MatIconModule, CommonModule, FFlowModule],
   templateUrl: './side-panel-accordion.html',
-  styleUrls: ['./side-panel-accordion.css']
+  styleUrls: ['./side-panel-accordion.css'],
 })
 export class SidePanelAccordion {
   groups = [
@@ -17,37 +17,58 @@ export class SidePanelAccordion {
       label: 'Blocks',
       type: 'group',
       subgroups: [
-        { 
-          label: 'Actions', 
+        {
+          label: 'Actions',
           shapes: [
-            { type: 'action-1', svgPath: 'assets/shapes/Actions/Config List Next.svg', catalogLabel: 'configlist next' }
-          ]
+            {
+              type: 'action-1',
+              svgPath: 'assets/shapes/Actions/Config List Next.svg',
+              catalogLabel: 'configlist next',
+            },
+          ],
         },
-        { 
+        {
           label: 'Branches',
           shapes: [
-            { type: 'branch-1', svgPath: 'assets/shapes/Branches/Always.svg', catalogLabel: 'always' },
-            { type: 'branch-2', svgPath: 'assets/shapes/Branches/On Event.svg', catalogLabel: 'event' }
-          ]
+            {
+              type: 'branch-1',
+              svgPath: 'assets/shapes/Branches/Always.svg',
+              catalogLabel: 'always',
+            },
+            {
+              type: 'branch-2',
+              svgPath: 'assets/shapes/Branches/On Event.svg',
+              catalogLabel: 'event',
+            },
+          ],
         },
-        { 
+        {
           label: 'Notify',
           shapes: [
-            { type: 'notify-1', svgPath: 'assets/shapes/Notify/Notify Block Template.svg', catalogLabel: 'notify' }
-          ]
+            {
+              type: 'notify-1',
+              svgPath: 'assets/shapes/Notify/Notify Block Template.svg',
+              catalogLabel: 'notify',
+            },
+          ],
         },
-        { 
+        {
           label: 'Timing',
           shapes: [
-            { type: 'timer-1', svgPath: 'assets/shapes/Timing/Constant Delay.svg', catalogLabel: 'delay constant' }
-          ]
-        }
-      ]
+            {
+              type: 'timer-1',
+              svgPath: 'assets/shapes/Timing/Constant Delay.svg',
+              catalogLabel: 'delay constant',
+            },
+          ],
+        },
+      ],
     },
-    { label: 'Events', type: 'single' }
+    { label: 'Events', type: 'single' },
   ];
-  expanded: Set<number> = new Set();
-  blockExpanded: Set<number> = new Set();
+
+  expanded: Set<number> = new Set<number>();
+  blockExpanded: Set<number> = new Set<number>();
 
   togglePanel(idx: number) {
     if (this.expanded.has(idx)) {

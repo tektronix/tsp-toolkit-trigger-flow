@@ -28,7 +28,7 @@ import {
 export class Checkbox implements ControlValueAccessor {
   @Input() label: string | undefined;
   @Input() automationID: string | undefined;
-  @Input() checked: boolean = false;
+  @Input() checked = false;
   @Input() disabled = false;
   @Output() checkedChange = new EventEmitter<boolean>();
 

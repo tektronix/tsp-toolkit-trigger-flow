@@ -2,7 +2,7 @@ import { Component, ViewChild, signal, inject } from '@angular/core';
 import { FFlowModule, FFlowComponent } from '@foblex/flow';
 import { CommonModule } from '@angular/common';
 import { AngularSvgIconModule } from 'angular-svg-icon';
-import { SvgManagerService, SvgOptions } from '../../services/svg-manager.service';
+import { SvgManagerService } from '../../services/svg-manager.service';
 import { CanvasBlocksService } from '../../services/canvas-blocks.service';
 
 interface FlowNode {
@@ -57,7 +57,7 @@ export class Canvas {
     }
   }
 
-  getSvgStyle(node: FlowNode): { [key: string]: string } {
+  getSvgStyle(): Record<string, string> {
     return this.svgManager.buildSvgStyle({
       // fillColor: node.color,
       // width: '60px',

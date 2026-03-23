@@ -1,12 +1,11 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, effect, inject } from '@angular/core';
 import { Canvas } from './canvas/canvas';
 import { SidePanelAccordion } from './palette/side-panel-accordion/side-panel-accordion';
 import { BlockParameters } from './palette/block-parameters/block-parameters';
 import { MatIconModule } from '@angular/material/icon';
 import { CommonModule } from '@angular/common';
-import { TriggerBlocksService } from '../services/trigger-blocks.service';
 import { CanvasBlocksService } from '../services/canvas-blocks.service';
-import { TriggerBlocks } from '../models/trigger-blocks.model';
+import { TriggerFlowDataService } from '../services/triggerFlowDataService';
 
 @Component({
   selector: 'app-main-flow',
@@ -14,26 +13,21 @@ import { TriggerBlocks } from '../models/trigger-blocks.model';
   templateUrl: './main-flow.html',
   styleUrl: './main-flow.css',
 })
-export class MainFlow implements OnInit {
-  private triggerBlocksService = inject(TriggerBlocksService);
+export class MainFlow{
+  private triggerFlowDataService = inject(TriggerFlowDataService);
   private canvasBlocksService = inject(CanvasBlocksService);
 
   sidebarCollapsed = false;
-  catalogData: TriggerBlocks | null = null;
+  // Use service signals directly - automatically reactive
+  catalogData = this.triggerFlowDataService.catalog;
 
-  ngOnInit(): void {
-    this.loadCatalogData();
-  }
-
-  private loadCatalogData(): void {
-    this.triggerBlocksService.getTriggerBlocks().subscribe({
-      next: (data) => {
-        this.catalogData = data;
-        this.canvasBlocksService.setCatalogData(data);
-        console.log('Trigger blocks catalog loaded:', this.catalogData);
-      },
-      error: (error) => {
-        console.error('Error loading trigger blocks catalog:', error);
+  constructor() {
+    // Watch catalog changes and update canvas blocks service
+    effect(() => {
+      const catalog = this.catalogData();
+      if (catalog) {
+        this.canvasBlocksService.setCatalogData(catalog);
+        console.log('Catalog data available:', catalog);
       }
     });
   }
