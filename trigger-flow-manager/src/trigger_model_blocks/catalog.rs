@@ -8,6 +8,7 @@ use std::{collections::HashMap, path::Path};
 /// The root structure representing all available trigger blocks
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Catalog {
+    #[serde(skip_serializing)]
     pub script_template: ScriptTemplate,
     pub blocks: HashMap<String, BlockDefinition>,
     pub trigger_events: HashMap<String, EventDefinition>,
@@ -32,12 +33,12 @@ pub struct BlockDefinition {
 }
 
 impl BlockDefinition {
-    pub fn validate(&self, block: &mut TriggerModelBlock) -> Result<()> {
+    pub fn validate(&self, block: &mut TriggerModelBlock, catalog: &Catalog) -> Result<()> {
         // For each parameter in the catalog definition
         for param in &self.parameters {
             let value = block.block_parameters.get(&param.name).cloned();
-            if value.is_none() {
-                let err = (true, format!("Missing parameter '{}'", param.name));
+            if value.is_none() && param.required {
+                let err = (true, format!("Missing required parameter '{}'", param.name));
                 if let Some(errors) = block.block_error.as_mut() {
                     errors.push(err);
                 } else {
@@ -45,7 +46,8 @@ impl BlockDefinition {
                 }
                 continue;
             }
-            param.validate(value.as_ref(), block)?;
+
+            param.validate(value.as_ref(), block, catalog)?;
         }
         Ok(())
     }
@@ -70,7 +72,12 @@ pub struct Parameter {
 }
 
 impl Parameter {
-    pub fn validate(&self, value: Option<&Value>, block: &mut TriggerModelBlock) -> Result<()> {
+    pub fn validate(
+        &self,
+        value: Option<&Value>,
+        block: &mut TriggerModelBlock,
+        catalog: &Catalog,
+    ) -> Result<()> {
         // 1. Name check
         //Names of each block within a model should be unique
         //Name can be an empty string but if not empty, should be unique across the model
@@ -130,6 +137,14 @@ impl Parameter {
                 _ => {}
             }
         }
+        match self.param_type {
+            ParamTypeName::TriggerEventType | ParamTypeName::NotifyType => {
+                if let Some(event_value) = value {
+                    catalog.validate_event(event_value, block)?;
+                }
+            }
+            _ => {}
+        }
         Ok(())
     }
 }
@@ -174,8 +189,8 @@ impl Catalog {
     }
 
     /// Get a block definition by name
-    pub fn get_block(&self, name: &str) -> Option<&BlockDefinition> {
-        self.blocks.get(name)
+    pub fn get_block(&self, block_type: &str) -> Option<&BlockDefinition> {
+        self.blocks.get(block_type)
     }
 
     /// Get all block names
@@ -197,6 +212,39 @@ impl Catalog {
     pub fn contains(&self, name: &str) -> bool {
         self.blocks.contains_key(name) || self.trigger_events.contains_key(name)
     }
+
+    /// Validate an event parameter against catalog event definitions
+    pub fn validate_event(&self, event_value: &Value, block: &mut TriggerModelBlock) -> Result<()> {
+        if let Value::Object(event_obj) = event_value {
+            if let Some(Value::String(event_type)) = event_obj.get("event_type") {
+                if let Some(event_def) = self.trigger_events.get(event_type) {
+                    event_def.validate(event_obj, block, self)?;
+                } else {
+                    let err = (true, format!("Unknown event type '{}'", event_type));
+                    if let Some(errors) = block.block_error.as_mut() {
+                        errors.push(err);
+                    } else {
+                        block.block_error = Some(vec![err]);
+                    }
+                }
+            } else {
+                let err = (true, "Event object missing 'event_type' field".to_string());
+                if let Some(errors) = block.block_error.as_mut() {
+                    errors.push(err);
+                } else {
+                    block.block_error = Some(vec![err]);
+                }
+            }
+        } else {
+            let err = (true, "Event parameter must be a JSON object".to_string());
+            if let Some(errors) = block.block_error.as_mut() {
+                errors.push(err);
+            } else {
+                block.block_error = Some(vec![err]);
+            }
+        }
+        Ok(())
+    }
 }
 
 impl BlockDefinition {
@@ -212,6 +260,36 @@ impl BlockDefinition {
 }
 
 impl EventDefinition {
+    /// Validate event parameters against this event definition
+    pub fn validate(
+        &self,
+        event_obj: &serde_json::Map<String, Value>,
+        block: &mut TriggerModelBlock,
+        catalog: &Catalog,
+    ) -> Result<()> {
+        // Check each parameter defined in the event definition
+        for param in &self.parameters {
+            let param_value = event_obj.get(&param.name);
+
+            if param_value.is_none() && param.required {
+                let err = (
+                    true,
+                    format!("Missing required event parameter '{}'", param.name),
+                );
+                if let Some(errors) = block.block_error.as_mut() {
+                    errors.push(err);
+                } else {
+                    block.block_error = Some(vec![err]);
+                }
+                continue;
+            }
+
+            // Recursively validate the parameter using the standard parameter validation
+            param.validate(param_value, block, catalog)?;
+        }
+        Ok(())
+    }
+
     /// Get parameter names as a vector
     pub fn get_parameter_names(&self) -> Vec<&str> {
         self.parameters.iter().map(|p| p.name.as_str()).collect()
