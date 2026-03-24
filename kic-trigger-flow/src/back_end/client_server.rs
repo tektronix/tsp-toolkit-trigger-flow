@@ -12,7 +12,8 @@ use std::{
 };
 use tokio::{
     io::{self, AsyncBufReadExt},
-    sync::{broadcast, Mutex},
+    signal,
+    sync::{broadcast, watch, Mutex},
 };
 use trigger_flow_manager::{
     api::{request::RequestType, slot_channel_list::SlotChannelList, state::TriggerFlowState},
@@ -191,7 +192,10 @@ async fn ws_index(
     Ok(response)
 }
 
-pub async fn start_web_server(app_state: Arc<AppState>) -> std::io::Result<()> {
+pub async fn start_web_server(
+    app_state: Arc<AppState>,
+    mut shutdown_rx: watch::Receiver<()>,
+) -> std::io::Result<()> {
     let server = HttpServer::new(move || {
         let exe_path =
             std::env::current_exe().expect("should be able to get path of server executable");
@@ -214,16 +218,24 @@ pub async fn start_web_server(app_state: Arc<AppState>) -> std::io::Result<()> {
     })
     .bind(("127.0.0.1", 27951))?
     .run();
+    tokio::select! {
+        res = server => res,
+        _ = shutdown_rx.changed() => {
+            println!("Shutdown signal received, stopping server...");
+            Ok(())
+        },
+    }
 
-    server.await
 }
 
 pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
     let app_state = Arc::new(AppState::new(catalog_ref));
-    let server = start_web_server(app_state.clone());
+    let (shutdown_tx, shutdown_rx) = watch::channel(());
+    let server = start_web_server(app_state.clone(), shutdown_rx.clone());
 
     let mut trigger_flow_rx = app_state.trigger_flow_tx.subscribe();
 
+    let value = shutdown_tx.clone();
     tokio::spawn(async move {
         let stdin: tokio::io::Stdin = io::stdin();
         let mut reader: io::Lines<io::BufReader<io::Stdin>> = io::BufReader::new(stdin).lines();
@@ -233,7 +245,12 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
         while let Some(line) = reader.next_line().await.unwrap() {
             let trimmed_line = line.trim();
             println!("Received stdin line: {}", trimmed_line);
-            if let Ok(msg) = StdinLine::try_from(trimmed_line) {
+            if trimmed_line == "shutdown" {
+                println!("Received shutdown command from stdin, shutting down...");
+                let _ = value.send(());
+                break;
+            }
+            else if let Ok(msg) = StdinLine::try_from(trimmed_line) {
                 print!("Received stdin message: {:?}", msg);
                 match msg {
                     StdinLine::Systems(msg) => {
@@ -267,6 +284,16 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
             } else {
                 eprintln!("Failed to parse stdin JSON");
             }
+        }
+    });
+
+    // Spawn a task to listen for shutdown signal (e.g., Ctrl+C)
+    tokio::spawn({
+        let shutdown_tx = shutdown_tx.clone();
+        async move {
+            signal::ctrl_c().await.expect("Failed to listen for event");
+            println!("Received Ctrl+C, shutting down...");
+            let _ = shutdown_tx.send(());
         }
     });
 
