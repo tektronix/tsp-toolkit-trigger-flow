@@ -225,7 +225,6 @@ pub async fn start_web_server(
             Ok(())
         },
     }
-
 }
 
 pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
@@ -249,8 +248,7 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                 println!("Received shutdown command from stdin, shutting down...");
                 let _ = value.send(());
                 break;
-            }
-            else if let Ok(msg) = StdinLine::try_from(trimmed_line) {
+            } else if let Ok(msg) = StdinLine::try_from(trimmed_line) {
                 print!("Received stdin message: {:?}", msg);
                 match msg {
                     StdinLine::Systems(msg) => {
