@@ -6,9 +6,9 @@
       </button>
     </div>
     <div>
-      <ng-container *ngIf="!sidebarCollapsed">
+      @if (!sidebarCollapsed) {
         <app-side-panel-accordion></app-side-panel-accordion>
-      </ng-container>
+      }
     </div>
   </aside>
   <main class="canvas-area">
