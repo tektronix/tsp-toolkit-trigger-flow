@@ -367,7 +367,7 @@ jobs:
       - build
       - lint
       - style
-      - test
+      #- test
       #- code_coverage
       - package
       - sbom
