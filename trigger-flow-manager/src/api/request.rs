@@ -19,6 +19,7 @@ pub enum ResponseType {
         catalog: Catalog,
     },
     EvaluateResponse {
+        #[serde(flatten)]
         trigger_flow_state: crate::api::state::TriggerFlowState,
     },
 }
