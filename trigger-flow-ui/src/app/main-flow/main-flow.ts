@@ -1,14 +1,11 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, effect, inject } from '@angular/core';
 import { Canvas } from './canvas/canvas';
 import { SidePanelAccordion } from './palette/side-panel-accordion/side-panel-accordion';
 import { BlockParameters } from './palette/block-parameters/block-parameters';
 import { MatIconModule } from '@angular/material/icon';
 import { CommonModule } from '@angular/common';
-import { TriggerBlocksService } from '../services/trigger-blocks.service';
 import { CanvasBlocksService } from '../services/canvas-blocks.service';
-import { TriggerBlocks } from '../models/trigger-blocks.model';
-import { Websocket } from '../services/websocket';
-import { IpcData } from '../models/ipcData';
+import { TriggerFlowDataService } from '../services/triggerFlowDataService';
 
 @Component({
   selector: 'app-main-flow',
@@ -16,59 +13,27 @@ import { IpcData } from '../models/ipcData';
   templateUrl: './main-flow.html',
   styleUrl: './main-flow.css',
 })
-export class MainFlow implements OnInit {
-  private triggerBlocksService = inject(TriggerBlocksService);
+export class MainFlow{
+  private triggerFlowDataService = inject(TriggerFlowDataService);
   private canvasBlocksService = inject(CanvasBlocksService);
-  private websocket = inject(Websocket);
-
+  
   sidebarCollapsed = false;
-  catalogData: TriggerBlocks | null = null;
-  slotChannelList: any = null;
+  // Use service signals directly - automatically reactive
+  catalogData = this.triggerFlowDataService.catalog;
+  slotChannelList = this.triggerFlowDataService.slotChannelList;
 
-  ngOnInit(): void {
-    this.loadCatalogData();
-    this.websocket.connect();
-    this.websocket.getMessages().subscribe((msg: string) => {
-      try {
-        const ipcData = JSON.parse(msg) as IpcData;
-        let jsonValueObj: any = ipcData.json_value;
-        if (typeof jsonValueObj === 'string') {
-          try {
-            jsonValueObj = JSON.parse(jsonValueObj);
-          } catch (e) {
-            console.error('Failed to parse ipcData.json_value:', ipcData.json_value, e);
-          }
-        }
-        switch (ipcData.request_type) {
-          case 'initial_response':            
-          case 'evaluate_response':
-            if (jsonValueObj.slot_channel_list) {
-              this.slotChannelList = jsonValueObj.slot_channel_list;
-              console.log('Received slot_channel_list:', this.slotChannelList);
-              this.canvasBlocksService.setSlotChannelList(this.slotChannelList);
-            }
-            else {
-              console.error('slot_channel_list property is missing in the data');
-            }
-            break;
-          default:
-            console.log('Unhandled request_type:', ipcData.request_type);
-        }
-      } catch (e) {
-        console.error('Failed to parse WebSocket message:', msg, e);
+  constructor() {
+    // Watch catalog changes and update canvas blocks service
+    effect(() => {
+      const catalog = this.catalogData();
+      const slotChannelList = this.slotChannelList();
+      if (catalog) {
+        this.canvasBlocksService.setCatalogData(catalog);
+        console.log('Catalog data available:', catalog);
       }
-    });
-  }
-
-  private loadCatalogData(): void {
-    this.triggerBlocksService.getTriggerBlocks().subscribe({
-      next: (data) => {
-        this.catalogData = data;
-        this.canvasBlocksService.setCatalogData(data);
-        console.log('Trigger blocks catalog loaded:', this.catalogData);
-      },
-      error: (error) => {
-        console.error('Error loading trigger blocks catalog:', error);
+      if (slotChannelList) {
+        this.canvasBlocksService.setSlotChannelList(slotChannelList);
+        console.log('Slot channel list available:', slotChannelList);
       }
     });
   }

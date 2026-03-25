@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component } from '@angular/core';
 import { Textbox } from '../../../custom-controls/textbox/textbox';
 import { Dropdown } from '../../../custom-controls/dropdown/dropdown';
 
@@ -9,7 +9,7 @@ import { Dropdown } from '../../../custom-controls/dropdown/dropdown';
   styleUrl: './block-parameters.css',
 })
 export class BlockParameters {
-  name: string = '';
-  branchTo: string = '';
-  notes: string = '';
+  name = '';
+  branchTo = '';
+  notes = '';
 }

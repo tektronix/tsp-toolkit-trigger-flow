@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
-import { TriggerBlocks, BlockDefinition, EventDefinition } from '../models/trigger-blocks.model';
+import { Catalog, BlockDefinition, EventDefinition } from '../models/trigger-blocks.model';
 
 export interface CanvasBlock {
   id: string;
@@ -28,10 +28,10 @@ export class CanvasBlocksService {
   private canvasBlocksSubject = new BehaviorSubject<CanvasBlocksData>(this.getCanvasData());
   public canvasBlocks$ = this.canvasBlocksSubject.asObservable();
   
-  private catalogData: TriggerBlocks | null = null;
-  private slotChannelList: any = null;
+  private catalogData: Catalog | null = null;
+  private slotChannelList: any = null;  
 
-  setCatalogData(catalog: TriggerBlocks): void {
+  setCatalogData(catalog: Catalog): void {
     this.catalogData = catalog;
   }
 
