@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, forwardRef, OnInit } from '@angular/core';
+import { Component, Input, Output, EventEmitter, forwardRef } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 
 @Component({
@@ -14,17 +14,13 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
     },
   ],
 })
-export class Textbox implements ControlValueAccessor, OnInit {
+export class Textbox implements ControlValueAccessor {
   @Input() label: string | undefined;
   @Input() disabled = false;
   @Output() inputChange = new EventEmitter<string>();
 
-  private _value: string = '';
+  private _value = '';
   private onChange: ((value: string) => void) | undefined;
-
-  ngOnInit(): void {
-    // Initialization logic if needed
-  }
 
   get value(): string {
     return this._value;
@@ -71,4 +67,3 @@ export class Textbox implements ControlValueAccessor, OnInit {
     }
   }
 }
-

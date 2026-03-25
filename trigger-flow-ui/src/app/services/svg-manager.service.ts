@@ -20,8 +20,8 @@ export class SvgManagerService {
     this.iconRegistry.loadSvg(path, name)?.subscribe();
   }
 
-  buildSvgStyle(options: SvgOptions = {}): { [key: string]: string } {
-    const style: { [key: string]: string } = {};
+  buildSvgStyle(options: SvgOptions = {}): Record<string, string> {
+    const style: Record<string, string> = {};
     
     if (options.fillColor) {
       style['fill'] = options.fillColor;
