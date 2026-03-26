@@ -6,9 +6,7 @@ use actix_ws::{Message, Session};
 use futures::StreamExt;
 use indexmap::IndexMap;
 use std::{
-    collections::HashMap,
-    fs::{self as other_fs},
-    sync::Arc,
+    collections::HashMap, fs::{self as other_fs}, path::Path, sync::Arc
 };
 use tokio::{
     io::{self, AsyncBufReadExt},
@@ -16,9 +14,14 @@ use tokio::{
     sync::{broadcast, watch, Mutex},
 };
 use trigger_flow_manager::{
-    api::{request::RequestType, slot_channel_list::SlotChannelList, state::TriggerFlowState},
+    api::{
+        request::RequestType,
+        script_path::{self, ScriptPath},
+        slot_channel_list::SlotChannelList,
+        state::TriggerFlowState,
+    },
     request_processor::RequestProcessor,
-    Catalog, IpcData,
+    script, Catalog, IpcData,
 };
 
 #[derive(Clone)]
@@ -27,6 +30,7 @@ pub struct AppState {
     catalog: &'static Catalog,
     trigger_flow_state: Arc<Mutex<TriggerFlowState>>,
     trigger_flow_tx: broadcast::Sender<()>,
+    work_folder: Arc<Mutex<Option<String>>>,
 }
 
 impl AppState {
@@ -39,6 +43,7 @@ impl AppState {
                 models: IndexMap::new(),
             })),
             trigger_flow_tx: broadcast::channel(100).0,
+            work_folder: Arc::new(Mutex::new(Some(String::new()))),
         }
     }
 }
@@ -234,6 +239,21 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
 
     let mut trigger_flow_rx = app_state.trigger_flow_tx.subscribe();
 
+    {
+        let app_state_clone = app_state.clone();
+        tokio::spawn(async move {
+            while let Ok(()) = trigger_flow_rx.recv().await {
+                println!("Signal received to start script generation!");
+                let work_folder_guard = app_state_clone.work_folder.lock().await;
+                let work_folder = work_folder_guard
+                    .as_ref()
+                    .map(|s| s.as_str())
+                    .unwrap_or("C:\\default.tsp");
+                //need to add function that creates file and writes script buffer to it
+            }
+        });
+    }
+
     let value = shutdown_tx.clone();
     tokio::spawn(async move {
         let stdin: tokio::io::Stdin = io::stdin();
@@ -275,6 +295,28 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                                 eprintln!("Failed to send response to WebSocket: {:?}", e);
                                 // Clear the closed session
                                 *session_lock = None;
+                            }
+                        }
+                    }
+                    StdinLine::Session(msg) => {
+                        // handle session
+                        println!("Received Session command from stdin: {:?}", msg);
+                        let mut work_folder_guard = app_state.work_folder.lock().await;
+                        let value = msg; // msg is already a ScriptPath with both session and folder fields
+                        let filename: String = format!("{}.tsp", value.session.clone());
+                        let path_file = Path::new(&value.folder).join(filename);
+                        let folder = path_file.parent();
+                        //println!("Updating work folder to: {:?}", folder.to_string_lossy().to_string());
+                        // Check if the folder exists and is writable
+
+                        if let Some(folder) = folder {
+                            if folder.exists() {
+                                *work_folder_guard = Some(path_file.to_string_lossy().to_string());
+                                println!("Work folder updated to: {:?}", work_folder_guard);
+                            } else {
+                                println!( "The folder is read-only (OR) Work folder does not exist: {:?}",
+                        path_file.to_string_lossy().to_string());
+                                println!("Work folder does not exist: {:?}", path_file.to_string_lossy().to_string());
                             }
                         }
                     }
