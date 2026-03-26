@@ -16,22 +16,28 @@ import { TriggerFlowDataService } from '../services/triggerFlowDataService';
 export class MainFlow{
   private triggerFlowDataService = inject(TriggerFlowDataService);
   private canvasBlocksService = inject(CanvasBlocksService);
-
+  
   sidebarCollapsed = false;
   // Use service signals directly - automatically reactive
   catalogData = this.triggerFlowDataService.catalog;
+  slotChannelList = this.triggerFlowDataService.slotChannelList;
 
   constructor() {
     // Watch catalog changes and update canvas blocks service
     effect(() => {
       const catalog = this.catalogData();
+      const slotChannelList = this.slotChannelList();
       if (catalog) {
         this.canvasBlocksService.setCatalogData(catalog);
         console.log('Catalog data available:', catalog);
       }
+      if (slotChannelList) {
+        this.canvasBlocksService.setSlotChannelList(slotChannelList);
+        console.log('Slot channel list available:', slotChannelList);
+      }
     });
   }
-  
+
   toggleSidebar() {
     this.sidebarCollapsed = !this.sidebarCollapsed;
   }
