@@ -246,7 +246,7 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
         let app_state_clone = app_state.clone();
         tokio::spawn(async move {
             while let Ok(()) = trigger_flow_rx.recv().await {
-                println!("Signal received to start script generation!");
+                println!("Signal received to start trigger flow!");
                 let work_folder_guard = app_state_clone.work_folder.lock().await;
                 let work_folder = work_folder_guard
                     .as_ref()
