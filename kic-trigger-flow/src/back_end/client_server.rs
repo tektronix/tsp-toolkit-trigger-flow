@@ -6,7 +6,10 @@ use actix_ws::{Message, Session};
 use futures::StreamExt;
 use indexmap::IndexMap;
 use std::{
-    collections::HashMap, fs::{self as other_fs}, path::Path, sync::Arc
+    collections::HashMap,
+    fs::{self as other_fs},
+    path::Path,
+    sync::Arc,
 };
 use tokio::{
     io::{self, AsyncBufReadExt},
@@ -314,9 +317,14 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                                 *work_folder_guard = Some(path_file.to_string_lossy().to_string());
                                 println!("Work folder updated to: {:?}", work_folder_guard);
                             } else {
-                                println!( "The folder is read-only (OR) Work folder does not exist: {:?}",
-                        path_file.to_string_lossy().to_string());
-                                println!("Work folder does not exist: {:?}", path_file.to_string_lossy().to_string());
+                                println!(
+                                    "The folder is read-only (OR) Work folder does not exist: {:?}",
+                                    path_file.to_string_lossy().to_string()
+                                );
+                                println!(
+                                    "Work folder does not exist: {:?}",
+                                    path_file.to_string_lossy().to_string()
+                                );
                             }
                         }
                     }
