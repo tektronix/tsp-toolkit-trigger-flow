@@ -18,7 +18,7 @@ import { MatIconModule } from '@angular/material/icon';
   selector: 'app-dropdown',
   imports: [FormsModule, CommonModule, MatIconModule],
   templateUrl: './dropdown.html',
-  styleUrl: './dropdown.css',
+  styleUrl: './dropdown.scss',
   providers: [
     {
       provide: NG_VALUE_ACCESSOR,

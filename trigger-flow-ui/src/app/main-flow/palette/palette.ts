@@ -4,7 +4,7 @@ import { Component } from '@angular/core';
   selector: 'app-palette',
   imports: [],
   templateUrl: './palette.html',
-  styleUrl: './palette.css',
+  styleUrl: './palette.scss',
 })
 export class Palette {
 

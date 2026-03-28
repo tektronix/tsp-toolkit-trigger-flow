@@ -10,7 +10,7 @@ import { TriggerFlowDataService } from './services/triggerFlowDataService';
   selector: 'app-root',
   imports: [MainFlow],
   templateUrl: './app.html',
-  styleUrl: './app.css',
+  styleUrl: './app.scss',
 })
 export class App implements OnInit, OnDestroy {
   protected readonly title = signal('trigger-flow-ui');

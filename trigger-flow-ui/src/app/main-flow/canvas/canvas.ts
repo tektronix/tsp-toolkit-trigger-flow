@@ -23,7 +23,7 @@ interface FlowNode {
     AngularSvgIconModule
   ],
   templateUrl: './canvas.html',
-  styleUrl: './canvas.css',
+  styleUrl: './canvas.scss',
 })
 export class Canvas {
   @ViewChild(FFlowComponent) flowComponent!: FFlowComponent;
