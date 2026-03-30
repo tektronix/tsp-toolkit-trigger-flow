@@ -21,9 +21,7 @@ impl RequestProcessor {
             .add_validator(Box::new(CatalogValidator::new(&catalog)))
             .add_validator(Box::new(InstrumentValidator::new())); //pass initial empty slot_channel_list, will be updated with each request
 
-        Self {
-            validation_chain,
-        }
+        Self { validation_chain }
     }
     pub fn process_request(&self, request: RequestType) -> Result<Option<String>> {
         match request {

@@ -17,13 +17,9 @@ use tokio::{
     sync::{broadcast, watch, Mutex},
 };
 use trigger_flow_manager::{
-    api::{
-        request::RequestType,
-        slot_channel_list::SlotChannelList,
-        state::TriggerFlowState,
-    },
+    api::{request::RequestType, slot_channel_list::SlotChannelList, state::TriggerFlowState},
     request_processor::RequestProcessor,
-    script::{Script},
+    script::Script,
     Catalog, IpcData,
 };
 
