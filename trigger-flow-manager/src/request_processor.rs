@@ -1,16 +1,9 @@
-use std::{
-    fs::{self, File},
-    io::Write,
-    path::{Path, PathBuf},
-};
-
 use crate::{
     api::{
         request::{RequestType, ResponseType},
         slot_channel_list::{self},
         state::TriggerFlowState,
     },
-    script::Script,
     validator::{
         catalog_validator::CatalogValidator, instr_validator::InstrumentValidator, ValidationChain,
     },
@@ -20,7 +13,6 @@ use anyhow::{Ok, Result};
 
 pub struct RequestProcessor {
     validation_chain: ValidationChain,
-    catalog: &'static Catalog,
 }
 
 impl RequestProcessor {
@@ -31,7 +23,6 @@ impl RequestProcessor {
 
         Self {
             validation_chain,
-            catalog,
         }
     }
     pub fn process_request(&self, request: RequestType) -> Result<Option<String>> {

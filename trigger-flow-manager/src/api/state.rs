@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     api::{
-        ipc_data,
         request::ResponseType,
         slot_channel_list::{ChannelIndex, SlotChannelList, SlotChannelListUpdate, SlotIndex},
     },

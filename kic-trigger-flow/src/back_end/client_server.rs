@@ -19,12 +19,11 @@ use tokio::{
 use trigger_flow_manager::{
     api::{
         request::RequestType,
-        script_path::{self, ScriptPath},
         slot_channel_list::SlotChannelList,
         state::TriggerFlowState,
     },
     request_processor::RequestProcessor,
-    script::{self, Script},
+    script::{Script},
     Catalog, IpcData,
 };
 
