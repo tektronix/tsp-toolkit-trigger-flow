@@ -49,10 +49,15 @@ export class Canvas {
       this.nodes.update(current => [...current, newNode]);
       
       // Add block to canvas blocks service with catalogLabel
+      // You must now provide modelName and slotIndex
+      const modelName = 'Model1'; // Replace with dynamic value as needed
+      const slotIndex = 1; // Replace with dynamic value as needed
       this.canvasBlocksService.addBlock(
-        newNode.id, 
-        newNode.catalogLabel || newNode.svgPath, 
-        newNode.position
+        newNode.id,
+        newNode.catalogLabel || newNode.svgPath,
+        newNode.position,
+        modelName,
+        slotIndex
       );
     }
   }
