@@ -1,4 +1,9 @@
-use std::fmt::Display;
+use std::{
+    fmt::Display,
+    fs::{self, File},
+    io::Write,
+    path::PathBuf,
+};
 
 use anyhow::Error;
 use handlebars::Handlebars;
@@ -17,6 +22,33 @@ pub struct Script {
 }
 
 impl Script {
+    pub fn to_script(
+        catalog: &Catalog,
+        trigger_flow_state: &TriggerFlowState,
+        work_folder: &str,
+    ) -> Result<(), Error> {
+        let script = Script::from_state(catalog, trigger_flow_state)?;
+
+        //TODO: Use script location and/or project name as appropriate
+        let script_output: PathBuf = PathBuf::from(work_folder);
+
+        if script_output.exists() {
+            let file_contents = fs::read_to_string(&script_output)?;
+            let updated = script.replace_generated(catalog, &file_contents);
+            let mut file = File::options()
+                .truncate(true) //truncate the file to 0 length so we can replace the contents
+                .write(true)
+                .open(&script_output)?;
+            file.write_all(&updated.as_bytes())?;
+        } else {
+            let mut file = File::options()
+                .create(true) //create a new file
+                .write(true)
+                .open(&script_output)?;
+            file.write_all(script.to_string().as_bytes())?;
+        }
+        Ok(())
+    }
     /// Take the current [`TriggerFlowState`] and, using the provided [`TriggerBlocks`] catalog,
     /// generate the appropriate [`Script`].
     pub fn from_state(catalog: &Catalog, state: &TriggerFlowState) -> Result<Self, Error> {

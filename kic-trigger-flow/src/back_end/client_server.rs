@@ -24,7 +24,8 @@ use trigger_flow_manager::{
         state::TriggerFlowState,
     },
     request_processor::RequestProcessor,
-    script, Catalog, IpcData,
+    script::{self, Script},
+    Catalog, IpcData,
 };
 
 #[derive(Clone)]
@@ -173,6 +174,11 @@ async fn ws_index(
                                         }
                                     };
                                     println!("Sending WebSocket response: {}", response);
+                                    if !response.contains("error") {
+                                        if let Err(e) = app_state.trigger_flow_tx.send(()) {
+                                            eprintln!("Failed to send signal: {e}");
+                                        }
+                                    }
                                     session.text(&*response).await.unwrap();
                                 }
                                 Err(err) => {
@@ -247,12 +253,17 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
         tokio::spawn(async move {
             while let Ok(()) = trigger_flow_rx.recv().await {
                 println!("Signal received to start trigger flow!");
+                let trigger_flow_state = app_state_clone.trigger_flow_state.lock().await;
                 let work_folder_guard = app_state_clone.work_folder.lock().await;
                 let work_folder = work_folder_guard
                     .as_ref()
                     .map(|s| s.as_str())
                     .unwrap_or("C:\\default.tsp");
                 //need to add function that creates file and writes script buffer to it
+                Script::to_script(app_state_clone.catalog, &trigger_flow_state, work_folder)
+                    .unwrap_or_else(|e| {
+                        eprintln!("Failed to generate script: {:?}", e);
+                    });
             }
         });
     }
@@ -290,7 +301,11 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                         };
 
                         println!("{}", response);
-
+                        if !response.contains("error") {
+                            if let Err(e) = app_state.trigger_flow_tx.send(()) {
+                                eprintln!("Failed to send signal: {e}");
+                            }
+                        }
                         //if session exists, change in system will be evaluate request and should be handled and response sent to UI
                         let mut session_lock = app_state.session.lock().await;
                         if let Some(ref mut session) = session_lock.as_mut() {
