@@ -87,7 +87,7 @@ pub struct SlotChannelList {
 impl Default for SlotChannelList {
     fn default() -> Self {
         SlotChannelList {
-            localnode: "MP5103".to_string(),
+            localnode: String::new(),
             is_valid: true,
             slots: Vec::new(),
             nodes: Vec::new(),
@@ -97,28 +97,36 @@ impl Default for SlotChannelList {
 
 impl SlotChannelList {
     pub fn new(system_config_json: &str) -> Result<Self, String> {
-        let config_json: SystemConfigJson = serde_json::from_str(system_config_json)
+        let config_json: Systems = serde_json::from_str(system_config_json)
             .map_err(|e| format!("Failed to parse system configuration JSON: {}", e))?;
+        let active_system = config_json
+            .systems
+            .iter()
+            .find(|system| system.is_active == Some(true))
+            .ok_or_else(|| "No active system found in configuration".to_string())?;
 
-        let _slots = config_json
+        let _slots = active_system
             .slots
+            .as_deref()
             .unwrap_or_default()
             .iter()
             .map(|slot_json| Slot::try_from(slot_json))
             .collect::<Result<Vec<_>, _>>()?;
 
-        let _nodes = config_json
+        let _nodes = active_system
             .nodes
+            .as_deref()
             .unwrap_or_default()
             .iter()
             .map(|node_json| Nodes::try_from(node_json))
             .collect::<Result<Vec<_>, _>>()?;
 
         Ok(SlotChannelList {
-            localnode: config_json.localnode,
+            localnode: active_system.localnode.clone(),
             is_valid: true,
             slots: _slots,
-            nodes: _nodes,})
+            nodes: _nodes,
+        })
     }
 
     pub fn update_slot_channel_list(
@@ -127,15 +135,32 @@ impl SlotChannelList {
     ) -> Result<Self, String> {
         match update {
             SlotChannelListUpdate::SystemConfig(system_config) => {
-                let config_json: SystemConfigJson = serde_json::from_str(&system_config)
+                let config_json: Systems = serde_json::from_str(&system_config)
                     .map_err(|e| format!("Failed to parse system configuration JSON: {}", e))?;
 
-                self.slots = config_json
+                let active_system = config_json
+                    .systems
+                    .iter()
+                    .find(|system| system.is_active == Some(true))
+                    .ok_or_else(|| "No active system found in configuration".to_string())?;
+
+                self.slots = active_system
                     .slots
+                    .as_deref()
                     .unwrap_or_default()
                     .iter()
                     .map(|slot_json| Slot::try_from(slot_json))
                     .collect::<Result<Vec<_>, _>>()?;
+
+                self.nodes = active_system
+                    .nodes
+                    .as_deref()
+                    .unwrap_or_default()
+                    .iter()
+                    .map(|node_json| Nodes::try_from(node_json))
+                    .collect::<Result<Vec<_>, _>>()?;
+
+                self.localnode = active_system.localnode.clone();
             }
             SlotChannelListUpdate::TriggerFlowState(triggerflow_state) => {
                 for slot in &mut self.slots {
@@ -152,6 +177,18 @@ impl SlotChannelList {
             slots: self.slots.clone(),
             nodes: self.nodes.clone(),
         })
+    }
+
+    pub fn has_mp5103(&self) -> bool {
+        self.localnode == "MP5103" || self.nodes.iter().any(|n| n.mainframe == "MP5103")
+    }
+
+    pub fn has_empty_slots(&self) -> bool {
+        self.slots.iter().all(|s| s.module == Module::Empty)
+    }
+
+    pub fn is_valid_config(&self) -> bool {
+        self.has_mp5103() && !self.has_empty_slots()
     }
 }
 

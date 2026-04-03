@@ -257,14 +257,11 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                         println!("Received Systems command from stdin");
                         let mut triggerflow_state: tokio::sync::MutexGuard<'_, TriggerFlowState> =
                             app_state.trigger_flow_state.lock().await;
-                        // Process each system in the systems array
-                        let response = if let Some(system_config) = msg.systems.first() {
-                            let system_json = serde_json::to_string(system_config).unwrap();
-                            triggerflow_state
-                                .process_system_config(&system_json, &app_state.catalog)
-                        } else {
-                            "No systems found in message".to_string()
-                        };
+
+                        // Pass the entire Systems structure to process_system_config
+                        let systems_json = serde_json::to_string(&msg).unwrap();
+                        let response = triggerflow_state
+                            .process_system_config(&systems_json, &app_state.catalog);
 
                         println!("{}", response);
 
