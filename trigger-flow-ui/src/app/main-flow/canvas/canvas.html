@@ -1,35 +1,63 @@
-<f-flow fDraggable 
-        (fCreateNode)="onCreateNode($event)"
-        (fMoveNodes)="onMoveNodes($event)"
-        (fCreateConnection)="onCreateConnection($event)">
+<f-flow
+  class="flow-surface"
+  fDraggable
+  (fCreateNode)="onCreateNode($event)"
+  (fMoveNodes)="onMoveNodes($event)"
+>
   <f-canvas>
-    @for (node of nodes(); track node.id) {
+    @for (section of sectionLayouts(); track section.id) {
       <div
-        fNode fDragHandle
+        class="section-group"
+        fGroup
+        [fGroupId]="section.id"
+        [fGroupPosition]="section.position"
+        [fGroupSize]="section.size"
+      >
+        <div class="section-title">
+          <div class="title-left">
+            <span class="title-chip title-chip-primary">{{ section.title }}</span>
+            <span class="title-chip">Node Info</span>
+            <span class="title-chip">Slot {{ section.slotIndex }}</span>
+            <button type="button" class="title-btn" aria-label="Button 1" title="Button 1">
+              <svg-icon src="assets/shapes/Icons/Pencil.svg" class="title-btn-icon"></svg-icon>
+            </button>
+          </div>
+          <!-- <div class="title-right">
+            <button type="button" class="title-btn">Button A</button>
+            <button type="button" class="title-btn">Button B</button>
+          </div> -->
+        </div>
+        <div class="section-body"></div>
+      </div>
+    }
+
+    @for (node of sectionNodes(); track node.id) {
+      <div
+        fNode
+        fDragHandle
+        [fNodeParentId]="node.sectionId"
         [fNodeId]="node.id"
         [fNodePosition]="node.position"
-        class="node-wrapper">
-        
+        class="node-wrapper"
+      >
         <div class="node-content">
-          <svg-icon 
-            [src]="node.svgPath" 
-            [svgStyle]="getSvgStyle()" 
-            class="node-svg" 
-            fDragHandle>
+          <svg-icon [src]="node.svgPath" [svgStyle]="getSvgStyle()" class="node-svg" fDragHandle>
           </svg-icon>
-          
-          <div fNodeInput
-               [fInputId]="node.input"
-               fInputConnectableSide="left"
-               class="input-connector">
-          </div>
-          
+
+          <div
+            fNodeInput
+            [fInputId]="node.input"
+            fInputConnectableSide="left"
+            class="input-connector"
+          ></div>
+
           @for (outputId of node.outputs; track outputId) {
-            <div fNodeOutput 
-                 [fOutputId]="outputId" 
-                 fOutputConnectableSide="right"
-                 class="output-connector">
-            </div>
+            <div
+              fNodeOutput
+              [fOutputId]="outputId"
+              fOutputConnectableSide="right"
+              class="output-connector"
+            ></div>
           }
         </div>
       </div>

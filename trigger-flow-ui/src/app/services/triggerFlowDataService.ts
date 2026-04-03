@@ -1,55 +1,71 @@
-import { Injectable, signal, computed } from '@angular/core';
-import { InitialPayload, TriggerFlowStatePayload, Catalog, SlotChannelList } from '../models/trigger-blocks.model';
+import { Injectable, signal } from '@angular/core';
+import {
+  InitialPayload,
+  TriggerFlowStatePayload,
+  Catalog,
+  SlotChannelList,
+} from '../models/trigger-blocks.model';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class TriggerFlowDataService {
-  // Initial payload (set once, doesn't change)
-  private initialPayload = signal<InitialPayload | null>(null);
-  readonly initialPayload$ = this.initialPayload.asReadonly();
+  // Canonical reactive state used by UI/components
+  private catalog = signal<Catalog | null>(null);
+  readonly catalog$ = this.catalog.asReadonly();
 
-  // State payload (updates frequently)
-  private statePayload = signal<TriggerFlowStatePayload | null>(null);
-  readonly statePayload$ = this.statePayload.asReadonly();
+  private slotChannelList = signal<SlotChannelList | null>(null);
+  readonly slotChannelList$ = this.slotChannelList.asReadonly();
 
-  readonly catalog = computed(() => this.initialPayload()?.catalog);
-  readonly slotChannelList = computed(() => this.initialPayload()?.slot_channel_list);
-  //readonly state = computed(() => this.statePayload()?.state);
+  // Keep this as your evolving runtime state slice
+  // (replace `any` with your real trigger state type when ready)
+  // private triggerState = signal<any | null>(null);
+  // readonly triggerState$ = this.triggerState.asReadonly();
 
-  // Set initial payload (called once)
+  // Optional: raw snapshots for debugging/non-reactive inspection
+  private initialPayloadSnapshot: InitialPayload | null = null;
+  private statePayloadSnapshot: TriggerFlowStatePayload | null = null;
+
   setInitialPayload(payload: InitialPayload): void {
-    if (this.initialPayload() === null) {
-      this.initialPayload.set(payload);
+    // Set once
+    if (!this.initialPayloadSnapshot) {
+      this.initialPayloadSnapshot = payload;
+      this.catalog.set(payload.catalog);
+      this.slotChannelList.set(payload.slot_channel_list);
     } else {
       console.warn('Initial payload already set, ignoring new value');
     }
   }
 
-  // Update state payload (called multiple times)
   updateStatePayload(payload: TriggerFlowStatePayload): void {
-    this.statePayload.set(payload);
-    console.log('State payload updated:', payload);
+    this.statePayloadSnapshot = payload;
+
+    // Keep slot_channel_list fresh from runtime updates
+    this.slotChannelList.set(payload.slot_channel_list);
+
+    // Set runtime trigger state when your payload includes it
+    // this.triggerState.set(payload.state);
   }
 
-  // Getters for direct access
-  getInitialPayload(): InitialPayload | null {
-    return this.initialPayload();
+  // Optional synchronous getters
+  getCatalog(): Catalog | null {
+    return this.catalog();
   }
 
-  getStatePayload(): TriggerFlowStatePayload | null {
-    return this.statePayload();
+  getSlotChannelList(): SlotChannelList | null {
+    return this.slotChannelList();
   }
 
-  getCatalog(): Catalog | undefined {
-    return this.initialPayload()?.catalog;
+  // getTriggerState(): any | null {
+  //   return this.triggerState();
+  // }
+
+  // Optional debug snapshots
+  getInitialPayloadSnapshot(): InitialPayload | null {
+    return this.initialPayloadSnapshot;
   }
 
-  getSlotChannelList(): SlotChannelList | undefined {
-    return this.initialPayload()?.slot_channel_list;
+  getStatePayloadSnapshot(): TriggerFlowStatePayload | null {
+    return this.statePayloadSnapshot;
   }
-
-//   getState(): any {
-//     return this.statePayload()?.state;
-//   }
 }

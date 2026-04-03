@@ -1,5 +1,5 @@
-import { Component, ViewChild, signal, inject } from '@angular/core';
-import { FFlowModule, FFlowComponent } from '@foblex/flow';
+import { Component, signal, inject, computed, HostListener, ElementRef, AfterViewInit } from '@angular/core';
+import { FFlowModule } from '@foblex/flow';
 import { CommonModule } from '@angular/common';
 import { AngularSvgIconModule } from 'angular-svg-icon';
 import { SvgManagerService } from '../../services/svg-manager.service';
@@ -7,12 +7,40 @@ import { CanvasBlocksService } from '../../services/canvas-blocks.service';
 
 interface FlowNode {
   id: string;
+  sectionId: string;
   position: { x: number; y: number };
   svgPath: string;
   catalogLabel?: string;
   input?: string;
   outputs: string[];
   color?: string;
+}
+
+interface CreateNodePayload {
+  type?: string;
+  svgPath: string;
+  catalogLabel?: string;
+}
+
+interface FlowCanvasEvent {
+  rect?: { x: number; y: number };
+  data?: CreateNodePayload;
+  fTargetNode?: string;
+  fDropPosition?: { x: number; y: number };
+  fNodes?: ({ id: string; position: { x: number; y: number } } | string)[];
+}
+
+interface FlowSection {
+  id: string;
+  title: string;
+  modelName: string;
+  slotIndex: number;
+  nodes: FlowNode[];
+}
+
+interface LaidOutSection extends FlowSection {
+  position: { x: number; y: number };
+  size: { width: number; height: number };
 }
 
 @Component({
@@ -25,20 +53,61 @@ interface FlowNode {
   templateUrl: './canvas.html',
   styleUrl: './canvas.scss',
 })
-export class Canvas {
-  @ViewChild(FFlowComponent) flowComponent!: FFlowComponent;
+export class Canvas implements AfterViewInit {
+  private hostRef = inject(ElementRef<HTMLElement>);
   private svgManager = inject(SvgManagerService);
   private canvasBlocksService = inject(CanvasBlocksService);
 
-  nodes = signal<FlowNode[]>([]);
+  canvasSize = signal(this.getCanvasSize());
+
+  sections = signal<FlowSection[]>([
+    {
+      id: 'group-1',
+      title: 'Trigger Model 1',
+      modelName: 'Model1',
+      slotIndex: 1,
+      nodes: []
+    },
+    {
+      id: 'group-2',
+      title: 'Trigger Model 2',
+      modelName: 'Model2',
+      slotIndex: 2,
+      nodes: []
+    }
+  ]);
+
+  sectionLayouts = computed<LaidOutSection[]>(() => {
+    const size = this.canvasSize();
+    const width = Math.floor(size.width / 2);
+    const height = Math.floor(size.height);
+
+    return this.sections().map((section, index) => ({
+      ...section,
+      position: {
+        x: index * width,
+        y: 0
+      },
+      size: { width, height }
+    }));
+  });
+
+  sectionNodes = computed<FlowNode[]>(() =>
+    this.sections().flatMap(section => section.nodes)
+  );
   private nodeCounter = 0;
 
-  onCreateNode(event: any) {
+  onCreateNode(event: FlowCanvasEvent) {
     // FCreateNodeEvent: { rect, data, fTargetNode?, fDropPosition? }
     console.log('fCreateNode event:', event);
-    if (event.data && event.data.type) {
+    if (event.data && event.data.type && event.rect) {
+      const targetSectionId = this.resolveTargetSectionId(event.fTargetNode);
+      const section = this.getSectionById(targetSectionId);
+      if (!section) return;
+
       const newNode: FlowNode = {
         id: `node-${++this.nodeCounter}`,
+        sectionId: targetSectionId,
         position: { x: event.rect.x, y: event.rect.y },
         svgPath: event.data.svgPath,
         catalogLabel: event.data.catalogLabel,
@@ -46,18 +115,20 @@ export class Canvas {
         outputs: [`output-${this.nodeCounter}`],
         color: '#FFFFFF'
       };
-      this.nodes.update(current => [...current, newNode]);
+      this.sections.update(current =>
+        current.map(item =>
+          item.id === targetSectionId
+            ? { ...item, nodes: [...item.nodes, newNode] }
+            : item
+        )
+      );
       
-      // Add block to canvas blocks service with catalogLabel
-      // You must now provide modelName and slotIndex
-      const modelName = 'Model1'; // Replace with dynamic value as needed
-      const slotIndex = 1; // Replace with dynamic value as needed
       this.canvasBlocksService.addBlock(
         newNode.id,
         newNode.catalogLabel || newNode.svgPath,
         newNode.position,
-        modelName,
-        slotIndex
+        section.modelName,
+        section.slotIndex
       );
     }
   }
@@ -70,26 +141,77 @@ export class Canvas {
     });
   }
 
-  onCreateConnection(event: any) {
+  onCreateConnection(event: unknown) {
     console.log('Connection created:', event);
     // Handle connection creation here if needed
   }
 
-  onMoveNodes(event: any) {
+  onMoveNodes(event: FlowCanvasEvent) {
     // FMoveNodesEvent: { fNodes: Array<{ id: string, position: IPoint }> }
-    if (!event.fNodes) return;
+    if (!event.fNodes || !event.fNodes.length || typeof event.fNodes[0] === 'string') return;
+
+    const movedNodes = event.fNodes as { id: string; position: { x: number; y: number } }[];
     
     const updates = new Map<string, { x: number; y: number }>(
-      event.fNodes.map((item: any) => [item.id, { x: item.position.x, y: item.position.y }])
+      movedNodes.map(item => [item.id, { x: item.position.x, y: item.position.y }])
     );
-    this.nodes.update(current => current.map((node): FlowNode => {
-      const newPos = updates.get(node.id);
-      if (newPos) {
-        // Update canvas blocks service with new position
-        this.canvasBlocksService.updateBlockPosition(node.id, newPos);
-        return { ...node, position: newPos };
-      }
-      return node;
-    }));
+    this.sections.update(current =>
+      current.map(section => ({
+        ...section,
+        nodes: section.nodes.map((node): FlowNode => {
+          const newPos = updates.get(node.id);
+          if (newPos) {
+            this.canvasBlocksService.updateBlockPosition(node.id, newPos);
+            return { ...node, position: newPos };
+          }
+          return node;
+        })
+      }))
+    );
+  }
+
+  onDropToGroup(event: FlowCanvasEvent) {
+    // Intentionally ignored: nodes stay in their original section after creation.
+    console.log('fDropToGroup ignored (section reassignment disabled):', event);
+  }
+
+  private getSectionById(sectionId: string): FlowSection | undefined {
+    return this.sections().find(section => section.id === sectionId);
+  }
+
+  private resolveTargetSectionId(targetId?: string): string {
+    if (!targetId) return this.sections()[0]?.id || '';
+
+    const section = this.getSectionById(targetId);
+    if (section) return section.id;
+
+    const parentSection = this.sections().find(item =>
+      item.nodes.some(node => node.id === targetId)
+    );
+    return parentSection?.id || this.sections()[0]?.id || '';
+  }
+
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    this.canvasSize.set(this.getCanvasSize());
+  }
+
+  ngAfterViewInit(): void {
+    this.canvasSize.set(this.getCanvasSize());
+  }
+
+  private getCanvasSize(): { width: number; height: number } {
+    if (typeof window === 'undefined') {
+      return { width: 1280, height: 720 };
+    }
+
+    const host = this.hostRef.nativeElement;
+    const hostWidth = Math.floor(host.clientWidth || 0);
+    const hostHeight = Math.floor(host.clientHeight || 0);
+
+    return {
+      width: hostWidth || window.innerWidth,
+      height: hostHeight || window.innerHeight
+    };
   }
 }

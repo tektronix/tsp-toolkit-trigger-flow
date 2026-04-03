@@ -5,6 +5,7 @@ import { Subscription } from 'rxjs';
 import { IpcData } from './models/ipcData';
 import { InitialPayload } from './models/trigger-blocks.model';
 import { TriggerFlowDataService } from './services/triggerFlowDataService';
+import { CanvasBlocksService } from './services/canvas-blocks.service';
 
 @Component({
   selector: 'app-root',
@@ -17,9 +18,10 @@ export class App implements OnInit, OnDestroy {
 
   private webSocket = inject(Websocket);
   private triggerFlowDataService = inject(TriggerFlowDataService);
+  private canvasBlocksService = inject(CanvasBlocksService);
   private wsSubscription: Subscription | undefined;
 
-  protected readonly initialPayload$ = this.triggerFlowDataService.initialPayload$;
+  protected readonly catalog$ = this.triggerFlowDataService.catalog$;
 
   ngOnInit(): void {
     this.webSocket.connect();
@@ -48,9 +50,14 @@ export class App implements OnInit, OnDestroy {
         case 'initial_response': {
           const initialPayload = JSON.parse(ipcData.json_value) as InitialPayload;
           this.triggerFlowDataService.setInitialPayload(initialPayload);
+          this.canvasBlocksService.setCatalogData(initialPayload.catalog);
+          this.canvasBlocksService.setSlotChannelList(initialPayload.slot_channel_list);
           console.log(initialPayload);
           break;
         }
+        case 'evaluation_response':
+          console.log('Received evaluation response:', ipcData.json_value);
+          break;
         // Handle other request types as needed
         case 'empty_system_config_error':
           console.log('Received empty system config');
