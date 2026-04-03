@@ -13,7 +13,7 @@ impl Default for ScriptPath {
 impl ScriptPath {
     pub fn new() -> Self {
         ScriptPath {
-            folder: "C:\\workfolder\\".to_string(),
+            folder: "./workfolder/".to_string(),
             session: "sample.tsp".to_string(),
         }
     }
