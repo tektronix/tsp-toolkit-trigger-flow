@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     api::{
-        ipc_data,
         request::ResponseType,
         slot_channel_list::{ChannelIndex, SlotChannelList, SlotChannelListUpdate, SlotIndex},
     },
@@ -36,7 +35,7 @@ impl TriggerFlowState {
         //initialize the slot_channel_list with the new system_config
         //sent as initial_response
         if self.slot_channel_list.slots.is_empty() {
-            match SlotChannelList::new(&system_config) {
+            match SlotChannelList::new(system_config) {
                 Ok(new_list) => {
                     self.slot_channel_list = new_list;
 
