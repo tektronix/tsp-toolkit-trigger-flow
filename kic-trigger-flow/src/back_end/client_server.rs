@@ -1,5 +1,5 @@
 //placeholder to prove server is running
-use crate::back_end::{script_writer::ScriptWriter, stdin_line::StdinLine};
+use crate::back_end::stdin_line::StdinLine;
 use actix_files as fs;
 use actix_web::{web, App, Error, HttpRequest, HttpResponse, HttpServer};
 use actix_ws::{Message, Session};

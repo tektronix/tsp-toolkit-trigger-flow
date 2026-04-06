@@ -18,7 +18,7 @@ pub struct RequestProcessor {
 impl RequestProcessor {
     pub fn new(catalog: &'static Catalog) -> Self {
         let validation_chain = ValidationChain::new()
-            .add_validator(Box::new(CatalogValidator::new(&catalog)))
+            .add_validator(Box::new(CatalogValidator::new(catalog)))
             .add_validator(Box::new(InstrumentValidator::new())); //pass initial empty slot_channel_list, will be updated with each request
 
         Self { validation_chain }
