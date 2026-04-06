@@ -182,7 +182,7 @@ impl SlotChannelList {
     }
 
     pub fn has_mp5103(&self) -> bool {
-        self.localnode == "MP5103" || self.nodes.iter().any(|n| n.mainframe == "MP5103")
+        self.localnode.starts_with("MP5") || self.nodes.iter().any(|n| n.mainframe.starts_with("MP5"))
     }
 
     pub fn has_non_empty_slots(&self) -> bool {
