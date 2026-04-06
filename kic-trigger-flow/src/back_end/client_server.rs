@@ -232,7 +232,7 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
     let (shutdown_tx, shutdown_rx) = watch::channel(());
     let server = start_web_server(app_state.clone(), shutdown_rx.clone());
 
-    let trigger_flow_rx = app_state.trigger_flow_tx.subscribe();
+    let _trigger_flow_rx = app_state.trigger_flow_tx.subscribe();
 
     let value = shutdown_tx.clone();
     tokio::spawn(async move {

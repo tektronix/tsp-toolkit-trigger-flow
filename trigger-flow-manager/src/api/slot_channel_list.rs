@@ -110,7 +110,7 @@ impl SlotChannelList {
             .as_deref()
             .unwrap_or_default()
             .iter()
-            .map(|slot_json| Slot::try_from(slot_json))
+            .map(Slot::try_from)
             .collect::<Result<Vec<_>, _>>()?;
 
         let _nodes = active_system
@@ -118,7 +118,7 @@ impl SlotChannelList {
             .as_deref()
             .unwrap_or_default()
             .iter()
-            .map(|node_json| Nodes::try_from(node_json))
+            .map(Nodes::try_from)
             .collect::<Result<Vec<_>, _>>()?;
 
         Ok(SlotChannelList {
@@ -149,7 +149,7 @@ impl SlotChannelList {
                     .as_deref()
                     .unwrap_or_default()
                     .iter()
-                    .map(|slot_json| Slot::try_from(slot_json))
+                    .map(Slot::try_from)
                     .collect::<Result<Vec<_>, _>>()?;
 
                 self.nodes = active_system
@@ -157,7 +157,7 @@ impl SlotChannelList {
                     .as_deref()
                     .unwrap_or_default()
                     .iter()
-                    .map(|node_json| Nodes::try_from(node_json))
+                    .map(Nodes::try_from)
                     .collect::<Result<Vec<_>, _>>()?;
 
                 self.localnode = active_system.localnode.clone();
