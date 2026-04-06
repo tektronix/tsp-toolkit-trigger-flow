@@ -13,6 +13,7 @@ impl Default for ValidationChain {
         Self::new()
     }
 }
+
 impl ValidationChain {
     pub fn new() -> Self {
         Self {

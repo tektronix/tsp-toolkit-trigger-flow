@@ -8,11 +8,13 @@ use anyhow::Result;
 pub struct InstrumentValidator {
     slot_channel_hashmap: SlotChannelHashMap,
 }
+
 impl Default for InstrumentValidator {
     fn default() -> Self {
         Self::new()
     }
 }
+
 impl InstrumentValidator {
     pub fn new() -> Self {
         Self {

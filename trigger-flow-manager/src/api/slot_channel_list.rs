@@ -76,7 +76,7 @@ pub enum SlotChannelListUpdate {
     TriggerFlowState(TriggerFlowState),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct SlotChannelList {
     pub localnode: String,
     pub is_valid: bool,
