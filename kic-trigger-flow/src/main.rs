@@ -15,7 +15,7 @@ pub static CATALOG: Lazy<Catalog> = Lazy::new(|| {
 async fn main() -> anyhow::Result<()> {
     println!("Welcome to KIC TriggerFlow!");
 
-    start(&*CATALOG).await?;
+    start(&CATALOG).await?;
 
     Ok(())
 }

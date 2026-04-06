@@ -286,7 +286,7 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                         .write(true)
                         .open(&script_output);
                     if let Ok(mut file) = file {
-                        if let Err(e) = file.write_all(&updated.as_bytes()) {
+                        if let Err(e) = file.write_all(updated.as_bytes()) {
                             eprintln!(
                                 "Failed to write updated script to {}: {}",
                                 script_output.display(),
@@ -302,7 +302,7 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                     }
                 } else {
                     let file = File::options()
-                        .create(true) //create a new file
+                        .truncate(true) //create a new file
                         .write(true)
                         .open(&script_output);
                     if let Ok(mut file) = file {
@@ -348,15 +348,12 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                         //use the triggerflowState mutex to update the state if slotChannelList already exists for it
                         println!("Received Systems command from stdin");
                         let mut triggerflow_state: tokio::sync::MutexGuard<'_, TriggerFlowState> =
-                            app_state_clone.trigger_flow_state.lock().await;
-                        // Process each system in the systems array
-                        let response = if let Some(system_config) = msg.systems.first() {
-                            let system_json = serde_json::to_string(system_config).unwrap();
-                            triggerflow_state
-                                .process_system_config(&system_json, &app_state_clone.catalog)
-                        } else {
-                            "No systems found in message".to_string()
-                        };
+                            app_state.trigger_flow_state.lock().await;
+
+                        // Pass the entire Systems structure to process_system_config
+                        let systems_json = serde_json::to_string(&msg).unwrap();
+                        let response = triggerflow_state
+                            .process_system_config(&systems_json, app_state.catalog);
 
                         println!("{}", response);
                         if !response.contains("error") {

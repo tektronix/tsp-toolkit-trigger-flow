@@ -278,11 +278,12 @@ slot[{{this.slot_index}}].trigger.model.create("{{this.trigger_model_name}}")
 
     fn slot_channel_list() -> SlotChannelList {
         SlotChannelList {
+            localnode: "localnode".to_string(),
+            is_valid: true,
             slots: vec![
                 Slot {
-                    slot_index: SlotIndex(1),
+                    slot_id: SlotIndex(1),
                     module: Module::MSMU60_2,
-                    node_id: "localnode".to_string(),
                     channels: vec![
                         Channel {
                             channel_index: ChannelIndex(1),
@@ -295,9 +296,8 @@ slot[{{this.slot_index}}].trigger.model.create("{{this.trigger_model_name}}")
                     ],
                 },
                 Slot {
-                    slot_index: SlotIndex(2),
+                    slot_id: SlotIndex(2),
                     module: Module::MPSU50_2ST,
-                    node_id: "localnode".to_string(),
                     channels: vec![
                         Channel {
                             channel_index: ChannelIndex(1),
@@ -310,6 +310,7 @@ slot[{{this.slot_index}}].trigger.model.create("{{this.trigger_model_name}}")
                     ],
                 },
             ],
+            nodes: vec![],
         }
     }
 
