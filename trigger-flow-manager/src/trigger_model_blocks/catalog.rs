@@ -1,5 +1,5 @@
 use super::param_types::ParamTypeName;
-use crate::model::trigger_model_block::TriggerModelBlock;
+use crate::model::trigger_model_block::{TriggerModelBlock, TriggerModelTemplateBlock};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -12,6 +12,15 @@ pub struct Catalog {
     pub script_template: ScriptTemplate,
     pub blocks: HashMap<String, BlockDefinition>,
     pub trigger_events: HashMap<String, EventDefinition>,
+    pub templates: HashMap<String, Template>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct Template {
+    name: String,
+    description: String,
+    icon: String,
+    blocks: Vec<TriggerModelTemplateBlock>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
