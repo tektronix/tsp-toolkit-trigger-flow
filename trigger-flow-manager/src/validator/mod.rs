@@ -8,6 +8,12 @@ pub trait Validator {
 pub struct ValidationChain {
     validators: Vec<Box<dyn Validator>>,
 }
+impl Default for ValidationChain {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ValidationChain {
     pub fn new() -> Self {
         Self {

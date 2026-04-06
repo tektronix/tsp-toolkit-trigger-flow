@@ -59,15 +59,9 @@ pub enum SlotChannelListUpdate {
     TriggerFlowState(TriggerFlowState),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct SlotChannelList {
     pub slots: Vec<Slot>,
-}
-
-impl Default for SlotChannelList {
-    fn default() -> Self {
-        SlotChannelList { slots: Vec::new() }
-    }
 }
 
 impl SlotChannelList {
