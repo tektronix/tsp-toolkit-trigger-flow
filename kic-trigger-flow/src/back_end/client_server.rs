@@ -242,7 +242,7 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
     let (shutdown_tx, shutdown_rx) = watch::channel(());
     let server = start_web_server(app_state.clone(), shutdown_rx.clone());
 
-    let _trigger_flow_rx = app_state.trigger_flow_tx.subscribe();
+    let mut trigger_flow_rx = app_state.trigger_flow_tx.subscribe();
 
     {
         let app_state_clone = app_state.clone();
@@ -286,7 +286,7 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                         .write(true)
                         .open(&script_output);
                     if let Ok(mut file) = file {
-                        if let Err(e) = file.write_all(&updated.as_bytes()) {
+                        if let Err(e) = file.write_all(updated.as_bytes()) {
                             eprintln!(
                                 "Failed to write updated script to {}: {}",
                                 script_output.display(),
@@ -302,7 +302,7 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                     }
                 } else {
                     let file = File::options()
-                        .create(true) //create a new file
+                        .truncate(true) //create a new file
                         .write(true)
                         .open(&script_output);
                     if let Ok(mut file) = file {
