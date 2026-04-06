@@ -52,6 +52,7 @@ pub enum ParamType {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct SlotIndex {
     slot_index: u8,
 }
