@@ -161,6 +161,12 @@ impl SlotChannelList {
                     .collect::<Result<Vec<_>, _>>()?;
 
                 self.localnode = active_system.localnode.clone();
+
+                if self.is_valid_config() {
+                    self.is_valid = true;
+                } else {
+                    self.is_valid = false;
+                }
             }
             SlotChannelListUpdate::TriggerFlowState(triggerflow_state) => {
                 for slot in &mut self.slots {
@@ -183,12 +189,17 @@ impl SlotChannelList {
         self.localnode == "MP5103" || self.nodes.iter().any(|n| n.mainframe == "MP5103")
     }
 
-    pub fn has_empty_slots(&self) -> bool {
-        self.slots.iter().all(|s| s.module == Module::Empty)
+    pub fn has_non_empty_slots(&self) -> bool {
+        self.slots.iter().any(|s| s.module != Module::Empty)
+            || self.nodes.iter().any(|n| {
+                n.slots.as_ref().map_or(true, |slots| {
+                    slots.iter().any(|s| s.module != Module::Empty)
+                })
+            })
     }
 
     pub fn is_valid_config(&self) -> bool {
-        self.has_mp5103() && !self.has_empty_slots()
+        self.has_mp5103() && self.has_non_empty_slots()
     }
 }
 
