@@ -188,9 +188,9 @@ impl SlotChannelList {
     pub fn has_non_empty_slots(&self) -> bool {
         self.slots.iter().any(|s| s.module != Module::Empty)
             || self.nodes.iter().any(|n| {
-                n.slots.as_ref().is_none_or(|slots| {
-                    slots.iter().any(|s| s.module != Module::Empty)
-                })
+                n.slots
+                    .as_ref()
+                    .is_none_or(|slots| slots.iter().any(|s| s.module != Module::Empty))
             })
     }
 
