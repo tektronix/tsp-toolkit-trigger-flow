@@ -232,7 +232,7 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
     let (shutdown_tx, shutdown_rx) = watch::channel(());
     let server = start_web_server(app_state.clone(), shutdown_rx.clone());
 
-    let mut trigger_flow_rx = app_state.trigger_flow_tx.subscribe();
+    let trigger_flow_rx = app_state.trigger_flow_tx.subscribe();
 
     let value = shutdown_tx.clone();
     tokio::spawn(async move {
@@ -261,7 +261,7 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                         // Pass the entire Systems structure to process_system_config
                         let systems_json = serde_json::to_string(&msg).unwrap();
                         let response = triggerflow_state
-                            .process_system_config(&systems_json, &app_state.catalog);
+                            .process_system_config(&systems_json, app_state.catalog);
 
                         println!("{}", response);
 

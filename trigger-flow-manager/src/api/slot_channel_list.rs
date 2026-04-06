@@ -162,11 +162,7 @@ impl SlotChannelList {
 
                 self.localnode = active_system.localnode.clone();
 
-                if self.is_valid_config() {
-                    self.is_valid = true;
-                } else {
-                    self.is_valid = false;
-                }
+                self.is_valid = self.is_valid_config();
             }
             SlotChannelListUpdate::TriggerFlowState(triggerflow_state) => {
                 for slot in &mut self.slots {
@@ -192,7 +188,7 @@ impl SlotChannelList {
     pub fn has_non_empty_slots(&self) -> bool {
         self.slots.iter().any(|s| s.module != Module::Empty)
             || self.nodes.iter().any(|n| {
-                n.slots.as_ref().map_or(true, |slots| {
+                n.slots.as_ref().is_none_or(|slots| {
                     slots.iter().any(|s| s.module != Module::Empty)
                 })
             })

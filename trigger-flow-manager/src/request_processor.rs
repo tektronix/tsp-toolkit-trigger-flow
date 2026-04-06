@@ -1,7 +1,7 @@
 use std::{
     fs::{self, File},
     io::Write,
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 
 use crate::{
@@ -26,7 +26,7 @@ pub struct RequestProcessor {
 impl RequestProcessor {
     pub fn new(catalog: &'static Catalog) -> Self {
         let validation_chain = ValidationChain::new()
-            .add_validator(Box::new(CatalogValidator::new(&catalog)))
+            .add_validator(Box::new(CatalogValidator::new(catalog)))
             .add_validator(Box::new(InstrumentValidator::new())); //pass initial empty slot_channel_list, will be updated with each request
 
         Self {
@@ -74,22 +74,22 @@ impl RequestProcessor {
         //validation chain validates the models first, then hashmap
         self.validation_chain.validate(trigger_flow_state)?;
 
-        let script = Script::from_state(&self.catalog, trigger_flow_state)?;
+        let script = Script::from_state(self.catalog, trigger_flow_state)?;
 
         //TODO: Use script location and/or project name as appropriate
         let script_output: PathBuf = "./script_output.tsp".into();
 
         if script_output.exists() {
             let file_contents = fs::read_to_string(&script_output)?;
-            let updated = script.replace_generated(&self.catalog, &file_contents);
+            let updated = script.replace_generated(self.catalog, &file_contents);
             let mut file = File::options()
                 .truncate(true) //truncate the file to 0 length so we can replace the contents
                 .write(true)
                 .open(&script_output)?;
-            file.write_all(&updated.as_bytes())?;
+            file.write_all(updated.as_bytes())?;
         } else {
             let mut file = File::options()
-                .create(true) //create a new file
+                .truncate(true) //create a new file
                 .write(true)
                 .open(&script_output)?;
             file.write_all(script.to_string().as_bytes())?;

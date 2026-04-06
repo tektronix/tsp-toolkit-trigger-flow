@@ -29,8 +29,7 @@ impl Validator for CatalogValidator {
                     if let Some(name) = name {
                         if let Some(name_str) = name.as_str() {
                             // Only check uniqueness if name is not empty
-                            if !name_str.is_empty() {
-                                if !seen_names.insert(name_str.to_string()) {
+                            if !name_str.is_empty() && !seen_names.insert(name_str.to_string()){
                                     let err = (
                                         true,
                                         format!(
@@ -43,7 +42,7 @@ impl Validator for CatalogValidator {
                                     } else {
                                         block.block_error = Some(vec![err]);
                                     }
-                                }
+                                
                             }
                         }
                     }
