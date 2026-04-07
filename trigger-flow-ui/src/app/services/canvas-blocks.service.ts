@@ -1,15 +1,17 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 import { Catalog, BlockDefinition, EventDefinition } from '../models/trigger-blocks.model';
+import { Websocket } from './websocket';
+import { TriggerFlowDataService } from './triggerFlowDataService';
 
 export interface CanvasBlock {
-  id: string;
-  blockName: string;
+  block_id: string;
+  type: string;
   blockData: BlockDefinition | EventDefinition;
-  position: { x: number; y: number };
+  block_position: { x: number; y: number };
   svgPath: string;
+  block_parameters?: Record<string, any>; // To store actual values
 }
-
 
 declare const acquireVsCodeApi: unknown;
 // eslint-disable-next-line @typescript-eslint/no-empty-function
@@ -30,6 +32,11 @@ export class CanvasBlocksService {
   
   private catalogData: Catalog | null = null;
   private slotChannelList: any = null;  
+
+  constructor(
+    private websocketService: Websocket,
+    private triggerFlowDataService: TriggerFlowDataService
+  ) {}
 
   setCatalogData(catalog: Catalog): void {
     this.catalogData = catalog;
@@ -76,36 +83,46 @@ export class CanvasBlocksService {
     }
 
     const canvasBlock: CanvasBlock = {
-      id: nodeId,
-      blockName: blockName,
+      block_id: nodeId,
+      type: blockName,
       blockData: blockData,
-      position: position,
+      block_position: position,
       svgPath: blockLabel
     };
 
     this.models[modelName].blocks.push(canvasBlock);
     this.updateAndPrint();
-    vscode.postMessage({ command: 'open_manual' , payload: "block_name: " + blockName});
+    vscode.postMessage({ command: 'open_manual' , payload: 'block_name: ' + blockName });
   }
 
   // Remove block by nodeId from the model where it exists
   removeBlock(nodeId: string): void {
     for (const model of Object.values(this.models)) {
-      const index = model.blocks.findIndex(b => b.id === nodeId);
+      const index = model.blocks.findIndex(b => b.block_id === nodeId);
       if (index !== -1) {
         model.blocks.splice(index, 1);
         this.updateAndPrint();
         break;
       }
     }
-
   }
 
   updateBlockPosition(nodeId: string, position: { x: number; y: number }): void {
     for (const model of Object.values(this.models)) {
-      const block = model.blocks.find(b => b.id === nodeId);
+      const block = model.blocks.find(b => b.block_id === nodeId);
       if (block) {
-        block.position = position;
+        block.block_position = position;
+        this.updateAndPrint();
+        break;
+      }
+    }
+  }
+
+  updateBlockParameters(nodeId: string, parameters: Record<string, any>): void {
+    for (const model of Object.values(this.models)) {
+      const block = model.blocks.find(b => b.block_id === nodeId);
+      if (block) {
+        block.block_parameters = parameters;
         this.updateAndPrint();
         break;
       }
@@ -164,32 +181,81 @@ export class CanvasBlocksService {
     this.logIpcDataFormat();
   }
 
+  private sendIpcDataToServer(ipcData: any): void {
+    try {
+      this.websocketService.send(JSON.stringify(ipcData));
+      console.log('=======IpcData sent to server successfully=======');
+    } catch (error) {
+      console.error('Failed to send ipcData over websocket:', error);
+    }
+  }
+  
+  private extractDefaultParams(params: any[] | undefined): Record<string, any> {
+    if (!Array.isArray(params)) return {};
+
+    return params.reduce((acc: Record<string, any>, p: any) => {
+      const name = p?.name ?? p?.parameter_name ?? p?.parameterName ?? p?.key;
+      if (!name) return acc;
+
+      // Prefer default fields first, then fallback to value
+      acc[name] = p?.default ?? p?.default_value ?? p?.value ?? null;
+      return acc;
+    }, {});
+  }
+
+  private getBlockDefaultParameters(blockName: string): Record<string, any> {
+    const catalog = this.catalogData ?? this.triggerFlowDataService.catalog();
+    if (!catalog) return {};
+
+    const normalizedName = blockName.toLowerCase().replace(/\s+/g, ' ').trim();
+
+    // Search in blocks
+    if (catalog.blocks) {
+      for (const [key, block] of Object.entries(catalog.blocks)) {
+        if (key.toLowerCase().replace(/\s+/g, ' ').trim() === normalizedName) {
+          return this.extractDefaultParams((block as any)?.parameters);
+        }
+      }
+    }
+
+    // Search in trigger_events
+    if (catalog.trigger_events) {
+      for (const [key, event] of Object.entries(catalog.trigger_events)) {
+        if (key.toLowerCase().replace(/\s+/g, ' ').trim() === normalizedName) {
+          return this.extractDefaultParams((event as any)?.parameters);
+        }
+      }
+    }
+
+    return {};
+  }
+
   logIpcDataFormat(): void {
-    // Use slotChannelList from MainFlow if available
     const slot_channel_list = this.slotChannelList || { slots: [] };
-    // Build models object, omitting syntax, description, and shape from blocks
     const filteredModels: any = {};
+
     for (const [modelName, model] of Object.entries(this.models)) {
       filteredModels[modelName] = {
         trigger_model_name: model.trigger_model_name,
         slot_index: model.slot_index,
-        blocks: model.blocks.map(block => {
-          // Copy only allowed properties from block and blockData
-          const { id, blockName, position, svgPath } = block;
-          // Extract block_parameters and other needed fields from blockData
-          const blockData = block.blockData as any;
-          // Remove syntax, description, shape if present
-          const { syntax, description, shape, ...blockDataRest } = blockData;
+        blocks: model.blocks.map((block) => {
+          const defaultParameters = this.getBlockDefaultParameters(block.type);
+          const actualParameters = block.block_parameters ?? {};
+
+          // Always include defaults; actual values override defaults
+          const blockParameters = { ...defaultParameters, ...actualParameters };
+
           return {
-            id,
-            blockName,
-            position,
-            svgPath,
-            ...blockDataRest
+            type: block.type,
+            block_id: block.block_id,
+            block_parameters: blockParameters,
+            block_position: block.block_position,
+            block_error: null
           };
         })
       };
     }
+
     const ipcData = {
       request_type: 'evaluate_request',
       additional_info: '',
@@ -198,11 +264,13 @@ export class CanvasBlocksService {
         models: filteredModels
       }
     };
+
     console.log('=== Rust IpcData Format ===');
     console.log(JSON.stringify(ipcData, null, 2));
     console.log('==========================');
-  }
 
+    this.sendIpcDataToServer(ipcData);
+  }
 
   getCanvasDataAsJson(): string {
     return JSON.stringify(this.getCanvasData(), null, 2);
