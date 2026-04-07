@@ -76,7 +76,7 @@ blocks:
         required: true
         default: Counter
       - name: branch_to_block_name
-        type: string
+        type: blockReference
         required: true
       - name: target_count
         type: number
@@ -284,12 +284,12 @@ blocks:
         type: string
         required: true
         default: Delay
-      - name: reference_block_name
-        type: string
-        required: true
       - name: delay_list
         type: DelayList
         required: true
+      - name: reference_block_name
+        type: string
+        required: false
         range:
           min: 0.000001
           max: 1000000
@@ -826,4 +826,31 @@ trigger_events:
             value: '3'
     syntax: tsplink.trigger[{{trigger_line}}].EVENT_ID
     shape: circle
+  templates:
+    pulsed_sweep:
+      name: "Pulsed Sweep",
+      description: "Creates a pulsed source sweep with constant timing and no measurements".
+      icon: pulsed_sweep
+      blocks:
+        - type: source action step
+          block_id: pulsed_sweep_source_action_001
+          block_parameters:
+            trigger_block_name: pulsed_sweep_source_action_001
+        - type: delay constant
+          block_id: pulsed_sweep_delay_constant_001
+          block_parameters:
+            trigger_block_name: pulsed_sweep_delay_constant_001
+        - type: source action bias
+          block_id: pulsed_sweep_source_action_bias_001
+          block_parameters:
+            trigger_block_name: pulsed_sweep_source_action_bias_001
+        - type: delay constant
+          block_id: pulsed_sweep_delay_constant_002
+          block_parameters:
+            trigger_block_name: pulsed_sweep_delay_constant_002
+        - type: counter
+          block_id: pulsed_sweep_counter_001
+          block_parameters:
+            trigger_block_name: pulsed_sweep_counter_001
+            branch_to_block_name: pulsed_sweep_source_action_001
 

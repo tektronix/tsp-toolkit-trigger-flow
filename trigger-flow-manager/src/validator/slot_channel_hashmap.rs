@@ -10,6 +10,12 @@ pub struct SlotChannelHashMap {
     channel_usage_map: HashMap<(SlotIndex, ChannelIndex), ChannelUsage>,
 }
 
+impl Default for SlotChannelHashMap {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SlotChannelHashMap {
     pub fn new() -> Self {
         Self {
