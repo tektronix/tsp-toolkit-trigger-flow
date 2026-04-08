@@ -30,13 +30,11 @@ f-canvas {
 .section-title {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
   gap: 10px;
   height: 42px;
-  border: 1px solid #2b2b2b;
+  border: 1px solid var(--vscode-editorWidget-border);
   background: var(--vscode-editor-background);
   padding: 0 10px;
-  box-sizing: border-box;
 }
 
 .title-left,
@@ -48,15 +46,11 @@ f-canvas {
 }
 
 .title-chip {
-  display: inline-flex;
-  align-items: center;
-  height: 24px;
   padding: 0 2px;
   border: 0;
   background: transparent;
-  color: #2b2b2b;
+  color: var(--vscode-editor-foreground);
   font-size: 12px;
-  line-height: 1;
   white-space: nowrap;
 }
 
@@ -73,7 +67,6 @@ f-canvas {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  line-height: 0;
   cursor: pointer;
 }
 
@@ -85,7 +78,7 @@ f-canvas {
 
 .section-body {
   flex: 1;
-  border: 1px solid #2b2b2b;
+  border: 1px solid var(--vscode-editorWidget-border);
   border-top-width: 0;
   background: rgba(255, 255, 255, 0.7);
 }

@@ -5,7 +5,7 @@ import { Subscription } from 'rxjs';
 import { IpcData } from './models/ipcData';
 import { InitialPayload } from './models/trigger-blocks.model';
 import { TriggerFlowDataService } from './services/triggerFlowDataService';
-import { CanvasBlocksService } from './services/canvas-blocks.service';
+import { TriggerFlowStatePayload } from './models/trigger-flow-state.model';
 
 @Component({
   selector: 'app-root',
@@ -18,7 +18,6 @@ export class App implements OnInit, OnDestroy {
 
   private webSocket = inject(Websocket);
   private triggerFlowDataService = inject(TriggerFlowDataService);
-  private canvasBlocksService = inject(CanvasBlocksService);
   private wsSubscription: Subscription | undefined;
 
   protected readonly catalog$ = this.triggerFlowDataService.catalog$;
@@ -48,16 +47,23 @@ export class App implements OnInit, OnDestroy {
       // Hndle based on the request_type
       switch (ipcData.request_type) {
         case 'initial_response': {
-          const initialPayload = JSON.parse(ipcData.json_value) as InitialPayload;
-          this.triggerFlowDataService.setInitialPayload(initialPayload);
-          this.canvasBlocksService.setCatalogData(initialPayload.catalog);
-          this.canvasBlocksService.setSlotChannelList(initialPayload.slot_channel_list);
-          console.log(initialPayload);
+          const data = JSON.parse(ipcData.json_value);
+          if (data.slot_channel_list && data.catalog) {
+            const initialPayload = new InitialPayload(data);
+            this.triggerFlowDataService.setInitialPayload(initialPayload);
+            console.log(initialPayload);
+          }
           break;
         }
-        case 'evaluation_response':
-          console.log('Received evaluation response:', ipcData.json_value);
+        case 'poc_response': {
+          const data = JSON.parse(ipcData.json_value);
+          if (data.slot_channel_list && data.models) {
+            const statePayload = new TriggerFlowStatePayload(data);
+            this.triggerFlowDataService.updateStatePayload(statePayload);
+            console.log(statePayload);
+          }
           break;
+        }
         // Handle other request types as needed
         case 'empty_system_config_error':
           console.log('Received empty system config');

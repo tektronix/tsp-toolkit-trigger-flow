@@ -1,6 +1,7 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 import { Catalog, BlockDefinition, EventDefinition } from '../models/trigger-blocks.model';
+import { TriggerFlowDataService } from './triggerFlowDataService';
 
 export interface CanvasBlock {
   id: string;
@@ -24,20 +25,11 @@ export interface CanvasBlocksData {
   providedIn: 'root'
 })
 export class CanvasBlocksService {
+  private triggerFlowDataService = inject(TriggerFlowDataService);
+
   private canvasBlocks: CanvasBlock[] = [];
   private canvasBlocksSubject = new BehaviorSubject<CanvasBlocksData>(this.getCanvasData());
   public canvasBlocks$ = this.canvasBlocksSubject.asObservable();
-  
-  private catalogData: Catalog | null = null;
-  private slotChannelList: any = null;  
-
-  setCatalogData(catalog: Catalog): void {
-    this.catalogData = catalog;
-  }
-
-  setSlotChannelList(slotChannelList: any): void {
-    this.slotChannelList = slotChannelList;
-  }
 
   // Support multiple models per canvas
   private models: { [modelName: string]: {
@@ -47,7 +39,8 @@ export class CanvasBlocksService {
   }} = {};
 
   addBlock(nodeId: string, blockLabel: string, position: { x: number; y: number }, modelName: string, slotIndex: number): void {
-    if (!this.catalogData) {
+    const catalogData = this.triggerFlowDataService.getCatalog();
+    if (!catalogData) {
       console.warn('Catalog data not loaded yet');
       return;
     }
@@ -60,7 +53,7 @@ export class CanvasBlocksService {
     }
 
     // Search for block in catalog (case-insensitive)
-    const blockData = this.findBlockInCatalog(blockName);
+    const blockData = this.findBlockInCatalog(blockName, catalogData);
     
     if (!blockData) {
       console.warn(`Block "${blockName}" not found in catalog`);
@@ -119,14 +112,16 @@ export class CanvasBlocksService {
     this.updateAndPrint();
   }
 
-  private findBlockInCatalog(blockName: string): BlockDefinition | EventDefinition | null {
-    if (!this.catalogData) return null;
+  private findBlockInCatalog(blockName: string, catalogData: Catalog | null): BlockDefinition | EventDefinition | null {
+    if (!catalogData) {
+      return null;
+    }
 
     const normalizedBlockName = blockName.toLowerCase().replace(/\s+/g, ' ').trim();
 
     // Search in blocks
-    if (this.catalogData.blocks) {
-      for (const [key, value] of Object.entries(this.catalogData.blocks)) {
+    if (catalogData.blocks) {
+      for (const [key, value] of Object.entries(catalogData.blocks)) {
         const normalizedKey = key.toLowerCase().replace(/\s+/g, ' ').trim();
         if (normalizedKey === normalizedBlockName) {
           return value;
@@ -135,8 +130,8 @@ export class CanvasBlocksService {
     }
 
     // Search in trigger_events
-    if (this.catalogData.trigger_events) {
-      for (const [key, value] of Object.entries(this.catalogData.trigger_events)) {
+    if (catalogData.trigger_events) {
+      for (const [key, value] of Object.entries(catalogData.trigger_events)) {
         const normalizedKey = key.toLowerCase().replace(/\s+/g, ' ').trim();
         if (normalizedKey === normalizedBlockName) {
           return value;
@@ -165,8 +160,7 @@ export class CanvasBlocksService {
   }
 
   logIpcDataFormat(): void {
-    // Use slotChannelList from MainFlow if available
-    const slot_channel_list = this.slotChannelList || { slots: [] };
+    const slot_channel_list = this.triggerFlowDataService.getSlotChannelList() || { slots: [] };
     // Build models object, omitting syntax, description, and shape from blocks
     const filteredModels: any = {};
     for (const [modelName, model] of Object.entries(this.models)) {

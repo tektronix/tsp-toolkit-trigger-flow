@@ -1,10 +1,7 @@
 import { Injectable, signal } from '@angular/core';
-import {
-  InitialPayload,
-  TriggerFlowStatePayload,
-  Catalog,
-  SlotChannelList,
-} from '../models/trigger-blocks.model';
+import { InitialPayload, Catalog } from '../models/trigger-blocks.model';
+import { SlotChannelList } from '../models/slotChannelModel';
+import { TriggerFlowStatePayload, TriggerModel } from '../models/trigger-flow-state.model';
 
 @Injectable({
   providedIn: 'root',
@@ -17,10 +14,8 @@ export class TriggerFlowDataService {
   private slotChannelList = signal<SlotChannelList | null>(null);
   readonly slotChannelList$ = this.slotChannelList.asReadonly();
 
-  // Keep this as your evolving runtime state slice
-  // (replace `any` with your real trigger state type when ready)
-  // private triggerState = signal<any | null>(null);
-  // readonly triggerState$ = this.triggerState.asReadonly();
+  private models = signal<Record<string, TriggerModel>>({});
+  readonly models$ = this.models.asReadonly();
 
   // Optional: raw snapshots for debugging/non-reactive inspection
   private initialPayloadSnapshot: InitialPayload | null = null;
@@ -43,8 +38,7 @@ export class TriggerFlowDataService {
     // Keep slot_channel_list fresh from runtime updates
     this.slotChannelList.set(payload.slot_channel_list);
 
-    // Set runtime trigger state when your payload includes it
-    // this.triggerState.set(payload.state);
+    this.models.set(payload.models);
   }
 
   // Optional synchronous getters
