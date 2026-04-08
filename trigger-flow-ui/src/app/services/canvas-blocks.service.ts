@@ -9,6 +9,9 @@ export interface CanvasBlock {
   type: string;
   blockData: BlockDefinition | EventDefinition;
   block_position: { x: number; y: number };
+  incoming: string | null;
+  outgoing: string | null;
+  block_error: string | null;
   svgPath: string;
   block_parameters?: Record<string, any>; // To store actual values
 }
@@ -87,6 +90,9 @@ export class CanvasBlocksService {
       type: blockName,
       blockData: blockData,
       block_position: position,
+      incoming: null,
+      outgoing: null,
+      block_error: null,
       svgPath: blockLabel
     };
 
@@ -250,7 +256,9 @@ export class CanvasBlocksService {
             block_id: block.block_id,
             block_parameters: blockParameters,
             block_position: block.block_position,
-            block_error: null
+            incoming: block.incoming,
+            outgoing: block.outgoing,
+            block_error: block.block_error
           };
         })
       };
