@@ -1,5 +1,5 @@
 use super::param_types::ParamTypeName;
-use crate::model::trigger_model_block::TriggerModelBlock;
+use crate::model::trigger_model_block::{TriggerModelBlock, TriggerModelTemplateBlock};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -12,6 +12,15 @@ pub struct Catalog {
     pub script_template: ScriptTemplate,
     pub blocks: HashMap<String, BlockDefinition>,
     pub trigger_events: HashMap<String, EventDefinition>,
+    pub templates: HashMap<String, Template>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct Template {
+    name: String,
+    description: String,
+    icon: String,
+    blocks: Vec<TriggerModelTemplateBlock>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -116,25 +125,22 @@ impl Parameter {
 
         // 3. Options/Enum check
         if let Some(options) = &self.options {
-            match value {
-                Some(Value::String(val_str)) => {
-                    let valid = options.iter().any(|opt| opt.value == *val_str);
-                    if !valid {
-                        let err = (
-                            true,
-                            format!(
-                                "Parameter '{}' value '{}' is not a valid option",
-                                self.name, val_str
-                            ),
-                        );
-                        if let Some(errors) = block.block_error.as_mut() {
-                            errors.push(err);
-                        } else {
-                            block.block_error = Some(vec![err]);
-                        }
+            if let Some(Value::String(val_str)) = value {
+                let valid = options.iter().any(|opt| opt.value == *val_str);
+                if !valid {
+                    let err = (
+                        true,
+                        format!(
+                            "Parameter '{}' value '{}' is not a valid option",
+                            self.name, val_str
+                        ),
+                    );
+                    if let Some(errors) = block.block_error.as_mut() {
+                        errors.push(err);
+                    } else {
+                        block.block_error = Some(vec![err]);
                     }
                 }
-                _ => {}
             }
         }
         match self.param_type {

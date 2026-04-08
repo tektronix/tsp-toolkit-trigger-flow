@@ -1,10 +1,11 @@
 use serde::{Deserialize, Serialize};
-use trigger_flow_manager::api::slot_channel_list::Systems;
+use trigger_flow_manager::api::{script_path::ScriptPath, slot_channel_list::Systems};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum StdinLine {
     Systems(Systems),
+    Session(ScriptPath),
 }
 
 impl TryFrom<&str> for StdinLine {
