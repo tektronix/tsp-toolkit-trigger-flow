@@ -44,13 +44,13 @@ impl Script {
         // load the block templates into hb
         for (name, block) in catalog.blocks.clone().into_iter() {
             hb.register_template_string(&name, block.syntax.clone())
-                .expect(format!("should have loaded '{name}' block template").as_str());
+                .unwrap_or_else(|_| panic!("should have loaded '{name}' block template"));
         }
 
         // load the event templates into hb
         for (name, event) in catalog.trigger_events.clone().into_iter() {
             hb.register_template_string(&name, event.syntax.clone())
-                .expect(format!("should have loaded '{name}' trigger event template").as_str());
+                .unwrap_or_else(|_| panic!("should have loaded '{name}' trigger event template"));
         }
 
         // render preamble
@@ -272,16 +272,18 @@ slot[{{this.slot_index}}].trigger.model.create("{{this.trigger_model_name}}")
             },
             blocks,
             trigger_events,
+            templates: HashMap::new(),
         }
     }
 
     fn slot_channel_list() -> SlotChannelList {
         SlotChannelList {
+            localnode: "localnode".to_string(),
+            is_valid: true,
             slots: vec![
                 Slot {
-                    slot_index: SlotIndex(1),
+                    slot_id: SlotIndex(1),
                     module: Module::MSMU60_2,
-                    node_id: "localnode".to_string(),
                     channels: vec![
                         Channel {
                             channel_index: ChannelIndex(1),
@@ -294,9 +296,8 @@ slot[{{this.slot_index}}].trigger.model.create("{{this.trigger_model_name}}")
                     ],
                 },
                 Slot {
-                    slot_index: SlotIndex(2),
+                    slot_id: SlotIndex(2),
                     module: Module::MPSU50_2ST,
-                    node_id: "localnode".to_string(),
                     channels: vec![
                         Channel {
                             channel_index: ChannelIndex(1),
@@ -309,6 +310,7 @@ slot[{{this.slot_index}}].trigger.model.create("{{this.trigger_model_name}}")
                     ],
                 },
             ],
+            nodes: vec![],
         }
     }
 

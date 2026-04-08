@@ -1,47 +1,75 @@
+export type Module = "MPSU50_2ST" | "MSMU60_2" | "Empty";
+
 export interface ISlotChannelList {
+  localnode: string;
+  isValid: boolean;
   slots: ISlot[];
+  nodes: INode[];
 }
 
 export interface ISlot {
-  slot_index: number;
+  slotId: number;
+  module: Module;
   channels: IChannel[];
-  module: string;
-  node_id: string;
+}
+
+export interface INode {
+  nodeId: string;
+  mainframe: string;
+  slots?: ISlot[] | null;
 }
 
 export interface IChannel {
-  channel_index: number;
-  in_use: boolean;
+  channelIndex: number;
+  inUse: boolean;
 }
 
 export class SlotChannelList {
+  localnode: string;
+  isValid: boolean;
   slots: Slot[];
+  nodes: Node[];
 
   constructor(data: ISlotChannelList) {
+    this.localnode = data.localnode;
+    this.isValid = data.isValid;
     this.slots = data.slots.map((slot) => new Slot(slot));
+    this.nodes = data.nodes.map((node) => new Node(node));
   }
 }
 
 export class Slot {
-  slot_index: number;
+  slotId: number;
   channels: Channel[];
-  module: string;
-  node_id: string;
+  module: Module;
 
   constructor(data: ISlot) {
-    this.slot_index = data.slot_index;
+    this.slotId = data.slotId;
     this.channels = data.channels.map((channel) => new Channel(channel));
     this.module = data.module;
-    this.node_id = data.node_id;
+  }
+}
+
+export class Node {
+  nodeId: string;
+  mainframe: string;
+  slots: Slot[] | null;
+
+  constructor(data: INode) {
+    this.nodeId = data.nodeId;
+    this.mainframe = data.mainframe;
+    this.slots = data.slots
+      ? data.slots.map((slot) => new Slot(slot))
+      : null;
   }
 }
 
 export class Channel {
-  channel_index: number;
-  in_use: boolean;
+  channelIndex: number;
+  inUse: boolean;
 
   constructor(data: IChannel) {
-    this.channel_index = data.channel_index;
-    this.in_use = data.in_use;
+    this.channelIndex = data.channelIndex;
+    this.inUse = data.inUse;
   }
 }

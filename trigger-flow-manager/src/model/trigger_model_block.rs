@@ -8,6 +8,14 @@ pub struct BlockPosition {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TriggerModelTemplateBlock {
+    pub block_id: String,
+    #[serde(rename = "type")]
+    pub block_type: String,
+    pub block_parameters: HashMap<String, serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TriggerModelBlock {
     pub block_id: String,
     #[serde(rename = "type")]

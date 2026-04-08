@@ -22,6 +22,7 @@ pub enum ResponseType {
         #[serde(flatten)]
         trigger_flow_state: crate::api::state::TriggerFlowState,
     },
+    EmptyConfigResponse,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

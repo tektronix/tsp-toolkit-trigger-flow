@@ -7,7 +7,9 @@ use futures::StreamExt;
 use indexmap::IndexMap;
 use std::{
     collections::HashMap,
-    fs::{self as other_fs},
+    fs::{self as other_fs, File},
+    io::Write,
+    path::{Path, PathBuf},
     sync::Arc,
 };
 use tokio::{
@@ -18,6 +20,7 @@ use tokio::{
 use trigger_flow_manager::{
     api::{request::RequestType, slot_channel_list::SlotChannelList, state::TriggerFlowState},
     request_processor::RequestProcessor,
+    script::Script,
     Catalog, IpcData,
 };
 
@@ -27,6 +30,7 @@ pub struct AppState {
     catalog: &'static Catalog,
     trigger_flow_state: Arc<Mutex<TriggerFlowState>>,
     trigger_flow_tx: broadcast::Sender<()>,
+    work_folder: Arc<Mutex<Option<String>>>,
 }
 
 impl AppState {
@@ -39,6 +43,7 @@ impl AppState {
                 models: IndexMap::new(),
             })),
             trigger_flow_tx: broadcast::channel(100).0,
+            work_folder: Arc::new(Mutex::new(Some(String::new()))),
         }
     }
 }
@@ -165,6 +170,11 @@ async fn ws_index(
                                         }
                                     };
                                     println!("Sending WebSocket response: {}", response);
+                                    if !response.contains("error") {
+                                        if let Err(e) = app_state.trigger_flow_tx.send(()) {
+                                            eprintln!("Failed to send signal: {e}");
+                                        }
+                                    }
                                     session.text(&*response).await.unwrap();
                                 }
                                 Err(err) => {
@@ -234,12 +244,94 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
 
     let mut trigger_flow_rx = app_state.trigger_flow_tx.subscribe();
 
+    {
+        let app_state_clone = app_state.clone();
+        tokio::spawn(async move {
+            while let Ok(()) = trigger_flow_rx.recv().await {
+                println!("Signal received to start trigger flow!");
+                let trigger_flow_state = app_state_clone.trigger_flow_state.lock().await;
+                let work_folder_guard = app_state_clone.work_folder.lock().await;
+                let work_folder = work_folder_guard
+                    .as_deref()
+                    .map(Path::new)
+                    .unwrap_or_else(|| Path::new("./default.tsp"));
+                //need to add function that creates file and writes script buffer to it
+                let script = match Script::from_state(app_state_clone.catalog, &trigger_flow_state)
+                {
+                    Ok(script) => script,
+                    Err(e) => {
+                        eprintln!("Failed to create script from state: {}", e);
+                        continue; // Skip this iteration
+                    }
+                };
+
+                //TODO: Use script location and/or project name as appropriate
+                let script_output: PathBuf = PathBuf::from(work_folder);
+
+                if script_output.exists() {
+                    let file_contents = match std::fs::read_to_string(&script_output) {
+                        Ok(file_contents) => file_contents,
+                        Err(e) => {
+                            eprintln!(
+                                "Failed to read existing script file at {}: {}",
+                                script_output.display(),
+                                e
+                            );
+                            continue; // Skip this iteration
+                        }
+                    };
+                    let updated = script.replace_generated(app_state_clone.catalog, &file_contents);
+                    let file = File::options()
+                        .truncate(true) //truncate the file to 0 length so we can replace the contents
+                        .write(true)
+                        .open(&script_output);
+                    if let Ok(mut file) = file {
+                        if let Err(e) = file.write_all(updated.as_bytes()) {
+                            eprintln!(
+                                "Failed to write updated script to {}: {}",
+                                script_output.display(),
+                                e
+                            );
+                        }
+                    } else if let Err(e) = file {
+                        eprintln!(
+                            "Failed to open script file at {}: {}",
+                            script_output.display(),
+                            e
+                        );
+                    }
+                } else {
+                    let file = File::options()
+                        .truncate(true) //create a new file
+                        .write(true)
+                        .open(&script_output);
+                    if let Ok(mut file) = file {
+                        if let Err(e) = file.write_all(script.to_string().as_bytes()) {
+                            eprintln!(
+                                "Failed to write new script to {}: {}",
+                                script_output.display(),
+                                e
+                            );
+                        }
+                    } else if let Err(e) = file {
+                        eprintln!(
+                            "Failed to open script file at {}: {}",
+                            script_output.display(),
+                            e
+                        );
+                    }
+                }
+            }
+        });
+    }
+
     let value = shutdown_tx.clone();
+
+    let app_state_clone = app_state.clone();
     tokio::spawn(async move {
         let stdin: tokio::io::Stdin = io::stdin();
         let mut reader: io::Lines<io::BufReader<io::Stdin>> = io::BufReader::new(stdin).lines();
 
-        let app_state = app_state.clone();
         println!("Listening for stdin input...");
         while let Some(line) = reader.next_line().await.unwrap() {
             let trimmed_line = line.trim();
@@ -257,24 +349,52 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                         println!("Received Systems command from stdin");
                         let mut triggerflow_state: tokio::sync::MutexGuard<'_, TriggerFlowState> =
                             app_state.trigger_flow_state.lock().await;
-                        // Process each system in the systems array
-                        let response = if let Some(system_config) = msg.systems.first() {
-                            let system_json = serde_json::to_string(system_config).unwrap();
-                            triggerflow_state
-                                .process_system_config(&system_json, &app_state.catalog)
-                        } else {
-                            "No systems found in message".to_string()
-                        };
+
+                        // Pass the entire Systems structure to process_system_config
+                        let systems_json = serde_json::to_string(&msg).unwrap();
+                        let response = triggerflow_state
+                            .process_system_config(&systems_json, app_state.catalog);
 
                         println!("{}", response);
-
+                        if !response.contains("error") {
+                            if let Err(e) = app_state_clone.trigger_flow_tx.send(()) {
+                                eprintln!("Failed to send signal: {e}");
+                            }
+                        }
                         //if session exists, change in system will be evaluate request and should be handled and response sent to UI
-                        let mut session_lock = app_state.session.lock().await;
+                        let mut session_lock = app_state_clone.session.lock().await;
                         if let Some(ref mut session) = session_lock.as_mut() {
                             if let Err(e) = session.text(response).await {
                                 eprintln!("Failed to send response to WebSocket: {:?}", e);
                                 // Clear the closed session
                                 *session_lock = None;
+                            }
+                        }
+                    }
+                    StdinLine::Session(msg) => {
+                        // handle session
+                        println!("Received Session command from stdin: {:?}", msg);
+                        let mut work_folder_guard = app_state_clone.work_folder.lock().await;
+                        let value = msg; // msg is already a ScriptPath with both session and folder fields
+                        let filename: String = format!("{}.tsp", value.session.clone());
+                        let path_file = Path::new(&value.folder).join(filename);
+                        let folder = path_file.parent();
+                        //println!("Updating work folder to: {:?}", folder.to_string_lossy().to_string());
+                        // Check if the folder exists and is writable
+
+                        if let Some(folder) = folder {
+                            if folder.exists() {
+                                *work_folder_guard = Some(path_file.to_string_lossy().to_string());
+                                println!("Work folder updated to: {:?}", work_folder_guard);
+                            } else {
+                                println!(
+                                    "The folder is read-only (OR) Work folder does not exist: {:?}",
+                                    path_file.to_string_lossy().to_string()
+                                );
+                                println!(
+                                    "Work folder does not exist: {:?}",
+                                    path_file.to_string_lossy().to_string()
+                                );
                             }
                         }
                     }
