@@ -33,6 +33,8 @@ pub enum ParamTypeName {
     TsplinkTriggerLine,
     #[serde(rename = "triggerLine")]
     TriggerLine,
+    #[serde(rename = "blockReference")]
+    BlockReference,
 }
 
 /// Enum representing actual parameter values

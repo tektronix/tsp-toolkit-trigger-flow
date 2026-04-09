@@ -45,6 +45,10 @@ f-canvas {
   min-width: 0;
 }
 
+.title-right {
+  margin-left: auto;
+}
+
 .title-chip {
   padding: 0 2px;
   border: 0;
@@ -74,6 +78,14 @@ f-canvas {
   width: 16px;
   height: 16px;
   display: inline-flex;
+}
+
+.error-icon--has-error::ng-deep .error-icon-outline {
+  stroke: #d93025;
+}
+
+.error-icon--has-error::ng-deep .error-icon-mark {
+  fill: #d93025;
 }
 
 .section-body {
