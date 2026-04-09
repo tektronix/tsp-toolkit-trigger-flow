@@ -18,7 +18,7 @@ export interface CanvasBlock {
 
 declare const acquireVsCodeApi: unknown;
 // eslint-disable-next-line @typescript-eslint/no-empty-function
-const vscode = typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : { postMessage: () => {} };
+const vscode = typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : { postMessage: () => { } };
 
 export interface CanvasBlocksData {
   blocks: CanvasBlock[];
@@ -32,14 +32,14 @@ export class CanvasBlocksService {
   private canvasBlocks: CanvasBlock[] = [];
   private canvasBlocksSubject = new BehaviorSubject<CanvasBlocksData>(this.getCanvasData());
   public canvasBlocks$ = this.canvasBlocksSubject.asObservable();
-  
+
   private catalogData: Catalog | null = null;
-  private slotChannelList: any = null;  
+  private slotChannelList: any = null;
 
   constructor(
     private websocketService: Websocket,
     private triggerFlowDataService: TriggerFlowDataService
-  ) {}
+  ) { }
 
   setCatalogData(catalog: Catalog): void {
     this.catalogData = catalog;
@@ -50,11 +50,13 @@ export class CanvasBlocksService {
   }
 
   // Support multiple models per canvas
-  private models: { [modelName: string]: {
-    trigger_model_name: string;
-    slot_index: number;
-    blocks: CanvasBlock[];
-  }} = {};
+  private models: {
+    [modelName: string]: {
+      trigger_model_name: string;
+      slot_index: number;
+      blocks: CanvasBlock[];
+    }
+  } = {};
 
   addBlock(nodeId: string, blockLabel: string, position: { x: number; y: number }, modelName: string, slotIndex: number): void {
     if (!this.catalogData) {
@@ -63,7 +65,7 @@ export class CanvasBlocksService {
     }
 
     const blockName = blockLabel.toLowerCase().trim();
-    
+
     if (!blockName) {
       console.warn('Block label is empty');
       return;
@@ -71,7 +73,7 @@ export class CanvasBlocksService {
 
     // Search for block in catalog (case-insensitive)
     const blockData = this.findBlockInCatalog(blockName);
-    
+
     if (!blockData) {
       console.warn(`Block "${blockName}" not found in catalog`);
       return;
@@ -98,7 +100,7 @@ export class CanvasBlocksService {
 
     this.models[modelName].blocks.push(canvasBlock);
     this.updateAndPrint();
-    vscode.postMessage({ command: 'open_manual' , payload: 'block_name: ' + blockName });
+    vscode.postMessage({ command: 'open_manual', payload: 'block_name: ' + blockName });
   }
 
   // Remove block by nodeId from the model where it exists
@@ -180,7 +182,7 @@ export class CanvasBlocksService {
   private updateAndPrint(): void {
     const data = this.getCanvasData();
     this.canvasBlocksSubject.next(data);
-    
+
     console.log('=== Canvas Blocks JSON ===');
     console.log(JSON.stringify(data, null, 2));
     console.log('========================');
@@ -195,7 +197,7 @@ export class CanvasBlocksService {
       console.error('Failed to send ipcData over websocket:', error);
     }
   }
-  
+
   private extractDefaultParams(params: any[] | undefined): Record<string, any> {
     if (!Array.isArray(params)) return {};
 
@@ -264,13 +266,15 @@ export class CanvasBlocksService {
       };
     }
 
+    const triggerFlowState = JSON.stringify({
+      models: filteredModels,
+      slot_channel_list
+    });
+
     const ipcData = {
       request_type: 'evaluate_request',
       additional_info: '',
-      json_value: {
-        slot_channel_list,
-        models: filteredModels
-      }
+      json_value: triggerFlowState
     };
 
     console.log('=== Rust IpcData Format ===');
