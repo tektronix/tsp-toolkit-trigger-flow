@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 16 16" class="error-icon-svg" style="background:transparent">
+  <g class="Icon=ErrorTriangle">
+    <path class="error-icon-outline" fill="none" stroke="#9aa0a6" stroke-width="1.2" stroke-linejoin="round" d="M8 2.05 14.03 13a.9.9 0 0 1-.79 1.34H2.76A.9.9 0 0 1 1.97 13L8 2.05Z"/>
+    <path class="error-icon-mark" fill="#9aa0a6" d="M8.7 6.1h-1.4v4.4h1.4V6.1Z"/>
+    <circle class="error-icon-mark" fill="#9aa0a6" cx="8" cy="12.05" r=".85"/>
+  </g>
+</svg>

@@ -4,7 +4,7 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 @Component({
   selector: 'app-textbox',
   templateUrl: './textbox.html',
-  styleUrls: ['./textbox.css'],
+  styleUrl: './textbox.scss',
   standalone: true,
   providers: [
     {

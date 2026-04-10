@@ -826,10 +826,11 @@ trigger_events:
             value: '3'
     syntax: tsplink.trigger[{{trigger_line}}].EVENT_ID
     shape: circle
-  templates:
+
+templates:
     pulsed_sweep:
-      name: "Pulsed Sweep",
-      description: "Creates a pulsed source sweep with constant timing and no measurements".
+      name: "Pulsed Sweep"
+      description: "Creates a pulsed source sweep with constant timing and no measurements"
       icon: pulsed_sweep
       blocks:
         - type: source action step

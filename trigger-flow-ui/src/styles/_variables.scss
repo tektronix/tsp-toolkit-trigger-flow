@@ -1,0 +1,36 @@
+// ===== VSCode Theme Colors =====
+// These are CSS custom properties from VSCode theme
+// Can be overridden by the extension host
+
+// ===== Component Variables =====
+$border-radius-sm: 4px;
+$border-radius-md: 6px;
+$border-radius-lg: 13px;
+
+$spacing-xs: 0.25rem;
+$spacing-sm: 0.5rem;
+$spacing-md: 1rem;
+$spacing-lg: 1.5rem;
+$spacing-xl: 2rem;
+
+$transition-fast: 0.15s ease;
+$transition-normal: 0.2s ease;
+$transition-slow: 0.3s ease;
+
+// ===== Button Sizes =====
+$button-padding-sm: 4px 8px;
+$button-padding-md: 5px 15px;
+$button-padding-lg: 12px 24px;
+
+// ===== Z-Index Layers =====
+$z-index-dropdown: 100;
+$z-index-sticky: 500;
+$z-index-overlay: 900;
+$z-index-tooltip: 1000;
+$z-index-modal: 1100;
+
+// ===== Breakpoints =====
+$breakpoint-sm: 576px;
+$breakpoint-md: 768px;
+$breakpoint-lg: 992px;
+$breakpoint-xl: 1200px;
