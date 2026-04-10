@@ -50,10 +50,6 @@ export class TriggerFlowDataService {
     return this.slotChannelList();
   }
 
-  // getTriggerState(): any | null {
-  //   return this.triggerState();
-  // }
-
   // Optional debug snapshots
   getInitialPayloadSnapshot(): InitialPayload | null {
     return this.initialPayloadSnapshot;

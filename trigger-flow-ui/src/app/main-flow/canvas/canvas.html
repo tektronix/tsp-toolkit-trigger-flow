@@ -23,8 +23,8 @@
             </button>
           </div>
           <div class="title-right">
-            <button type="button" class="title-btn" aria-label="Model Errors" title="Model Errors">
-              <svg-icon src="assets/shapes/Icons/Error.svg" class="title-btn-icon"></svg-icon>
+            <button type="button" class="title-btn" aria-label="Model Errors" [title]="getSectionErrorTooltip(section.modelName)">
+              <svg-icon src="assets/shapes/Icons/Error.svg" [ngClass]="getSectionHasError(section.modelName) ? 'title-btn-icon error-icon--has-error' : 'title-btn-icon'"></svg-icon>
             </button>
             <!-- <button type="button" class="title-btn">Button B</button> -->
           </div>

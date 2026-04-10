@@ -1,9 +1,19 @@
-import { Component, signal, inject, computed, HostListener, ElementRef, AfterViewInit } from '@angular/core';
+import {
+  Component,
+  signal,
+  inject,
+  computed,
+  HostListener,
+  ElementRef,
+  AfterViewInit,
+} from '@angular/core';
 import { FFlowModule } from '@foblex/flow';
 import { CommonModule } from '@angular/common';
 import { AngularSvgIconModule } from 'angular-svg-icon';
 import { SvgManagerService } from '../../services/svg-manager.service';
 import { CanvasBlocksService } from '../../services/canvas-blocks.service';
+import { TriggerFlowDataService } from '../../services/triggerFlowDataService';
+import { BlockErrorEntry } from '../../models/trigger-flow-state.model';
 
 interface FlowNode {
   id: string;
@@ -45,11 +55,7 @@ interface LaidOutSection extends FlowSection {
 
 @Component({
   selector: 'app-canvas',
-  imports: [
-    FFlowModule,
-    CommonModule,
-    AngularSvgIconModule
-  ],
+  imports: [FFlowModule, CommonModule, AngularSvgIconModule],
   templateUrl: './canvas.html',
   styleUrl: './canvas.scss',
 })
@@ -57,20 +63,21 @@ export class Canvas implements AfterViewInit {
   private hostRef = inject(ElementRef<HTMLElement>);
   private svgManager = inject(SvgManagerService);
   private canvasBlocksService = inject(CanvasBlocksService);
+  private triggerFlowDataService = inject(TriggerFlowDataService);
 
   canvasSize = signal(this.getCanvasSize());
 
   sections = signal<FlowSection[]>([
     // {
     //   id: 'group-1',
-    //   title: 'Trigger Model 1',
-    //   modelName: 'Model1',
+    //   title: 'MyTriggerModel',
+    //   modelName: 'MyTriggerModel',
     //   slotIndex: 1,
     //   nodes: []
     // },
     // {
     //   id: 'group-2',
-    //   title: 'Trigger Model 2',
+    //   title: 'Model2',
     //   modelName: 'Model2',
     //   slotIndex: 2,
     //   nodes: []
@@ -86,15 +93,44 @@ export class Canvas implements AfterViewInit {
       ...section,
       position: {
         x: index * width,
-        y: 0
+        y: 0,
       },
-      size: { width, height }
+      size: { width, height },
     }));
   });
 
-  sectionNodes = computed<FlowNode[]>(() =>
-    this.sections().flatMap(section => section.nodes)
+  sectionNodes = computed<FlowNode[]>(() => this.sections().flatMap((section) => section.nodes));
+
+  readonly modelErrorSummary = computed<Record<string, { hasError: boolean; tooltip: string }>>(
+    () => {
+      const models = this.triggerFlowDataService.models$();
+      const result: Record<string, { hasError: boolean; tooltip: string }> = {};
+
+      for (const [modelName, model] of Object.entries(models)) {
+        const lines: string[] = [];
+        let hasAnyError = false;
+
+        for (const block of model.blocks) {
+          if (this.hasBlockErrorItems(block.block_error)) {
+            hasAnyError = true;
+          }
+
+          const errors = this.getBlockMessages(block.block_error);
+          for (const message of errors) {
+            lines.push(`${block.block_id} - ${message}`);
+          }
+        }
+
+        result[modelName] = {
+          hasError: hasAnyError,
+          tooltip: lines.length > 0 ? lines.join('\n') : hasAnyError ? 'Validation errors found' : '',
+        };
+      }
+
+      return result;
+    },
   );
+
   private nodeCounter = 0;
 
   onCreateNode(event: FlowCanvasEvent) {
@@ -113,22 +149,20 @@ export class Canvas implements AfterViewInit {
         catalogLabel: event.data.catalogLabel,
         input: `input-${this.nodeCounter}`,
         outputs: [`output-${this.nodeCounter}`],
-        color: '#FFFFFF'
+        color: '#FFFFFF',
       };
-      this.sections.update(current =>
-        current.map(item =>
-          item.id === targetSectionId
-            ? { ...item, nodes: [...item.nodes, newNode] }
-            : item
-        )
+      this.sections.update((current) =>
+        current.map((item) =>
+          item.id === targetSectionId ? { ...item, nodes: [...item.nodes, newNode] } : item,
+        ),
       );
-      
+
       this.canvasBlocksService.addBlock(
         newNode.id,
         newNode.catalogLabel || newNode.svgPath,
         newNode.position,
         section.modelName,
-        section.slotIndex
+        section.slotIndex,
       );
     }
   }
@@ -151,12 +185,12 @@ export class Canvas implements AfterViewInit {
     if (!event.fNodes || !event.fNodes.length || typeof event.fNodes[0] === 'string') return;
 
     const movedNodes = event.fNodes as { id: string; position: { x: number; y: number } }[];
-    
+
     const updates = new Map<string, { x: number; y: number }>(
-      movedNodes.map(item => [item.id, { x: item.position.x, y: item.position.y }])
+      movedNodes.map((item) => [item.id, { x: item.position.x, y: item.position.y }]),
     );
-    this.sections.update(current =>
-      current.map(section => ({
+    this.sections.update((current) =>
+      current.map((section) => ({
         ...section,
         nodes: section.nodes.map((node): FlowNode => {
           const newPos = updates.get(node.id);
@@ -165,8 +199,8 @@ export class Canvas implements AfterViewInit {
             return { ...node, position: newPos };
           }
           return node;
-        })
-      }))
+        }),
+      })),
     );
   }
 
@@ -176,7 +210,7 @@ export class Canvas implements AfterViewInit {
   }
 
   private getSectionById(sectionId: string): FlowSection | undefined {
-    return this.sections().find(section => section.id === sectionId);
+    return this.sections().find((section) => section.id === sectionId);
   }
 
   private resolveTargetSectionId(targetId?: string): string {
@@ -185,8 +219,8 @@ export class Canvas implements AfterViewInit {
     const section = this.getSectionById(targetId);
     if (section) return section.id;
 
-    const parentSection = this.sections().find(item =>
-      item.nodes.some(node => node.id === targetId)
+    const parentSection = this.sections().find((item) =>
+      item.nodes.some((node) => node.id === targetId),
     );
     return parentSection?.id || this.sections()[0]?.id || '';
   }
@@ -211,7 +245,32 @@ export class Canvas implements AfterViewInit {
 
     return {
       width: hostWidth || window.innerWidth,
-      height: hostHeight || window.innerHeight
+      height: hostHeight || window.innerHeight,
     };
+  }
+
+  getSectionHasError(modelName: string): boolean {
+    return this.modelErrorSummary()[modelName]?.hasError ?? false;
+  }
+
+  getSectionErrorTooltip(modelName: string): string {
+    return this.modelErrorSummary()[modelName]?.tooltip ?? 'No validation errors';
+  }
+
+  private getBlockMessages(blockError: BlockErrorEntry[] | null | undefined): string[] {
+    if (!Array.isArray(blockError) || blockError.length === 0) {
+      return [];
+    }
+
+    return blockError
+      .filter((entry) => Array.isArray(entry))
+      .map((entry) => entry[1])
+      .filter(
+        (message): message is string => typeof message === 'string' && message.trim().length > 0,
+      );
+  }
+
+  private hasBlockErrorItems(blockError: BlockErrorEntry[] | null | undefined): boolean {
+    return Array.isArray(blockError) && blockError.length > 0;
   }
 }
