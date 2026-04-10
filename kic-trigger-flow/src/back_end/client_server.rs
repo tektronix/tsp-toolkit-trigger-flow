@@ -43,7 +43,7 @@ impl AppState {
                 models: IndexMap::new(),
             })),
             trigger_flow_tx: broadcast::channel(100).0,
-            work_folder: Arc::new(Mutex::new(Some(String::new()))),
+            work_folder: Arc::new(Mutex::new(Option::None)),
         }
     }
 }
@@ -267,7 +267,14 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
 
                 //TODO: Use script location and/or project name as appropriate
                 let script_output: PathBuf = PathBuf::from(work_folder);
-
+                if let Some(parent) = script_output.parent() {
+                    if !parent.exists() {
+                        if let Err(e) = std::fs::create_dir_all(parent) {
+                            eprintln!("Failed to create directory {}: {}", parent.display(), e);
+                            continue;
+                        }
+                    }
+                }
                 if script_output.exists() {
                     let file_contents = match std::fs::read_to_string(&script_output) {
                         Ok(file_contents) => file_contents,
@@ -281,44 +288,62 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                         }
                     };
                     let updated = script.replace_generated(app_state_clone.catalog, &file_contents);
-                    let file = File::options()
-                        .truncate(true) //truncate the file to 0 length so we can replace the contents
+                    match File::options()
+                        .truncate(true)
                         .write(true)
-                        .open(&script_output);
-                    if let Ok(mut file) = file {
-                        if let Err(e) = file.write_all(updated.as_bytes()) {
+                        .open(&script_output)
+                    {
+                        Ok(mut file) => {
+                            if let Err(e) = file.write_all(updated.as_bytes()) {
+                                eprintln!(
+                                    "Failed to write updated script to {}: {}",
+                                    script_output.display(),
+                                    e
+                                );
+                            } else {
+                                println!(
+                                    "Successfully updated script file: {}",
+                                    script_output.display()
+                                );
+                            }
+                        }
+                        Err(e) => {
                             eprintln!(
-                                "Failed to write updated script to {}: {}",
+                                "Failed to open script file at {}: {}",
                                 script_output.display(),
                                 e
                             );
                         }
-                    } else if let Err(e) = file {
-                        eprintln!(
-                            "Failed to open script file at {}: {}",
-                            script_output.display(),
-                            e
-                        );
                     }
                 } else {
-                    let file = File::options()
-                        .truncate(true) //create a new file
+                    match File::options()
+                        .create(true) //create a new file
                         .write(true)
-                        .open(&script_output);
-                    if let Ok(mut file) = file {
-                        if let Err(e) = file.write_all(script.to_string().as_bytes()) {
+                        .truncate(true)
+                        .open(&script_output)
+                    {
+                        Ok(mut file) => {
+                            let script_content = script.to_string();
+                            if let Err(e) = file.write_all(script_content.as_bytes()) {
+                                eprintln!(
+                                    "Failed to write new script to {}: {}",
+                                    script_output.display(),
+                                    e
+                                );
+                            } else {
+                                println!(
+                                    "Successfully created script file: {}",
+                                    script_output.display()
+                                );
+                            }
+                        }
+                        Err(e) => {
                             eprintln!(
-                                "Failed to write new script to {}: {}",
+                                "Failed to create script file at {}: {}",
                                 script_output.display(),
                                 e
                             );
                         }
-                    } else if let Err(e) = file {
-                        eprintln!(
-                            "Failed to open script file at {}: {}",
-                            script_output.display(),
-                            e
-                        );
                     }
                 }
             }
