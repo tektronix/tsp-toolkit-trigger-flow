@@ -68,20 +68,20 @@ export class Canvas implements AfterViewInit {
   canvasSize = signal(this.getCanvasSize());
 
   sections = signal<FlowSection[]>([
-    // {
-    //   id: 'group-1',
-    //   title: 'MyTriggerModel',
-    //   modelName: 'MyTriggerModel',
-    //   slotIndex: 1,
-    //   nodes: []
-    // },
-    // {
-    //   id: 'group-2',
-    //   title: 'Model2',
-    //   modelName: 'Model2',
-    //   slotIndex: 2,
-    //   nodes: []
-    // }
+    {
+      id: 'group-1',
+      title: 'MyTriggerModel',
+      modelName: 'MyTriggerModel',
+      slotIndex: 1,
+      nodes: []
+    },
+    {
+      id: 'group-2',
+      title: 'Model2',
+      modelName: 'Model2',
+      slotIndex: 2,
+      nodes: []
+    }
   ]);
 
   sectionLayouts = computed<LaidOutSection[]>(() => {
