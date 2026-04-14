@@ -35,12 +35,15 @@ export class Canvas {
 
   onCreateNode(event: any) {
     // FCreateNodeEvent: { rect, data, fTargetNode?, fDropPosition? }
+
+        const canvasSvg = this.transformToCanvasPath(event.data.svgPath);
+
     console.log('fCreateNode event:', event);
     if (event.data && event.data.type) {
       const newNode: FlowNode = {
         id: `node-${++this.nodeCounter}`,
         position: { x: event.rect.x, y: event.rect.y },
-        svgPath: event.data.svgPath,
+        svgPath: canvasSvg,
         catalogLabel: event.data.catalogLabel,
         input: `input-${this.nodeCounter}`,
         outputs: [`output-${this.nodeCounter}`],
@@ -62,13 +65,18 @@ export class Canvas {
     }
   }
 
-  getSvgStyle(): Record<string, string> {
-    return this.svgManager.buildSvgStyle({
-      // fillColor: node.color,
-      // width: '60px',
-      // height: '60px'
-    });
+  
+  private transformToCanvasPath(svgPath: string) {
+    return svgPath.replace('/shapes/palette', '/shapes/canvas');
   }
+
+  // getSvgStyle(node: FlowNode): { [key: string]: string } {
+  //   return this.svgManager.buildSvgStyle({
+  //     // fillColor: node.color,
+  //     // width: '60px',
+  //     // height: '60px'
+  //   });
+  // }
 
   onCreateConnection(event: any) {
     console.log('Connection created:', event);

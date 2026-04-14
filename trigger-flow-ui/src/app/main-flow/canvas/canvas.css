@@ -40,18 +40,10 @@ f-canvas {
   pointer-events: none;
 }
 
-.node-svg::ng-deep svg {
+/* .node-svg::ng-deep svg {
   fill: white !important;
-}
-
-.node-svg::ng-deep svg path,
-.node-svg::ng-deep svg circle,
-.node-svg::ng-deep svg rect,
-.node-svg::ng-deep svg polygon {
-  /* fill: yellow !important; */
-  /* stroke: black !important; */
-  size: 20px 20px !important;
-}
+  stroke: #333 !important;
+} */
 
 .f-node-input {
   display: none;
