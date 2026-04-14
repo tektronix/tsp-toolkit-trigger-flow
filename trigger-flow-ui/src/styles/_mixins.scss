@@ -1,0 +1,104 @@
+@use 'variables' as *;
+
+// ===== Action Button Mixin =====
+@mixin action-button {
+  border-radius: $border-radius-lg;
+  background-color: transparent;
+  color: var(--vscode-editor-foreground);
+  border-color: var(--vscode-activityBarBadge-background);
+  border-style: solid;
+  border-width: thin;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  padding-left: 15px;
+  padding-right: 15px;
+  cursor: pointer;
+  position: relative;
+}
+
+// ===== Tooltip Mixin =====
+@mixin tooltip {
+  &:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--vscode-tooltip-background);
+    color: var(--vscode-tooltip-foreground);
+    padding: 4px 8px;
+    border-radius: $border-radius-sm;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: $z-index-tooltip;
+    margin-bottom: 5px;
+  }
+}
+
+// ===== Flexbox Utilities =====
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@mixin flex-column {
+  display: flex;
+  flex-direction: column;
+}
+
+// ===== Scrollbar Styling =====
+@mixin custom-scrollbar($width: 8px) {
+  &::-webkit-scrollbar {
+    width: $width;
+    height: $width;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: var(--vscode-scrollbarSlider-background);
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--vscode-scrollbarSlider-hoverBackground);
+    border-radius: 4px;
+
+    &:hover {
+      background: var(--vscode-scrollbarSlider-activeBackground);
+    }
+  }
+}
+
+// ===== Card/Panel Styling =====
+@mixin panel-card {
+  background: white;
+  border: 1px solid #e1e4e8;
+  border-radius: $border-radius-md;
+  padding: $spacing-md;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+// ===== Truncate Text =====
+@mixin truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// ===== Visually Hidden (for accessibility) =====
+@mixin visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

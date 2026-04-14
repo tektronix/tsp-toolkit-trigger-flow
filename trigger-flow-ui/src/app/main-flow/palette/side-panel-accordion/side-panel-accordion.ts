@@ -8,7 +8,7 @@ import { FFlowModule } from '@foblex/flow';
   standalone: true,
   imports: [MatIconModule, CommonModule, FFlowModule],
   templateUrl: './side-panel-accordion.html',
-  styleUrls: ['./side-panel-accordion.css'],
+  styleUrl: './side-panel-accordion.scss',
 })
 export class SidePanelAccordion {
   groups = [

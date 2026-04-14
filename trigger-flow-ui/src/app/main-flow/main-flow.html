@@ -1,6 +1,27 @@
 <div class="main-flow-container">
   <aside class="palette-sidebar" [class.collapsed]="sidebarCollapsed">
     <div class="collapse-btn-header">
+      <!-- Left button group -->
+      <div class="header-left-buttons">
+        <button
+          [attr.aria-label]="'ModelSettings'"
+          class="action-btn"
+          (click)="addNewTriggerModel()"
+          title="Model Settings"
+        >
+          Model Settings
+        </button>
+        <button
+          [attr.aria-label]="'OpenScript'"
+          class="action-btn"
+          (click)="openScript()"
+          title="Open Script"
+        >
+          Open Script
+        </button>
+      </div>
+
+      <!-- Collapse button on right -->
       <button class="collapse-btn" (click)="toggleSidebar()">
         <mat-icon>{{ sidebarCollapsed ? 'chevron_right' : 'chevron_left' }}</mat-icon>
       </button>

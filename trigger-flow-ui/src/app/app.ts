@@ -5,12 +5,13 @@ import { Subscription } from 'rxjs';
 import { IpcData } from './models/ipcData';
 import { InitialPayload } from './models/trigger-blocks.model';
 import { TriggerFlowDataService } from './services/triggerFlowDataService';
+import { TriggerFlowStatePayload } from './models/trigger-flow-state.model';
 
 @Component({
   selector: 'app-root',
   imports: [MainFlow],
   templateUrl: './app.html',
-  styleUrl: './app.css',
+  styleUrl: './app.scss',
 })
 export class App implements OnInit, OnDestroy {
   protected readonly title = signal('trigger-flow-ui');
@@ -19,7 +20,7 @@ export class App implements OnInit, OnDestroy {
   private triggerFlowDataService = inject(TriggerFlowDataService);
   private wsSubscription: Subscription | undefined;
 
-  protected readonly initialPayload$ = this.triggerFlowDataService.initialPayload$;
+  protected readonly catalog$ = this.triggerFlowDataService.catalog$;
 
   ngOnInit(): void {
     this.webSocket.connect();
@@ -46,9 +47,21 @@ export class App implements OnInit, OnDestroy {
       // Hndle based on the request_type
       switch (ipcData.request_type) {
         case 'initial_response': {
-          const initialPayload = JSON.parse(ipcData.json_value) as InitialPayload;
-          this.triggerFlowDataService.setInitialPayload(initialPayload);
-          console.log(initialPayload);
+          const data = JSON.parse(ipcData.json_value);
+          if (data.slot_channel_list && data.catalog) {
+            const initialPayload = new InitialPayload(data);
+            this.triggerFlowDataService.setInitialPayload(initialPayload);
+            console.log(initialPayload);
+          }
+          break;
+        }
+        case 'poc_response': {
+          const data = JSON.parse(ipcData.json_value);
+          if (data.slot_channel_list && data.models) {
+            const statePayload = new TriggerFlowStatePayload(data);
+            this.triggerFlowDataService.updateStatePayload(statePayload);
+            console.log(statePayload);
+          }
           break;
         }
         // Handle other request types as needed

@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 import { Catalog, BlockDefinition, EventDefinition } from '../models/trigger-blocks.model';
 import { Websocket } from './websocket';
@@ -18,7 +18,7 @@ export interface CanvasBlock {
 
 declare const acquireVsCodeApi: unknown;
 // eslint-disable-next-line @typescript-eslint/no-empty-function
-const vscode = typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : { postMessage: () => {} };
+const vscode = typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : { postMessage: () => { } };
 
 export interface CanvasBlocksData {
   blocks: CanvasBlock[];
@@ -29,48 +29,38 @@ export interface CanvasBlocksData {
   providedIn: 'root'
 })
 export class CanvasBlocksService {
+  private triggerFlowDataService = inject(TriggerFlowDataService);
+  private websocketService = inject(Websocket);
+
   private canvasBlocks: CanvasBlock[] = [];
   private canvasBlocksSubject = new BehaviorSubject<CanvasBlocksData>(this.getCanvasData());
   public canvasBlocks$ = this.canvasBlocksSubject.asObservable();
-  
-  private catalogData: Catalog | null = null;
-  private slotChannelList: any = null;  
-
-  constructor(
-    private websocketService: Websocket,
-    private triggerFlowDataService: TriggerFlowDataService
-  ) {}
-
-  setCatalogData(catalog: Catalog): void {
-    this.catalogData = catalog;
-  }
-
-  setSlotChannelList(slotChannelList: any): void {
-    this.slotChannelList = slotChannelList;
-  }
 
   // Support multiple models per canvas
-  private models: { [modelName: string]: {
-    trigger_model_name: string;
-    slot_index: number;
-    blocks: CanvasBlock[];
-  }} = {};
+  private models: {
+    [modelName: string]: {
+      trigger_model_name: string;
+      slot_index: number;
+      blocks: CanvasBlock[];
+    }
+  } = {};
 
   addBlock(nodeId: string, blockLabel: string, position: { x: number; y: number }, modelName: string, slotIndex: number): void {
-    if (!this.catalogData) {
+    const catalogData = this.triggerFlowDataService.getCatalog();
+    if (!catalogData) {
       console.warn('Catalog data not loaded yet');
       return;
     }
 
     const blockName = blockLabel.toLowerCase().trim();
-    
+
     if (!blockName) {
       console.warn('Block label is empty');
       return;
     }
 
     // Search for block in catalog (case-insensitive)
-    const blockData = this.findBlockInCatalog(blockName);
+    const blockData = this.findBlockInCatalog(blockName, catalogData);
     
     if (!blockData) {
       console.warn(`Block "${blockName}" not found in catalog`);
@@ -98,7 +88,7 @@ export class CanvasBlocksService {
 
     this.models[modelName].blocks.push(canvasBlock);
     this.updateAndPrint();
-    vscode.postMessage({ command: 'open_manual' , payload: 'block_name: ' + blockName });
+    vscode.postMessage({ command: 'open_manual', payload: 'block_name: ' + blockName });
   }
 
   // Remove block by nodeId from the model where it exists
@@ -142,14 +132,16 @@ export class CanvasBlocksService {
     this.updateAndPrint();
   }
 
-  private findBlockInCatalog(blockName: string): BlockDefinition | EventDefinition | null {
-    if (!this.catalogData) return null;
+  private findBlockInCatalog(blockName: string, catalogData: Catalog | null): BlockDefinition | EventDefinition | null {
+    if (!catalogData) {
+      return null;
+    }
 
     const normalizedBlockName = blockName.toLowerCase().replace(/\s+/g, ' ').trim();
 
     // Search in blocks
-    if (this.catalogData.blocks) {
-      for (const [key, value] of Object.entries(this.catalogData.blocks)) {
+    if (catalogData.blocks) {
+      for (const [key, value] of Object.entries(catalogData.blocks)) {
         const normalizedKey = key.toLowerCase().replace(/\s+/g, ' ').trim();
         if (normalizedKey === normalizedBlockName) {
           return value;
@@ -158,8 +150,8 @@ export class CanvasBlocksService {
     }
 
     // Search in trigger_events
-    if (this.catalogData.trigger_events) {
-      for (const [key, value] of Object.entries(this.catalogData.trigger_events)) {
+    if (catalogData.trigger_events) {
+      for (const [key, value] of Object.entries(catalogData.trigger_events)) {
         const normalizedKey = key.toLowerCase().replace(/\s+/g, ' ').trim();
         if (normalizedKey === normalizedBlockName) {
           return value;
@@ -180,7 +172,7 @@ export class CanvasBlocksService {
   private updateAndPrint(): void {
     const data = this.getCanvasData();
     this.canvasBlocksSubject.next(data);
-    
+
     console.log('=== Canvas Blocks JSON ===');
     console.log(JSON.stringify(data, null, 2));
     console.log('========================');
@@ -195,7 +187,7 @@ export class CanvasBlocksService {
       console.error('Failed to send ipcData over websocket:', error);
     }
   }
-  
+
   private extractDefaultParams(params: any[] | undefined): Record<string, any> {
     if (!Array.isArray(params)) return {};
 
@@ -210,7 +202,7 @@ export class CanvasBlocksService {
   }
 
   private getBlockDefaultParameters(blockName: string): Record<string, any> {
-    const catalog = this.catalogData ?? this.triggerFlowDataService.catalog();
+    const catalog = this.triggerFlowDataService.getCatalog();
     if (!catalog) return {};
 
     const normalizedName = blockName.toLowerCase().replace(/\s+/g, ' ').trim();
@@ -237,7 +229,8 @@ export class CanvasBlocksService {
   }
 
   logIpcDataFormat(): void {
-    const slot_channel_list = this.slotChannelList || { slots: [] };
+    const slot_channel_list = this.triggerFlowDataService.getSlotChannelList() || { slots: [] };
+    // Build models object, omitting syntax, description, and shape from blocks
     const filteredModels: any = {};
 
     for (const [modelName, model] of Object.entries(this.models)) {
@@ -264,13 +257,15 @@ export class CanvasBlocksService {
       };
     }
 
+    const triggerFlowState = JSON.stringify({
+      models: filteredModels,
+      slot_channel_list
+    });
+
     const ipcData = {
       request_type: 'evaluate_request',
       additional_info: '',
-      json_value: {
-        slot_channel_list,
-        models: filteredModels
-      }
+      json_value: triggerFlowState
     };
 
     console.log('=== Rust IpcData Format ===');

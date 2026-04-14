@@ -18,6 +18,7 @@ pub struct SlotIndex(pub u8);
 pub struct ChannelIndex(pub u8);
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Channel {
     pub channel_index: ChannelIndex,
     pub in_use: bool,
@@ -77,6 +78,7 @@ pub enum SlotChannelListUpdate {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SlotChannelList {
     pub localnode: String,
     pub is_valid: bool,

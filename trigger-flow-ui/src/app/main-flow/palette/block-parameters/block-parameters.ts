@@ -6,7 +6,7 @@ import { Dropdown } from '../../../custom-controls/dropdown/dropdown';
   selector: 'app-block-parameters',
   imports: [Textbox, Dropdown],
   templateUrl: './block-parameters.html',
-  styleUrl: './block-parameters.css',
+  styleUrl: './block-parameters.scss',
 })
 export class BlockParameters {
   name = '';

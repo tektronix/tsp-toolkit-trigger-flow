@@ -1,0 +1,104 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.main-flow-container {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.palette-sidebar {
+  width: 320px;
+  flex-shrink: 0;
+  background: #fafbfc;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.06);
+  z-index: 9;
+  padding: 0 $spacing-sm;
+  @include flex-column;
+  overflow-y: auto;
+  position: relative;
+  transition: width 0.2s;
+
+  &.collapsed {
+    width: 32px;
+    min-width: 32px;
+    padding: 0;
+    overflow: visible;
+
+    .header-left-buttons {
+      display: none;
+    }
+
+    .collapse-btn {
+      right: -16px;
+    }
+  }
+}
+
+.collapse-btn {
+  position: absolute;
+  right: $spacing-md;
+  background: #fafbfc;
+  border: none;
+  @include flex-center;
+  cursor: pointer;
+}
+
+.collapse-btn-header {
+  display: flex;
+  padding-bottom: $spacing-md;
+}
+
+.header-left-buttons {
+  display: flex;
+  gap: $spacing-sm;
+  align-items: center;
+}
+
+.canvas-area {
+  flex: 1;
+  overflow: hidden;
+}
+
+.parameters-sidebar {
+  width: 320px;
+  flex-shrink: 0;
+  background: #fafbfc;
+  box-shadow: -2px 0 4px rgba(0, 0, 0, 0.06);
+  padding: $spacing-md;
+  overflow-y: auto;
+}
+
+.parameters-box {
+  background: white;
+  border: 1px solid #e1e4e8;
+  border-radius: $border-radius-md;
+  padding: $spacing-md;
+
+  h3 {
+    margin: 0 0 $spacing-md 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #24292e;
+  }
+}
+
+.mat-icon {
+  height: 1.5rem;
+  width: 1rem;
+}
+
+// ===== Action Buttons =====
+.action-btn {
+  @include action-button;
+  @include tooltip;
+}
+
+.open-script {
+  // Add open-script specific overrides here if needed
+}
+
+.model-settings {
+  // Add model-settings specific overrides here if needed
+}

@@ -42,6 +42,16 @@
   padding-bottom: 1rem;
 }
 
+.header-left-buttons {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.palette-sidebar.collapsed .header-left-buttons {
+  display: none;
+}
+
 .palette-sidebar.collapsed .collapse-btn {
   right: -16px;
 }
@@ -78,4 +88,36 @@
   height: 1.5rem;
   width: 1rem;
   color: var(--vscode-editor-foreground);
+}
+
+/* ===== Shared Button Base Style ===== */
+.action-btn {
+  border-radius: 13px;
+  background-color: transparent;
+  color: var(--vscode-editor-foreground);
+  border-color: var(--vscode-activityBarBadge-background);
+  border-style: solid;
+  border-width: thin;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  padding-left: 15px;
+  padding-right: 15px;
+  cursor: pointer;
+  position: relative;
+
+  &:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--vscode-tooltip-background);
+    color: var(--vscode-tooltip-foreground);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 1000;
+    margin-bottom: 5px;
+  }
 }
