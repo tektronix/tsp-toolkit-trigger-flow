@@ -11,7 +11,7 @@
 .palette-sidebar {
   width: 320px;
   flex-shrink: 0;
-  background: #fafbfc;
+  background: var(--vscode-editor-background);
   box-shadow: 2px 0 4px rgba(0, 0, 0, 0.06);
   z-index: 9;
   padding: 0 $spacing-sm;
@@ -39,7 +39,7 @@
 .collapse-btn {
   position: absolute;
   right: $spacing-md;
-  background: #fafbfc;
+  background: var(--vscode-editor-background);
   border: none;
   @include flex-center;
   cursor: pointer;
@@ -87,6 +87,7 @@
 .mat-icon {
   height: 1.5rem;
   width: 1rem;
+  color: var(--vscode-editor-foreground);
 }
 
 // ===== Action Buttons =====

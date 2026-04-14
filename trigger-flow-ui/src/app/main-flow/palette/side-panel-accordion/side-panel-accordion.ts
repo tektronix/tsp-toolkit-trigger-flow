@@ -20,39 +20,39 @@ export class SidePanelAccordion {
         {
           label: 'Actions',
           shapes: [
-            { type: 'action-1', svgPath: 'assets/shapes/palette/Action/Action-ConfigListNext.svg', catalogLabel: 'configlist next' },
-            { type: 'action-2', svgPath: 'assets/shapes/palette/Action/Action-ConfigListPrev.svg', catalogLabel: 'configlist prev' },
-            { type: 'action-3', svgPath: 'assets/shapes/palette/Action/Action-ConfigListRecall.svg', catalogLabel: 'configlist recall' },
-            { type: 'action-4', svgPath: 'assets/shapes/palette/Action/Action-Measure.svg', catalogLabel: 'measure' },
-            { type: 'action-5', svgPath: 'assets/shapes/palette/Action/Action-MeasureOverlapped.svg', catalogLabel: 'measure overlapped' },
-            { type: 'action-6', svgPath: 'assets/shapes/palette/Action/Action-NoOperation.svg', catalogLabel: 'no operation' },
-            { type: 'action-7', svgPath: 'assets/shapes/palette/Action/Action-ResetBranchCounter.svg', catalogLabel: 'reset branch counter' },
-            { type: 'action-8', svgPath: 'assets/shapes/palette/Action/Action-SourceActionBias.svg', catalogLabel: 'source action bias' },
-            { type: 'action-9', svgPath: 'assets/shapes/palette/Action/Action-SourceActionSkip.svg', catalogLabel: 'source action skip' },
-            { type: 'action-10', svgPath: 'assets/shapes/palette/Action/Action-SourceActionStep.svg', catalogLabel: 'source action step' },
-            { type: 'action-11', svgPath: 'assets/shapes/palette/Action/Action-SourceOutput.svg', catalogLabel: 'source output' },
+            { type: 'Action', svgPath: 'assets/shapes/palette/Action/Action-ConfigListNext.svg', catalogLabel: 'configlist next' },
+            { type: 'Action', svgPath: 'assets/shapes/palette/Action/Action-ConfigListPrev.svg', catalogLabel: 'configlist prev' },
+            { type: 'Action', svgPath: 'assets/shapes/palette/Action/Action-ConfigListRecall.svg', catalogLabel: 'configlist recall' },
+            { type: 'Action', svgPath: 'assets/shapes/palette/Action/Action-Measure.svg', catalogLabel: 'measure' },
+            { type: 'Action', svgPath: 'assets/shapes/palette/Action/Action-MeasureOverlapped.svg', catalogLabel: 'measure overlapped' },
+            { type: 'Action', svgPath: 'assets/shapes/palette/Action/Action-NoOperation.svg', catalogLabel: 'no operation' },
+            { type: 'Action', svgPath: 'assets/shapes/palette/Action/Action-ResetBranchCounter.svg', catalogLabel: 'reset branch counter' },
+            { type: 'Action', svgPath: 'assets/shapes/palette/Action/Action-SourceActionBias.svg', catalogLabel: 'source action bias' },
+            { type: 'Action', svgPath: 'assets/shapes/palette/Action/Action-SourceActionSkip.svg', catalogLabel: 'source action skip' },
+            { type: 'Action', svgPath: 'assets/shapes/palette/Action/Action-SourceActionStep.svg', catalogLabel: 'source action step' },
+            { type: 'Action', svgPath: 'assets/shapes/palette/Action/Action-SourceOutput.svg', catalogLabel: 'source output' },
           ]
         },
         {
           label: 'Branches',
           shapes: [
-            { type: 'branch-1', svgPath: 'assets/shapes/palette/Branch/BranchBlock-Always.svg', catalogLabel: 'always' },
-            { type: 'branch-2', svgPath: 'assets/shapes/palette/Branch/BranchBlock-OnceExcluded.svg', catalogLabel: 'once excluded' },
-            { type: 'branch-3', svgPath: 'assets/shapes/palette/Branch/BranchBlock-OnEvent.svg', catalogLabel: 'on event' },
+            { type: 'Branch', svgPath: 'assets/shapes/palette/Branch/BranchBlock-Always.svg', catalogLabel: 'always' },
+            { type: 'Branch', svgPath: 'assets/shapes/palette/Branch/BranchBlock-OnceExcluded.svg', catalogLabel: 'once excluded' },
+            { type: 'Branch', svgPath: 'assets/shapes/palette/Branch/BranchBlock-OnEvent.svg', catalogLabel: 'on event' },
           ]
         },
         {
           label: 'Notify',
           shapes: [
-            { type: 'notify-1', svgPath: 'assets/shapes/palette/Notify/NotifyBlock-LogEvent.svg', catalogLabel: 'log event' },
-            { type: 'notify-2', svgPath: 'assets/shapes/palette/Notify/NotifyBlock-Notify.svg', catalogLabel: 'notify' },
+            { type: 'Notify', svgPath: 'assets/shapes/palette/Notify/NotifyBlock-LogEvent.svg', catalogLabel: 'log event' },
+            { type: 'Notify', svgPath: 'assets/shapes/palette/Notify/NotifyBlock-Notify.svg', catalogLabel: 'notify' },
           ]
         },
         {
           label: 'Timing',
           shapes: [
-            { type: 'timer-1', svgPath: 'assets/shapes/palette/Timing/Timing-ConstantDelay.svg', catalogLabel: 'delay constant' },
-            { type: 'timer-2', svgPath: 'assets/shapes/palette/Timing/Timing-WaitOnEvent.svg', catalogLabel: 'wait on event' },
+            { type: 'Timing', svgPath: 'assets/shapes/palette/Timing/Timing-ConstantDelay.svg', catalogLabel: 'delay constant' },
+            { type: 'Timing', svgPath: 'assets/shapes/palette/Timing/Timing-WaitOnEvent.svg', catalogLabel: 'wait on event' },
           ]
         }
       ]
