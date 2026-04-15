@@ -8,7 +8,7 @@
 .palette-sidebar {
   width: 320px;
   flex-shrink: 0;
-  background: #fafbfc;
+  background: var(--vscode-editor-background);
   box-shadow: 2px 0 4px rgba(0, 0, 0, 0.06);
   z-index: 9;
   padding: 0 0.5rem;
@@ -29,7 +29,7 @@
 .collapse-btn {
   position: absolute;
   right: 1rem;
-  background: #fafbfc;
+  background: var(--vscode-editor-background);
   border: none;
   display: flex;
   align-items: center;
@@ -64,7 +64,7 @@
 .parameters-sidebar {
   width: 320px;
   flex-shrink: 0;
-  background: #fafbfc;
+  background: white;
   box-shadow: -2px 0 4px rgba(0, 0, 0, 0.06);
   padding: 1rem;
   overflow-y: auto;
@@ -87,6 +87,7 @@
 .mat-icon {
   height: 1.5rem;
   width: 1rem;
+  color: var(--vscode-editor-foreground);
 }
 
 /* ===== Shared Button Base Style ===== */

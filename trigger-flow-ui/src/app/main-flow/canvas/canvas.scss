@@ -12,10 +12,10 @@
 f-canvas {
   width: 100%;
   height: 100%;
-  background: #f5f5f5;
-  background-image: 
-    linear-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
+  background: var(--vscode-editor-background);
+  background-image:
+    linear-gradient(var(--vscode-editorWidget-border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--vscode-editorWidget-border) 1px, transparent 1px);
   background-size: 20px 20px;
 }
 
@@ -34,6 +34,9 @@ f-canvas {
   height: 42px;
   border: 1px solid var(--vscode-editorWidget-border);
   background: var(--vscode-editor-background);
+  background-image:
+    linear-gradient(var(--vscode-editorWidget-border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--vscode-editorWidget-border) 1px, transparent 1px);
   padding: 0 10px;
 }
 
@@ -92,7 +95,11 @@ f-canvas {
   flex: 1;
   border: 1px solid var(--vscode-editorWidget-border);
   border-top-width: 0;
-  background: rgba(255, 255, 255, 0.7);
+  background: var(--vscode-editor-background);
+  background-image:
+    linear-gradient(var(--vscode-editorWidget-border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--vscode-editorWidget-border) 1px, transparent 1px);
+  background-size: 20px 20px;
 }
 
 .node-wrapper {
@@ -100,38 +107,80 @@ f-canvas {
 }
 
 .node-content {
-    display: none;
-    /* width: 100%; */
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    /* background: white; */
-    /* border: 2px solid #333; */
-    /* border-radius: 8px; */
-    /* padding: 16px; */
-    /* box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); */
-    /* position: relative; */
+  display: none;
+  /* width: 100%; */
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* background: white; */
+  /* border: 2px solid #333; */
+  /* border-radius: 8px; */
+  /* padding: 16px; */
+  /* box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); */
+  /* position: relative; */
 }
 
 .node-svg {
-  width: 60px;
-  height: 60px;
+  // width: 60px;
+  // height: 60px;
   object-fit: contain;
   pointer-events: none;
+
+  // Default CSS custom properties
+  // --fill-color: #173727;
+  // --stroke-color: #95C5AD;
+  // --title-color: #95C5AD;
 }
 
 .node-svg::ng-deep svg {
-  fill: white !important;
-}
 
-.node-svg::ng-deep svg path,
-.node-svg::ng-deep svg circle,
-.node-svg::ng-deep svg rect,
-.node-svg::ng-deep svg polygon {
-  /* fill: yellow !important; */
-  /* stroke: black !important; */
-  size: 20px 20px !important;
+  // Target specific semantic classes
+  .Fill {
+    fill: var(--fill-color) !important;
+  }
+
+  .Stroke {
+    fill: var(--stroke-color) !important;
+    stroke: var(--stroke-color) !important;
+  }
+
+  .Title {
+    fill: var(--title-color) !important;
+  }
+
+  .No {
+    fill: var(--stroke-color) !important;
+    stroke: var(--stroke-color) !important;
+  }
+
+  .Yes {
+    fill: var(--stroke-color) !important;
+    stroke: var(--stroke-color) !important;
+  }
+
+  // Handle nested Arrow group
+  .Arrow .Fill {
+    fill: var(--fill-color) !important;
+  }
+
+  .Arrow .Stroke {
+    fill: var(--stroke-color) !important;
+    stroke: var(--stroke-color) !important;
+  }
+
+  .Event .Fill {
+    fill: var(--event-fill-color) !important;
+  }
+
+  .Event .Stroke {
+    fill: var(--event-stroke-color) !important;
+    stroke: var(--event-stroke-color) !important;
+  }
+
+  .Event .Title {
+    fill: var(--event-stroke-color) !important;
+  }
 }
 
 .f-node-input {
@@ -139,7 +188,7 @@ f-canvas {
   position: absolute;
   left: -5px;
   top: 50%;
-  transform: translateY(-50%);  
+  transform: translateY(-50%);
   width: 10px;
   height: 10px;
   background: #000;
