@@ -184,41 +184,67 @@ f-canvas {
 }
 
 .f-node-input {
-  display: none;
   position: absolute;
   left: -5px;
   top: 50%;
   transform: translateY(-50%);
   width: 10px;
   height: 10px;
-  background: #000;
-  border: 1px solid white;
+  background: black;
+  border: 2px solid white;
   border-radius: 50%;
   cursor: crosshair;
+  z-index: 100;
+  pointer-events: all;
 }
-
+.input-connector {
+  position: absolute;
+  left: 50%;
+  bottom: -10px;
+  transform: translateX(-50%);
+  width: 16px;
+  height: 16px;
+  background: #4a90e2;
+  border: 2px solid white;
+  border-radius: 50%;
+  cursor: crosshair;
+  z-index: 100;
+  pointer-events: all;
+}
+.input-connector:hover {
+  background: #2e6bb8;
+  transform: translateX(-50%) scale(1.2);
+}
 .output-connector {
   position: absolute;
-  right: -5px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 10px;
-  height: 10px;
-  background: #000;
-  border: 1px solid white;
+  left: 50%;
+  bottom: -10px;
+  transform: translateX(-50%);
+  width: 16px;
+  height: 16px;
+  background: #4a90e2;
+  border: 2px solid white;
   border-radius: 50%;
   cursor: crosshair;
+  z-index: 100;
+  pointer-events: all;
 }
-
+.output-connector:hover {
+  background: #2e6bb8;
+  transform: translateX(-50%) scale(1.2);
+}
 .f-node-output {
-  display: none;
+  //display: none;
   width: 10px;
   height: 10px;
   background: #000;
   border: 1px solid white;
   border-radius: 50%;
 }
-
+/* Hide the connection drag handle circles at endpoints */
+::ng-deep .f-connection-drag-handle {
+  display: none;
+}
 /* .f-node-input:hover,
 .output-connector:hover {
   transform: translateY(-50%) scale(1.2);

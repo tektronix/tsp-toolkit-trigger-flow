@@ -18,10 +18,10 @@ export interface CanvasBlock {
 
 declare const acquireVsCodeApi: unknown;
 // eslint-disable-next-line @typescript-eslint/no-empty-function
-const vscode = typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : { postMessage: () => { } };
+export const vscode = typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : { postMessage: () => { } };
 
 export interface CanvasBlocksData {
-  blocks: CanvasBlock[];
+  blocks: Record<string, { trigger_model_name: string; slot_index: number; blocks: CanvasBlock[]; }>;
   timestamp: string;
 }
 
@@ -32,18 +32,15 @@ export class CanvasBlocksService {
   private triggerFlowDataService = inject(TriggerFlowDataService);
   private websocketService = inject(Websocket);
 
-  private canvasBlocks: CanvasBlock[] = [];
   private canvasBlocksSubject = new BehaviorSubject<CanvasBlocksData>(this.getCanvasData());
   public canvasBlocks$ = this.canvasBlocksSubject.asObservable();
 
   // Support multiple models per canvas
-  private models: {
-    [modelName: string]: {
-      trigger_model_name: string;
-      slot_index: number;
-      blocks: CanvasBlock[];
-    }
-  } = {};
+  private models: Record<string, {
+    trigger_model_name: string;
+    slot_index: number;
+    blocks: CanvasBlock[];
+  }> = {};
 
   addBlock(nodeId: string, blockLabel: string, position: { x: number; y: number }, modelName: string, slotIndex: number): void {
     const catalogData = this.triggerFlowDataService.getCatalog();
@@ -88,7 +85,7 @@ export class CanvasBlocksService {
 
     this.models[modelName].blocks.push(canvasBlock);
     this.updateAndPrint();
-    vscode.postMessage({ command: 'open_manual', payload: 'block_name: ' + blockName });
+    //vscode.postMessage({ command: 'open_manual', payload: 'block_name: ' + blockName });
   }
 
   // Remove block by nodeId from the model where it exists
@@ -164,7 +161,7 @@ export class CanvasBlocksService {
 
   private getCanvasData(): CanvasBlocksData {
     return {
-      blocks: this.canvasBlocks,
+      blocks: this.models,
       timestamp: new Date().toISOString()
     };
   }

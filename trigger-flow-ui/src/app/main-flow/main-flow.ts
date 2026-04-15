@@ -4,6 +4,7 @@ import { SidePanelAccordion } from './palette/side-panel-accordion/side-panel-ac
 import { BlockParameters } from './palette/block-parameters/block-parameters';
 import { MatIconModule } from '@angular/material/icon';
 import { CommonModule } from '@angular/common';
+import { vscode } from '../services/canvas-blocks.service';
 
 @Component({
   selector: 'app-main-flow',
@@ -21,6 +22,7 @@ export class MainFlow{
 
   openScript(): void {
     console.log('Open Script clicked');
+    vscode.postMessage({ command: 'open_script'});
   }
 
   addNewTriggerModel(): void {

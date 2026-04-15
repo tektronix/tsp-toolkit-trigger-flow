@@ -26,6 +26,11 @@ interface FlowNode {
   outputs: string[];
   color?: string;
 }
+interface FlowConnection {
+  id: string;
+  fOutputId: string;
+  fInputId: string;
+}
 
 interface CreateNodePayload {
   type?: string;
@@ -67,6 +72,7 @@ export class Canvas implements AfterViewInit {
   private triggerFlowDataService = inject(TriggerFlowDataService);
 
   canvasSize = signal(this.getCanvasSize());
+  connections = signal<FlowConnection[]>([]);
 
   sections = signal<FlowSection[]>([
     {
@@ -133,6 +139,7 @@ export class Canvas implements AfterViewInit {
   );
 
   private nodeCounter = 0;
+  private connectionCounter = 0;
 
   onCreateNode(event: FlowCanvasEvent) {
 
@@ -196,10 +203,20 @@ export class Canvas implements AfterViewInit {
         return { fillColor: '#FFFFFF', strokeColor: '#333333', titleColor: '#333333' };
     }
   }
-
-  onCreateConnection(event: unknown) {
-    console.log('Connection created:', event);
-    // Handle connection creation here if needed
+  onCreateConnection(event: any) {
+    console.log('🔗 CONNECTION CREATED! Event details:', event);
+    console.log('Connection data:', JSON.stringify(event, null, 2));
+    
+    if (event.fOutputId && event.fInputId) {
+      const newConnection: FlowConnection = {
+        id: `connection-${++this.connectionCounter}`,
+        fOutputId: event.fOutputId,
+        fInputId: event.fInputId
+      };
+      this.connections.update(current => [...current, newConnection]);
+      console.log('Connection added to array:', newConnection);
+      console.log('Total connections:', this.connections().length);
+    }
   }
 
   onMoveNodes(event: FlowCanvasEvent) {
