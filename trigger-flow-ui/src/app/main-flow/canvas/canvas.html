@@ -43,7 +43,7 @@
         class="node-wrapper"
       >
         <div class="node-content">
-          <svg-icon [src]="node.svgPath" [svgStyle]="getSvgStyle()" class="node-svg" fDragHandle>
+          <svg-icon [src]="node.svgPath" [ngStyle]="getSvgStyle(node)" class="node-svg" fDragHandle>
           </svg-icon>
 
           <div

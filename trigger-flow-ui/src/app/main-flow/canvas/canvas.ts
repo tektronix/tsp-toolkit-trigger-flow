@@ -21,6 +21,7 @@ interface FlowNode {
   position: { x: number; y: number };
   svgPath: string;
   catalogLabel?: string;
+  type?: string;
   input?: string;
   outputs: string[];
   color?: string;
@@ -134,8 +135,9 @@ export class Canvas implements AfterViewInit {
   private nodeCounter = 0;
 
   onCreateNode(event: FlowCanvasEvent) {
-    // FCreateNodeEvent: { rect, data, fTargetNode?, fDropPosition? }
+
     console.log('fCreateNode event:', event);
+    console.log("Block Type:", event.data?.type);
     if (event.data && event.data.type && event.rect) {
       const targetSectionId = this.resolveTargetSectionId(event.fTargetNode);
       const section = this.getSectionById(targetSectionId);
@@ -145,8 +147,9 @@ export class Canvas implements AfterViewInit {
         id: `node-${++this.nodeCounter}`,
         sectionId: targetSectionId,
         position: { x: event.rect.x, y: event.rect.y },
-        svgPath: event.data.svgPath,
-        catalogLabel: event.data.catalogLabel,
+        svgPath: event.data?.svgPath,
+        catalogLabel: event.data?.catalogLabel,
+        type: event.data?.type,
         input: `input-${this.nodeCounter}`,
         outputs: [`output-${this.nodeCounter}`],
         color: '#FFFFFF',
@@ -167,12 +170,31 @@ export class Canvas implements AfterViewInit {
     }
   }
 
-  getSvgStyle(): Record<string, string> {
-    return this.svgManager.buildSvgStyle({
-      // fillColor: node.color,
-      // width: '60px',
-      // height: '60px'
-    });
+  getSvgStyle(node: FlowNode): { [key: string]: string } {
+    const blockType = node.type;
+    const cssConfig = this.getBlockCSSConfig(blockType);
+    return {
+      '--fill-color': cssConfig.fillColor,
+      '--stroke-color': cssConfig.strokeColor,
+      '--title-color': cssConfig.titleColor,
+      '--event-fill-color': cssConfig.eventFillColor || cssConfig.fillColor,
+      '--event-stroke-color': cssConfig.eventStrokeColor || cssConfig.strokeColor,
+    };
+  }
+
+  private getBlockCSSConfig(blockType: string | undefined): { fillColor: string; strokeColor: string; titleColor: string, eventFillColor?: string, eventStrokeColor?: string } {
+    switch (blockType) {
+      case 'Action':
+        return { fillColor: '#173727', strokeColor: '#95C5AD', titleColor: '#95C5AD' };
+      case 'Branch':
+        return { fillColor: '#1E3A41', strokeColor: '#95BBC5', titleColor: '#95BBC5' };
+      case 'Notify':
+        return { fillColor: '#3C2F20', strokeColor: '#E79F48', titleColor: '#E79F48', eventFillColor: '#26251A', eventStrokeColor: '#F1EF8B' };
+      case 'Timing':
+        return { fillColor: '#372E3F', strokeColor: '#C687FA', titleColor: '#C687FA', eventFillColor: '#26251A', eventStrokeColor: '#F1EF8B' };
+      default:
+        return { fillColor: '#FFFFFF', strokeColor: '#333333', titleColor: '#333333' };
+    }
   }
 
   onCreateConnection(event: unknown) {

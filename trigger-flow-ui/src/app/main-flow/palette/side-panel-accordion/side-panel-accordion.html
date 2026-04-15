@@ -16,11 +16,11 @@
                             </mat-icon>
                             <span class="title">{{ sub.label }}</span>
                         </div>
-                        <div class="accordion-content" *ngIf="blockExpanded.has(j)">
+                        <div class="accordion-shapes" *ngIf="blockExpanded.has(j)">
                             <ng-container *ngIf="sub.shapes && sub.shapes.length > 0; else subgroupContent">
-                                <div *ngFor="let shape of sub.shapes" class="palette-item" fExternalItem
-                                    [fData]="shape">
-                                    <div class="shape-icon">
+                                <div *ngFor="let shape of sub.shapes" class="palette-item" 
+                                    >
+                                    <div class="shape-icon" fExternalItem [fData]="shape">
                                         <img [src]="shape.svgPath" class="shape-svg" />
                                     </div>
                                     <!-- <span class="shape-label">{{ shape.label }}</span> -->
