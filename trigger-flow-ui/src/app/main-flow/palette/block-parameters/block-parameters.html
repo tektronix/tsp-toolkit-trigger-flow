@@ -1,5 +1,31 @@
-<div>
-    <app-textbox label="Name" ></app-textbox>
-    <app-dropdown label="Branch To" ></app-dropdown>
-    <app-textbox label="Notes" ></app-textbox>
-</div>
+@if (!selectedBlockId) {
+  <div class="empty-state">
+    <h3>No block added or selected</h3>
+    <p>Add a new block onto the canvas or select an existing block to edit the block parameters.</p>
+  </div>
+} @else {
+  <section class="params-shell">
+    <header class="params-header">
+      <div class="params-header-left">
+        @if (blockTypeSvgPath) {
+          <svg-icon [src]="blockTypeSvgPath" class="block-icon"></svg-icon>
+        }
+        <h3 class="block-name">{{ blockName }}</h3>
+      </div>
+
+      <svg-icon
+        src="assets/shapes/Icons/X.svg"
+        aria-label="Close block parameters panel"
+        title="Close"
+        role="button"
+        tabindex="0"
+        (click)="closePanel()"
+        (keydown.enter)="closePanel()"
+        (keydown.space)="closePanel()"
+      ></svg-icon>
+    </header>
+
+    <div class="params-body">
+    </div>
+  </section>
+}

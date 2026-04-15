@@ -4,6 +4,12 @@ import { Catalog, BlockDefinition, EventDefinition } from '../models/trigger-blo
 import { Websocket } from './websocket';
 import { TriggerFlowDataService } from './triggerFlowDataService';
 
+interface CanvasModel {
+  trigger_model_name: string;
+  slot_index: number;
+  blocks: CanvasBlock[];
+}
+
 export interface CanvasBlock {
   block_id: string;
   type: string;
@@ -18,7 +24,8 @@ export interface CanvasBlock {
 
 declare const acquireVsCodeApi: unknown;
 // eslint-disable-next-line @typescript-eslint/no-empty-function
-const vscode = typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : { postMessage: () => { } };
+const vscode =
+  typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : { postMessage: () => {} };
 
 export interface CanvasBlocksData {
   blocks: CanvasBlock[];
@@ -26,7 +33,7 @@ export interface CanvasBlocksData {
 }
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class CanvasBlocksService {
   private triggerFlowDataService = inject(TriggerFlowDataService);
@@ -36,16 +43,19 @@ export class CanvasBlocksService {
   private canvasBlocksSubject = new BehaviorSubject<CanvasBlocksData>(this.getCanvasData());
   public canvasBlocks$ = this.canvasBlocksSubject.asObservable();
 
-  // Support multiple models per canvas
-  private models: {
-    [modelName: string]: {
-      trigger_model_name: string;
-      slot_index: number;
-      blocks: CanvasBlock[];
-    }
-  } = {};
+  private selectedBlockSubject = new BehaviorSubject<string | null>(null);
+  public selectedBlock$ = this.selectedBlockSubject.asObservable();
 
-  addBlock(nodeId: string, blockLabel: string, position: { x: number; y: number }, modelName: string, slotIndex: number): void {
+  // Support multiple models per canvas
+  private models: Record<string, CanvasModel> = {};
+
+  addBlock(
+    nodeId: string,
+    blockLabel: string,
+    position: { x: number; y: number },
+    modelName: string,
+    slotIndex: number,
+  ): void {
     const catalogData = this.triggerFlowDataService.getCatalog();
     if (!catalogData) {
       console.warn('Catalog data not loaded yet');
@@ -61,7 +71,7 @@ export class CanvasBlocksService {
 
     // Search for block in catalog (case-insensitive)
     const blockData = this.findBlockInCatalog(blockName, catalogData);
-    
+
     if (!blockData) {
       console.warn(`Block "${blockName}" not found in catalog`);
       return;
@@ -71,7 +81,7 @@ export class CanvasBlocksService {
       this.models[modelName] = {
         trigger_model_name: modelName,
         slot_index: slotIndex,
-        blocks: []
+        blocks: [],
       };
     }
 
@@ -83,7 +93,7 @@ export class CanvasBlocksService {
       incoming: null,
       outgoing: null,
       block_error: null,
-      svgPath: blockLabel
+      svgPath: blockLabel,
     };
 
     this.models[modelName].blocks.push(canvasBlock);
@@ -94,7 +104,7 @@ export class CanvasBlocksService {
   // Remove block by nodeId from the model where it exists
   removeBlock(nodeId: string): void {
     for (const model of Object.values(this.models)) {
-      const index = model.blocks.findIndex(b => b.block_id === nodeId);
+      const index = model.blocks.findIndex((b) => b.block_id === nodeId);
       if (index !== -1) {
         model.blocks.splice(index, 1);
         this.updateAndPrint();
@@ -105,7 +115,7 @@ export class CanvasBlocksService {
 
   updateBlockPosition(nodeId: string, position: { x: number; y: number }): void {
     for (const model of Object.values(this.models)) {
-      const block = model.blocks.find(b => b.block_id === nodeId);
+      const block = model.blocks.find((b) => b.block_id === nodeId);
       if (block) {
         block.block_position = position;
         this.updateAndPrint();
@@ -116,7 +126,7 @@ export class CanvasBlocksService {
 
   updateBlockParameters(nodeId: string, parameters: Record<string, any>): void {
     for (const model of Object.values(this.models)) {
-      const block = model.blocks.find(b => b.block_id === nodeId);
+      const block = model.blocks.find((b) => b.block_id === nodeId);
       if (block) {
         block.block_parameters = parameters;
         this.updateAndPrint();
@@ -132,7 +142,10 @@ export class CanvasBlocksService {
     this.updateAndPrint();
   }
 
-  private findBlockInCatalog(blockName: string, catalogData: Catalog | null): BlockDefinition | EventDefinition | null {
+  private findBlockInCatalog(
+    blockName: string,
+    catalogData: Catalog | null,
+  ): BlockDefinition | EventDefinition | null {
     if (!catalogData) {
       return null;
     }
@@ -165,7 +178,7 @@ export class CanvasBlocksService {
   private getCanvasData(): CanvasBlocksData {
     return {
       blocks: this.canvasBlocks,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 
@@ -228,6 +241,15 @@ export class CanvasBlocksService {
     return {};
   }
 
+  // BlockParameters uses this
+  getBlockById(nodeId: string): CanvasBlock | null {
+    for (const model of Object.values(this.models)) {
+      const block = model.blocks.find((b) => b.block_id === nodeId);
+      if (block) return block;
+    }
+    return null;
+  }
+
   logIpcDataFormat(): void {
     const slot_channel_list = this.triggerFlowDataService.getSlotChannelList() || { slots: [] };
     // Build models object, omitting syntax, description, and shape from blocks
@@ -251,21 +273,21 @@ export class CanvasBlocksService {
             block_position: block.block_position,
             incoming: block.incoming,
             outgoing: block.outgoing,
-            block_error: block.block_error
+            block_error: block.block_error,
           };
-        })
+        }),
       };
     }
 
     const triggerFlowState = JSON.stringify({
       models: filteredModels,
-      slot_channel_list
+      slot_channel_list,
     });
 
     const ipcData = {
       request_type: 'evaluate_request',
       additional_info: '',
-      json_value: triggerFlowState
+      json_value: triggerFlowState,
     };
 
     console.log('=== Rust IpcData Format ===');
@@ -277,5 +299,13 @@ export class CanvasBlocksService {
 
   getCanvasDataAsJson(): string {
     return JSON.stringify(this.getCanvasData(), null, 2);
+  }
+
+  selectBlock(nodeId: string): void {
+    this.selectedBlockSubject.next(nodeId);
+  }
+
+  clearSelectedBlock(): void {
+    this.selectedBlockSubject.next(null);
   }
 }

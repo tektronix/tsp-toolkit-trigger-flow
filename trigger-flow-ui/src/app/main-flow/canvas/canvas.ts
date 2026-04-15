@@ -42,7 +42,6 @@ interface FlowCanvasEvent {
 
 interface FlowSection {
   id: string;
-  title: string;
   modelName: string;
   slotIndex: number;
   nodes: FlowNode[];
@@ -65,23 +64,23 @@ export class Canvas implements AfterViewInit {
   private canvasBlocksService = inject(CanvasBlocksService);
   private triggerFlowDataService = inject(TriggerFlowDataService);
 
+  private nodeCounter = 0;
+
   canvasSize = signal(this.getCanvasSize());
 
   sections = signal<FlowSection[]>([
     {
       id: 'group-1',
-      title: 'MyTriggerModel',
       modelName: 'MyTriggerModel',
       slotIndex: 1,
-      nodes: []
+      nodes: [],
     },
     {
       id: 'group-2',
-      title: 'Model2',
       modelName: 'Model2',
       slotIndex: 2,
-      nodes: []
-    }
+      nodes: [],
+    },
   ]);
 
   sectionLayouts = computed<LaidOutSection[]>(() => {
@@ -123,15 +122,14 @@ export class Canvas implements AfterViewInit {
 
         result[modelName] = {
           hasError: hasAnyError,
-          tooltip: lines.length > 0 ? lines.join('\n') : hasAnyError ? 'Validation errors found' : '',
+          tooltip:
+            lines.length > 0 ? lines.join('\n') : hasAnyError ? 'Validation errors found' : '',
         };
       }
 
       return result;
     },
   );
-
-  private nodeCounter = 0;
 
   onCreateNode(event: FlowCanvasEvent) {
     // FCreateNodeEvent: { rect, data, fTargetNode?, fDropPosition? }
@@ -141,8 +139,10 @@ export class Canvas implements AfterViewInit {
       const section = this.getSectionById(targetSectionId);
       if (!section) return;
 
+      const nodeId = this.createUniqueNodeId();
+
       const newNode: FlowNode = {
-        id: `node-${++this.nodeCounter}`,
+        id: nodeId,
         sectionId: targetSectionId,
         position: { x: event.rect.x, y: event.rect.y },
         svgPath: event.data.svgPath,
@@ -164,7 +164,24 @@ export class Canvas implements AfterViewInit {
         section.modelName,
         section.slotIndex,
       );
+
+      this.canvasBlocksService.selectBlock(newNode.id);
     }
+  }
+
+  private createUniqueNodeId(): string {
+    const existingIds = new Set(this.sectionNodes().map((node) => node.id));
+    let candidate = '';
+
+    do {
+      candidate = `node-${++this.nodeCounter}`;
+    } while (existingIds.has(candidate));
+
+    return candidate;
+  }
+
+  onNodeClick(nodeId: string): void {
+    this.canvasBlocksService.selectBlock(nodeId);
   }
 
   getSvgStyle(): Record<string, string> {

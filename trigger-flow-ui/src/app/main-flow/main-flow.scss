@@ -64,24 +64,7 @@
 .parameters-sidebar {
   width: 320px;
   flex-shrink: 0;
-  background: #fafbfc;
-  box-shadow: -2px 0 4px rgba(0, 0, 0, 0.06);
-  padding: $spacing-md;
-  overflow-y: auto;
-}
-
-.parameters-box {
-  background: white;
-  border: 1px solid #e1e4e8;
-  border-radius: $border-radius-md;
-  padding: $spacing-md;
-
-  h3 {
-    margin: 0 0 $spacing-md 0;
-    font-size: 1rem;
-    font-weight: 600;
-    color: #24292e;
-  }
+  overflow: hidden;
 }
 
 .mat-icon {
@@ -93,12 +76,4 @@
 .action-btn {
   @include action-button;
   @include tooltip;
-}
-
-.open-script {
-  // Add open-script specific overrides here if needed
-}
-
-.model-settings {
-  // Add model-settings specific overrides here if needed
 }
