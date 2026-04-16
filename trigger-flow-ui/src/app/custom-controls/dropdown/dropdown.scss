@@ -8,26 +8,32 @@
 .dropdown label {
   font-size: 0.875rem;
   font-weight: 500;
-  color: #24292e;
+  color: var(--vscode-editor-foreground);
 }
 
 .dropdown select {
-  padding: 0.5rem;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
+  padding: 4px;
+  border: 1px solid var(--vscode-editorWidget-border);
+  border-radius: 5px;
   font-size: 0.875rem;
-  background-color: white;
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
   cursor: pointer;
 }
 
 .dropdown select:focus {
   outline: none;
-  border-color: #0969da;
+  border-color: var(--vscode-focusBorder);
   box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.1);
 }
 
 .dropdown select:disabled {
-  background-color: #f6f8fa;
+  background-color: var(
+    --vscode-editorWidget-background,
+    var(--vscode-input-background)
+  );
+  color: var(--vscode-disabledForeground, var(--vscode-input-foreground));
   cursor: not-allowed;
   opacity: 0.6;
+  border-color: var(--vscode-editorWidget-border);
 }

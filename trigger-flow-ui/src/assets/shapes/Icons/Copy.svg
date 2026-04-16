@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 16 16">
+  <g class="Icon=Copy" clip-path="url(#a)">
+    <path fill="#fff" d="M15.326-.007H4.66a.667.667 0 0 0-.667.667v3.333H.66a.667.667 0 0 0-.667.667v10.666a.667.667 0 0 0 .667.667h10.666a.667.667 0 0 0 .667-.667v-3.333h3.333a.667.667 0 0 0 .667-.667V.66a.667.667 0 0 0-.667-.667ZM10.66 14.66H1.326V5.326h9.334v9.334Zm4-4h-2.667v-6a.667.667 0 0 0-.667-.667h-6V1.326h9.334v9.334Z" class="Vector"/>
+  </g>
+  <defs>
+    <clipPath id="a" class="a">
+      <path fill="#fff" d="M0 0h16v16H0z"/>
+    </clipPath>
+  </defs>
+</svg>

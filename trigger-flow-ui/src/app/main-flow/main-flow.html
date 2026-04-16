@@ -33,7 +33,20 @@
     </div>
   </aside>
   <main class="canvas-area">
-    <app-canvas></app-canvas>
+    <app-canvas (requestModelModal)="onRequestModelModal($event)"></app-canvas>
+
+    <app-model-modal
+      [open]="showModelModal"
+      [name]="modelName"
+      [slot]="modelSlot"
+      [node]="modelNode"
+      [notes]="modelNotes"
+      [slotOptions]="slotOptions"
+      [nodeOptions]="nodeOptions"
+      (closeWithValue)="onModelModalClose($event)"
+      (deleteClicked)="onModelModalDelete()"
+      (copyClicked)="onModelModalCopy()">
+    </app-model-modal>
   </main>
   <aside class="parameters-sidebar">
     <div class="parameters-box">
@@ -42,3 +55,36 @@
     </div>
   </aside>
 </div>
+
+<!-- <div class="model-modal-backdrop" *ngIf="showModelModal">
+  <div class="model-modal">
+    <h3>Model Settings</h3>
+
+    <label>Name</label>
+    <input type="text" [(ngModel)]="modelName" />
+
+    <label>Slot</label>
+    <select [(ngModel)]="modelSlot">
+      <option [ngValue]="1">1</option>
+      <option [ngValue]="2">2</option>
+      <option [ngValue]="3">3</option>
+      <option [ngValue]="4">4</option>
+    </select>
+
+    <label>Node</label>
+    <select [(ngModel)]="modelNode">
+      <option [ngValue]="1">1</option>
+      <option [ngValue]="2">2</option>
+      <option [ngValue]="3">3</option>
+      <option [ngValue]="4">4</option>
+    </select>
+
+    <label>Notes</label>
+    <input type="text" [(ngModel)]="modelNotes" />
+
+    <div class="actions">
+      <button type="button" (click)="cancelModelModal()">Cancel</button>
+      <button type="button" (click)="saveModelModal()">Save</button>
+    </div>
+  </div>
+</div> -->
