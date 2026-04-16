@@ -73,6 +73,9 @@ export class Canvas implements AfterViewInit {
 
   canvasSize = signal(this.getCanvasSize());
   connections = signal<FlowConnection[]>([]);
+  canvasMoveTrigger = (event: MouseEvent | TouchEvent | WheelEvent): boolean => {
+    return event instanceof MouseEvent && event.button === 1; // middle mouse pan
+  };
 
   sections = signal<FlowSection[]>([
     {
@@ -91,21 +94,24 @@ export class Canvas implements AfterViewInit {
     }
   ]);
 
-  sectionLayouts = computed<LaidOutSection[]>(() => {
-    const size = this.canvasSize();
-    const width = Math.floor(size.width / 2);
-    const height = Math.floor(size.height);
+sectionLayouts = computed<LaidOutSection[]>(() => {
+  const size = this.canvasSize();
 
-    return this.sections().map((section, index) => ({
-      ...section,
-      position: {
-        x: index * width,
-        y: 0,
-      },
-      size: { width, height },
-    }));
-  });
+  const sectionWidth = 1400; // virtual width per section
+  const sectionHeight = Math.max(size.height, 2000); // virtual vertical space
 
+  return this.sections().map((section, index) => ({
+    ...section,
+    position: {
+      x: index * sectionWidth,
+      y: 0,
+    },
+    size: {
+      width: sectionWidth,
+      height: sectionHeight,
+    },
+  }));
+});
   sectionNodes = computed<FlowNode[]>(() => this.sections().flatMap((section) => section.nodes));
 
   readonly modelErrorSummary = computed<Record<string, { hasError: boolean; tooltip: string }>>(

@@ -2,11 +2,12 @@
   class="flow-surface"
   fDraggable
   fConnectionDraggable
+  [fCanvasMoveTrigger]="canvasMoveTrigger"
   (fCreateNode)="onCreateNode($event)"
   (fMoveNodes)="onMoveNodes($event)"
   (fCreateConnection)="onCreateConnection($event)"
 >
-  <f-canvas>
+  <f-canvas  fZoom>
     @for (section of sectionLayouts(); track section.id) {
       <div
         class="section-group"
@@ -51,7 +52,7 @@
           <div
             fNodeInput
             [fInputId]="node.input"
-            fInputConnectableSide="left"
+            fInputConnectableSide="top"
             class="input-connector"
           ></div>
 
@@ -60,7 +61,7 @@
               fNodeOutput
               [fOutputId]="outputId"
               [fOutputMultiple]="true"
-              fOutputConnectableSide="right"
+              fOutputConnectableSide="bottom"
               class="output-connector"
             ></div>
           }
