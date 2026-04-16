@@ -14,29 +14,24 @@ import {
 } from '@angular/forms';
 
 @Component({
-  selector: 'app-textbox',
+  selector: 'app-multiline-textbox',
   imports: [FormsModule, CommonModule],
-  templateUrl: './textbox.html',
-  styleUrl: './textbox.scss',
-  standalone: true,
-  providers: [
-    {
-      provide: NG_VALUE_ACCESSOR,
-      useExisting: forwardRef(() => Textbox),
-      multi: true,
-    },
-  ],
+  templateUrl: './multiline-textbox.html',
+  styleUrl: './multiline-textbox.scss',
 })
-export class Textbox implements ControlValueAccessor,OnInit {
+export class MultilineTextbox implements ControlValueAccessor, OnInit{
   @Input() label: string | undefined;
   @Input() disabled = false;
+  @Input() automationID: string | undefined;
+  @Input() rows = 5;
+  @Input() displayValue: string | undefined;
   @Output() inputChange = new EventEmitter<string>();
 
   private _value = '';
   private onChange: ((value: string) => void) | undefined;
 
   ngOnInit(): void {
-    console.log('TextboxComponent initialized with label:', this.label);
+    console.log('MultilineTextboxComponent initialized with label:', this.label);
   }
 
   get value(): string {
@@ -54,6 +49,7 @@ export class Textbox implements ControlValueAccessor,OnInit {
   writeValue(value: string | undefined): void {
     if (value !== undefined) {
       this._value = value;
+      this.displayValue = value;
     }
   }
 
@@ -70,7 +66,7 @@ export class Textbox implements ControlValueAccessor,OnInit {
   }
 
   onInputChange(event: Event): void {
-    const inputElement = event.target as HTMLInputElement;
+    const inputElement = event.target as HTMLTextAreaElement;
     this.value = inputElement.value;
   }
 
@@ -80,7 +76,28 @@ export class Textbox implements ControlValueAccessor,OnInit {
 
   onKeyDown(event: KeyboardEvent): void {
     if (event.key === 'Enter') {
+      if (event.ctrlKey) {
+        event.preventDefault();
+        this.insertNewLine(event);
+      } else {
         this.onInputChange(event);
       }
+    }
+  }
+
+  private insertNewLine(event: KeyboardEvent): void {
+    const inputElement = event.target as HTMLInputElement | HTMLTextAreaElement;
+    const cursorPosition = inputElement.selectionStart || 0;
+    const currentValue = inputElement.value;
+  
+    const newValue = currentValue.substring(0, cursorPosition) + '\n' + currentValue.substring(cursorPosition);
+    
+    inputElement.value = newValue;
+    this.value = newValue;
+  
+    const newCursorPosition = cursorPosition + 1;
+    setTimeout(() => {
+      inputElement.setSelectionRange(newCursorPosition, newCursorPosition);
+    }, 0);
   }
 }
