@@ -5,21 +5,11 @@
   <span class="selected-option-label">{{ selectedOption }}</span>
   
   <div class="toggle-options-box">
-    <table [attr.aria-label]="automationID">
-      <tr>
-        <td
-          *ngFor="let option of options; let i = index"
-          class="toggle-option"
-          [class.selected]="option === selectedOption"
-          [class.disabled]="disabled"
-          [attr.aria-label]="option + '1'"
-          (click)="toggleOption(option)"
-        >
-          <!-- Show index/icon instead of option text -->
-          {{ i + 1 }}
-        </td>
-      </tr>
-    </table>
+    <div class="toggle-switch" [attr.aria-label]="automationID" [class.disabled]="disabled" (click)="!disabled && toggleOption(selectedOption === options[0] ? options[1] : options[0])">
+      <div class="toggle-track">
+        <div class="toggle-thumb" [class.active]="selectedOption === options[1]"></div>
+      </div>
+    </div>
   </div>
 </div>
 
