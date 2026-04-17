@@ -7,6 +7,7 @@ import { Dropdown } from '../../custom-controls/dropdown/dropdown';
 export interface ModelModalValue {
   name: string;
   slot: number;
+  channel: number;
   node: number;
   notes: string;
 }
@@ -24,10 +25,12 @@ export class ModelModal {
   @Input() name = 'MyTriggerModel';
   @Input() notes = '';
   @Input() slot = 1;
+  @Input() channel = 1;
   @Input() node = 1;
 
   // Dropdown expects string[]
   @Input() slotOptions: number[] = [1, 2, 3, 4];
+  @Input() channelOptions: number[] = [1, 2];
   @Input() nodeOptions: number[] = [1, 2, 3, 4];
 
   // Emitted when user closes modal (acts as apply/confirm).
@@ -42,16 +45,26 @@ export class ModelModal {
     return this.slotOptions.map((x) => String(x));
   }
 
+  get channelOptionsAsString(): string[] {
+    return this.channelOptions.map((x) => String(x));
+  }
+
   get nodeOptionsAsString(): string[] {
     return this.nodeOptions.map((x) => String(x));
   }
 
-  // Dropdown CVA uses string
   get slotValue(): string {
     return String(this.slot);
   }
   set slotValue(value: string) {
     this.slot = Number(value) || 1;
+  }
+
+  get channelValue(): string {
+    return String(this.channel);
+  }
+  set channelValue(value: string) {
+    this.channel = Number(value) || 1;
   }
 
   get nodeValue(): string {
@@ -65,6 +78,7 @@ export class ModelModal {
     this.closeWithValue.emit({
       name: this.name.trim() || 'MyTriggerModel',
       slot: this.slot,
+      channel: this.channel,
       node: this.node,
       notes: this.notes.trim(),
     });

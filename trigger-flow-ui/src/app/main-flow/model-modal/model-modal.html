@@ -21,6 +21,12 @@
       </app-dropdown>
 
       <app-dropdown
+        label="Channel"
+        [options]="channelOptionsAsString"
+        [(ngModel)]="channelValue">
+      </app-dropdown>
+
+      <app-dropdown
         label="Node"
         [options]="nodeOptionsAsString"
         [(ngModel)]="nodeValue">

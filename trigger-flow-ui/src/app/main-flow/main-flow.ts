@@ -21,9 +21,11 @@ export class MainFlow {
   showModelModal = false;
   modelName = 'MyTriggerModel';
   modelSlot = 1;
+  modelChannel = 1;
   modelNode = 1;
   modelNotes = '';
   slotOptions = [1, 2, 3, 4];
+  channelOptions = [1, 2];
   nodeOptions = [1, 2, 3, 4];
 
   toggleSidebar(): void {
@@ -31,9 +33,17 @@ export class MainFlow {
   }
 
   // Called by Canvas when first block is dropped and no model exists
-  onRequestModelModal(req: { suggestedName: string; suggestedSlot: number; suggestedNode: number; notes: string }): void {
+  onRequestModelModal(req: {
+    suggestedName: string;
+    suggestedSlot: number;
+    suggestedChannel: number;
+    suggestedNode: number;
+    notes: string;
+  }): void {
+    // Pre-fill modal with canvas suggestions
     this.modelName = req.suggestedName;
     this.modelSlot = req.suggestedSlot;
+    this.modelChannel = req.suggestedChannel;
     this.modelNode = req.suggestedNode;
     this.modelNotes = req.notes;
     this.showModelModal = true;
@@ -66,6 +76,7 @@ export class MainFlow {
     this.onModelModalClose({
       name: this.modelName,
       slot: this.modelSlot,
+      channel: this.modelChannel,
       node: this.modelNode,
       notes: this.modelNotes,
     });
@@ -80,6 +91,7 @@ export class MainFlow {
     const text = [
       `Name: ${this.modelName ?? ''}`,
       `Slot: ${this.modelSlot ?? ''}`,
+      `Channel: ${this.modelChannel ?? ''}`,
       `Node: ${this.modelNode ?? ''}`,
       `Notes: ${this.modelNotes ?? ''}`,
     ].join('\n');
