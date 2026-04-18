@@ -1,11 +1,21 @@
 use serde::{Deserialize, Serialize};
-use trigger_flow_manager::api::{script_path::ScriptPath, slot_channel_list::Systems};
+use trigger_flow_manager::{
+    api::{script_path::ScriptPath, slot_channel_list::Systems},
+    IpcData,
+};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum StdinLine {
+    Shutdown(Shutdown),
     Systems(Systems),
-    Session(ScriptPath),
+    SessionPath(ScriptPath),
+    SessionData(IpcData),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Shutdown {
+    pub shutdown: bool
 }
 
 impl TryFrom<&str> for StdinLine {

@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
 import { v4 as uuidv4 } from 'uuid';
-import { IpcData } from '../models/ipcData';
+import { vscode } from './canvas-blocks.service';
 
 @Injectable({
   providedIn: 'root',
@@ -36,12 +36,7 @@ export class Websocket {
   }
 
   sendInitialDataRequest(): void {
-    const ipcData = new IpcData({
-      request_type: 'initial_request',
-      additional_info: '',
-      json_value: '{}',
-    });
-    this.send(JSON.stringify(ipcData));
+    vscode.postMessage({ command: 'get_initial_configuration' });
   }
 
   send(message: string): void {
