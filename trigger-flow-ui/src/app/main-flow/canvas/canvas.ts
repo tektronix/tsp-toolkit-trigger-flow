@@ -13,7 +13,7 @@ import { AngularSvgIconModule } from 'angular-svg-icon';
 import { SvgManagerService } from '../../services/svg-manager.service';
 import { CanvasBlocksService } from '../../services/canvas-blocks.service';
 import { TriggerFlowDataService } from '../../services/triggerFlowDataService';
-import { BlockErrorEntry } from '../../models/trigger-flow-state.model';
+import { BlockErrorEntry } from '../../models/triggerFlowState';
 
 interface FlowNode {
   blockId: string;

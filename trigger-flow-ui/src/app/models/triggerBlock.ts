@@ -147,3 +147,32 @@ export class EventDefinition {
     this.syntax = data.syntax;
   }
 }
+
+export class ActualParameter {
+  name: string;
+  type: ParamTypeName;
+  options: ParameterOptions[] | null;
+  default: string | number | null;
+  range: ParameterRange | null;
+  value: string | number | null;  // User-edited or default-initialized value
+
+  constructor(parameter: Parameter) {
+    this.name = parameter.name;
+    this.type = parameter.type;
+    this.options = parameter.options;
+    this.default = parameter.default;
+    this.range = parameter.range;
+    // Initialize value from default when block is added
+    this.value = parameter.default;
+  }
+
+  // // Update value from user input (from control)
+  // setValue(newValue: string | number | null): void {
+  //   this.value = newValue;
+  // }
+
+  // // Get the value, fallback to default if not set
+  // getValue(): string | number | null {
+  //   return this.value !== null ? this.value : this.default;
+  // }
+}

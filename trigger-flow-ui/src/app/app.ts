@@ -3,9 +3,9 @@ import { MainFlow } from './main-flow/main-flow';
 import { Websocket } from './services/websocket';
 import { Subscription } from 'rxjs';
 import { IpcData } from './models/ipcData';
-import { InitialPayload } from './models/trigger-blocks.model';
+import { InitialPayload } from './models/triggerBlock';
 import { TriggerFlowDataService } from './services/triggerFlowDataService';
-import { TriggerFlowStatePayload } from './models/trigger-flow-state.model';
+import { TriggerFlowStatePayload } from './models/triggerFlowState';
 
 @Component({
   selector: 'app-root',

@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
-import { Catalog, BlockDefinition, EventDefinition } from '../models/trigger-blocks.model';
+import { Catalog, BlockDefinition, ActualParameter } from '../models/triggerBlock';
 import { Websocket } from './websocket';
 import { TriggerFlowDataService } from './triggerFlowDataService';
 
@@ -13,12 +13,12 @@ interface CanvasModel {
 export interface CanvasBlock {
   block_id: string;
   type: string;
-  blockData: BlockDefinition | EventDefinition;
+  blockData: BlockDefinition;
   block_position: { x: number; y: number };
   incoming: string | null;
   outgoing: string | null;
   block_error: string | null;
-  block_parameters?: Record<string, any>; // To store actual values
+  block_parameters: ActualParameter[]; // To store actual values
 }
 
 declare const acquireVsCodeApi: unknown;
@@ -84,6 +84,11 @@ export class CanvasBlocksService {
       };
     }
 
+    // Initialize ActualParameter[] from blockData.parameters
+    const actualParameters: ActualParameter[] = blockData.parameters.map(
+    (param) => new ActualParameter(param)
+  );
+
     const canvasBlock: CanvasBlock = {
       block_id: blockId,
       type: blockLabel,
@@ -92,6 +97,7 @@ export class CanvasBlocksService {
       incoming: null,
       outgoing: null,
       block_error: null,
+      block_parameters: actualParameters,
     };
 
     this.models[modelName].blocks.push(canvasBlock);
@@ -122,16 +128,16 @@ export class CanvasBlocksService {
     }
   }
 
-  updateBlockParameters(nodeId: string, parameters: Record<string, any>): void {
-    for (const model of Object.values(this.models)) {
-      const block = model.blocks.find((b) => b.block_id === nodeId);
-      if (block) {
-        block.block_parameters = parameters;
-        this.updateAndPrint();
-        break;
-      }
-    }
-  }
+  // updateBlockParameters(nodeId: string, parameters: Record<string, any>): void {
+  //   for (const model of Object.values(this.models)) {
+  //     const block = model.blocks.find((b) => b.block_id === nodeId);
+  //     if (block) {
+  //       block.block_parameters = parameters;
+  //       this.updateAndPrint();
+  //       break;
+  //     }
+  //   }
+  // }
 
   clearAll(): void {
     for (const model of Object.values(this.models)) {
@@ -143,7 +149,7 @@ export class CanvasBlocksService {
   private findBlockInCatalog(
     blockName: string,
     catalogData: Catalog | null,
-  ): BlockDefinition | EventDefinition | null {
+  ): BlockDefinition | null {
     if (!catalogData) {
       return null;
     }
@@ -153,16 +159,6 @@ export class CanvasBlocksService {
     // Search in blocks
     if (catalogData.blocks) {
       for (const [key, value] of Object.entries(catalogData.blocks)) {
-        const normalizedKey = key.toLowerCase().replace(/\s+/g, ' ').trim();
-        if (normalizedKey === normalizedBlockName) {
-          return value;
-        }
-      }
-    }
-
-    // Search in trigger_events
-    if (catalogData.trigger_events) {
-      for (const [key, value] of Object.entries(catalogData.trigger_events)) {
         const normalizedKey = key.toLowerCase().replace(/\s+/g, ' ').trim();
         if (normalizedKey === normalizedBlockName) {
           return value;
