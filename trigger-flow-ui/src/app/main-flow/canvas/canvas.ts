@@ -16,12 +16,12 @@ import { TriggerFlowDataService } from '../../services/triggerFlowDataService';
 import { BlockErrorEntry } from '../../models/trigger-flow-state.model';
 
 interface FlowNode {
-  id: string;
+  blockId: string;
   sectionId: string;
   position: { x: number; y: number };
   svgPath: string;
   catalogLabel?: string;
-  type?: string;
+  blockType?: string;
   input?: string;
   outputs: string[];
   color?: string;
@@ -141,15 +141,15 @@ export class Canvas implements AfterViewInit {
       const section = this.getSectionById(targetSectionId);
       if (!section) return;
 
-      const nodeId = this.createUniqueNodeId();
+      const uniqueBlockId = this.createUniqueNodeId();
 
       const newNode: FlowNode = {
-        id: nodeId,
+        blockId: uniqueBlockId,
         sectionId: targetSectionId,
         position: { x: event.rect.x, y: event.rect.y },
         svgPath: event.data?.svgPath,
         catalogLabel: event.data?.catalogLabel,
-        type: event.data?.type,
+        blockType: event.data?.type,
         input: `input-${this.nodeCounter}`,
         outputs: [`output-${this.nodeCounter}`],
         color: '#FFFFFF',
@@ -161,19 +161,19 @@ export class Canvas implements AfterViewInit {
       );
 
       this.canvasBlocksService.addBlock(
-        newNode.id,
+        newNode.blockId,
         newNode.catalogLabel || newNode.svgPath,
         newNode.position,
         section.modelName,
         section.slotIndex,
       );
 
-      this.canvasBlocksService.selectBlock(newNode.id);
+      this.canvasBlocksService.selectBlock(newNode.blockId);
     }
   }
 
   private createUniqueNodeId(): string {
-    const existingIds = new Set(this.sectionNodes().map((node) => node.id));
+    const existingIds = new Set(this.sectionNodes().map((node) => node.blockId));
     let candidate = '';
 
     do {
@@ -188,7 +188,7 @@ export class Canvas implements AfterViewInit {
   }
 
   getSvgStyle(node: FlowNode): Record<string, string> {
-    const blockType = node.type;
+    const blockType = node.blockType;
     const cssConfig = this.getBlockCSSConfig(blockType);
     return {
       '--fill-color': cssConfig.fillColor,
@@ -232,9 +232,9 @@ export class Canvas implements AfterViewInit {
       current.map((section) => ({
         ...section,
         nodes: section.nodes.map((node): FlowNode => {
-          const newPos = updates.get(node.id);
+          const newPos = updates.get(node.blockId);
           if (newPos) {
-            this.canvasBlocksService.updateBlockPosition(node.id, newPos);
+            this.canvasBlocksService.updateBlockPosition(node.blockId, newPos);
             return { ...node, position: newPos };
           }
           return node;
@@ -259,7 +259,7 @@ export class Canvas implements AfterViewInit {
     if (section) return section.id;
 
     const parentSection = this.sections().find((item) =>
-      item.nodes.some((node) => node.id === targetId),
+      item.nodes.some((node) => node.blockId === targetId),
     );
     return parentSection?.id || this.sections()[0]?.id || '';
   }

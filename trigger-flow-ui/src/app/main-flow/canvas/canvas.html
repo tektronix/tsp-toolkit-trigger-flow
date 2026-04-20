@@ -50,18 +50,18 @@
       </div>
     }
 
-    @for (node of sectionNodes(); track node.id) {
+    @for (node of sectionNodes(); track node.blockId) {
       <div
         fNode
         fDragHandle
         [fNodeParentId]="node.sectionId"
-        [fNodeId]="node.id"
+        [fNodeId]="node.blockId"
         [fNodePosition]="node.position"
         class="node-wrapper"
-        (click)="onNodeClick(node.id)"
+        (click)="onNodeClick(node.blockId)"
         role="button"
         tabindex="0"
-        (keydown.enter)="onNodeClick(node.id)"
+        (keydown.enter)="onNodeClick(node.blockId)"
       >
         <div class="node-content">
           <svg-icon [src]="node.svgPath" [ngStyle]="getSvgStyle(node)" class="node-svg" fDragHandle>

@@ -18,7 +18,6 @@ export interface CanvasBlock {
   incoming: string | null;
   outgoing: string | null;
   block_error: string | null;
-  svgPath: string;
   block_parameters?: Record<string, any>; // To store actual values
 }
 
@@ -50,7 +49,7 @@ export class CanvasBlocksService {
   private models: Record<string, CanvasModel> = {};
 
   addBlock(
-    nodeId: string,
+    blockId: string,
     blockLabel: string,
     position: { x: number; y: number },
     modelName: string,
@@ -62,18 +61,18 @@ export class CanvasBlocksService {
       return;
     }
 
-    const blockName = blockLabel.toLowerCase().trim();
+    blockLabel = blockLabel.toLowerCase().trim();
 
-    if (!blockName) {
+    if (!blockLabel) {
       console.warn('Block label is empty');
       return;
     }
 
     // Search for block in catalog (case-insensitive)
-    const blockData = this.findBlockInCatalog(blockName, catalogData);
+    const blockData = this.findBlockInCatalog(blockLabel, catalogData);
 
     if (!blockData) {
-      console.warn(`Block "${blockName}" not found in catalog`);
+      console.warn(`Block "${blockLabel}" not found in catalog`);
       return;
     }
 
@@ -86,19 +85,18 @@ export class CanvasBlocksService {
     }
 
     const canvasBlock: CanvasBlock = {
-      block_id: nodeId,
-      type: blockName,
+      block_id: blockId,
+      type: blockLabel,
       blockData: blockData,
       block_position: position,
       incoming: null,
       outgoing: null,
       block_error: null,
-      svgPath: blockLabel,
     };
 
     this.models[modelName].blocks.push(canvasBlock);
     this.updateAndPrint();
-    vscode.postMessage({ command: 'open_manual', payload: 'block_name: ' + blockName });
+    vscode.postMessage({ command: 'open_manual', payload: 'block_name: ' + blockLabel });
   }
 
   // Remove block by nodeId from the model where it exists
@@ -242,9 +240,9 @@ export class CanvasBlocksService {
   }
 
   // BlockParameters uses this
-  getBlockById(nodeId: string): CanvasBlock | null {
+  getBlockById(blockId: string): CanvasBlock | null {
     for (const model of Object.values(this.models)) {
-      const block = model.blocks.find((b) => b.block_id === nodeId);
+      const block = model.blocks.find((b) => b.block_id === blockId);
       if (block) return block;
     }
     return null;
