@@ -15,7 +15,7 @@ pub enum StdinLine {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Shutdown {
-    pub shutdown: bool
+    pub shutdown: bool,
 }
 
 impl TryFrom<&str> for StdinLine {

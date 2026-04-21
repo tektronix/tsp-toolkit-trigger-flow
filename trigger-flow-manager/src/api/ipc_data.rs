@@ -32,7 +32,7 @@ impl TryFrom<&IpcData> for RequestType {
                     trigger_flow_state: current_state.clone(),
                 })
             }
-             "evaluate_response" => {
+            "evaluate_response" => {
                 println!(
                     "Deserializing TriggerFlowState from IPC data: {}",
                     ipc_data.json_value

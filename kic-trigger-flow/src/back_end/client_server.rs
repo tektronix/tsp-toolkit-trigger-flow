@@ -180,16 +180,60 @@ async fn ws_index(
                                         app_state.trigger_flow_tx.receiver_count()
                                     );
                                     if should_trigger_script {
-                                        match app_state.trigger_flow_tx.send(()) {
-                                            Ok(receiver_count) => {
-                                                println!(
-                                                    "WebSocket trigger_flow_tx signal sent to {} receivers",
-                                                    receiver_count
-                                                );
+                                        let mut state_persisted = false;
+                                        match serde_json::from_str::<IpcData>(&response) {
+                                            Ok(ipc_response) => {
+                                                match RequestType::try_from(&ipc_response) {
+                                                    Ok(RequestType::EvaluateRequest {
+                                                        trigger_flow_state,
+                                                    }) => {
+                                                        let mut state_lock = app_state
+                                                            .trigger_flow_state
+                                                            .lock()
+                                                            .await;
+                                                        *state_lock = trigger_flow_state;
+                                                        state_persisted = true;
+                                                        println!(
+                                                            "Persisted evaluate state from WebSocket response before script generation"
+                                                        );
+                                                    }
+                                                    Ok(RequestType::InitialRequest) => {
+                                                        println!(
+                                                            "WebSocket response did not contain evaluate state; skipping script-generation signal"
+                                                        );
+                                                    }
+                                                    Err(e) => {
+                                                        eprintln!(
+                                                            "Failed to parse WebSocket response into request type for state persistence: {:?}",
+                                                            e
+                                                        );
+                                                    }
+                                                }
                                             }
                                             Err(e) => {
-                                                eprintln!("Failed to send signal: {e}");
+                                                eprintln!(
+                                                    "Failed to deserialize WebSocket response into IpcData for state persistence: {}",
+                                                    e
+                                                );
                                             }
+                                        }
+
+                                        if state_persisted {
+                                            match app_state.trigger_flow_tx.send(()) {
+                                                Ok(receiver_count) => {
+                                                    println!(
+                                                        "WebSocket trigger_flow_tx signal sent to {} receivers",
+                                                        receiver_count
+                                                    );
+                                                }
+                                                Err(e) => {
+                                                    eprintln!("Failed to send signal: {e}");
+                                                }
+                                            }
+                                        } else {
+                                            println!(
+                                                "Skipping trigger_flow_tx send because evaluate state was not persisted"
+                                            );
                                         }
                                     } else {
                                         println!(
@@ -273,6 +317,11 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                     Ok(()) => {
                         println!("Signal received to generate/update script");
                         let trigger_flow_state = app_state_clone.trigger_flow_state.lock().await;
+                        println!(
+                            "Script generation state snapshot: models={}, slots={}",
+                            trigger_flow_state.models.len(),
+                            trigger_flow_state.slot_channel_list.slots.len()
+                        );
                         let work_folder_guard = app_state_clone.work_folder.lock().await;
                         let work_folder = work_folder_guard
                             .as_deref()
@@ -316,8 +365,25 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                                     continue; // Skip this iteration
                                 }
                             };
-                            let updated =
-                                script.replace_generated(app_state_clone.catalog, &file_contents);
+                            let begin_sentinel = app_state_clone
+                                .catalog
+                                .script_template
+                                .begin_sentinel
+                                .trim();
+                            let end_sentinel =
+                                app_state_clone.catalog.script_template.end_sentinel.trim();
+                            let has_sentinels =
+                                file_contents.lines().any(|l| l.trim() == begin_sentinel)
+                                    && file_contents.lines().any(|l| l.trim() == end_sentinel);
+
+                            let updated = if has_sentinels {
+                                script.replace_generated(app_state_clone.catalog, &file_contents)
+                            } else {
+                                println!(
+                                    "Existing script file has no sentinels; replacing full file with generated script"
+                                );
+                                script.to_string()
+                            };
                             match File::options()
                                 .truncate(true)
                                 .write(true)
@@ -500,6 +566,77 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                                     }
                                 };
                                 println!("Sending WebSocket response: {}", response);
+
+                                let should_trigger_script =
+                                    serde_json::from_str::<serde_json::Value>(&response)
+                                        .map(|value| value.get("error").is_none())
+                                        .unwrap_or_else(|_| !response.contains("\"error\""));
+                                println!(
+                                    "SessionData trigger decision: should_trigger_script={}, receiver_count={}",
+                                    should_trigger_script,
+                                    app_state_clone.trigger_flow_tx.receiver_count()
+                                );
+                                if should_trigger_script {
+                                    let mut state_persisted = false;
+                                    match serde_json::from_str::<IpcData>(&response) {
+                                        Ok(ipc_response) => {
+                                            match RequestType::try_from(&ipc_response) {
+                                                Ok(RequestType::EvaluateRequest {
+                                                    trigger_flow_state,
+                                                }) => {
+                                                    let mut state_lock = app_state_clone
+                                                        .trigger_flow_state
+                                                        .lock()
+                                                        .await;
+                                                    *state_lock = trigger_flow_state;
+                                                    state_persisted = true;
+                                                    println!(
+                                                        "Persisted evaluate state from SessionData response before script generation"
+                                                    );
+                                                }
+                                                Ok(RequestType::InitialRequest) => {
+                                                    println!(
+                                                        "SessionData response did not contain evaluate state; skipping script-generation signal"
+                                                    );
+                                                }
+                                                Err(e) => {
+                                                    eprintln!(
+                                                        "Failed to parse SessionData response into request type for state persistence: {:?}",
+                                                        e
+                                                    );
+                                                }
+                                            }
+                                        }
+                                        Err(e) => {
+                                            eprintln!(
+                                                "Failed to deserialize SessionData response into IpcData for state persistence: {}",
+                                                e
+                                            );
+                                        }
+                                    }
+
+                                    if state_persisted {
+                                        match app_state_clone.trigger_flow_tx.send(()) {
+                                            Ok(receiver_count) => {
+                                                println!(
+                                                    "SessionData trigger_flow_tx signal sent to {} receivers",
+                                                    receiver_count
+                                                );
+                                            }
+                                            Err(e) => {
+                                                eprintln!("Failed to send signal: {e}");
+                                            }
+                                        }
+                                    } else {
+                                        println!(
+                                            "Skipping trigger_flow_tx send because evaluate state was not persisted"
+                                        );
+                                    }
+                                } else {
+                                    println!(
+                                        "Skipping trigger_flow_tx send for SessionData response because payload contains an error"
+                                    );
+                                }
 
                                 // if session exists, send response back to UI
                                 let mut session_lock = app_state_clone.session.lock().await;
