@@ -39,12 +39,9 @@
       [open]="showModelModal"
       [name]="modelName"
       [slot]="modelSlot"
-      [channel]="modelChannel"
-      [node]="modelNode"
       [notes]="modelNotes"
       [slotOptions]="slotOptions"
-      [channelOptions]="channelOptions"
-      [nodeOptions]="nodeOptions"
+      (slotChanged)="onModelModalSlotChanged($event)"
       (closeWithValue)="onModelModalClose($event)"
       (deleteClicked)="onModelModalDelete()"
       (copyClicked)="onModelModalCopy()">

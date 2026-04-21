@@ -10,9 +10,9 @@
 
 .tf-modal {
   width: 248px;
-  background: black;
+  background: var(--vscode-editor-background);
   border-radius: 11px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--vscode-editorWidget-border);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -35,7 +35,7 @@
 
 .tf-modal__divider {
   height: 1px;
-  background: #e5e7eb;
+  background: var(--vscode-editorWidget-border);
 //   margin-top: 2px;
 //   margin-bottom: 2px;
 }

@@ -7,9 +7,12 @@ import { Dropdown } from '../../custom-controls/dropdown/dropdown';
 export interface ModelModalValue {
   name: string;
   slot: number;
-  channel: number;
-  node: number;
   notes: string;
+}
+
+export interface ModelSlotOption {
+  label: string; // e.g. localnode.slot[1], node2.slot[3]
+  slot: number;
 }
 
 @Component({
@@ -21,65 +24,50 @@ export interface ModelModalValue {
 })
 export class ModelModal {
   @Input() open = false;
-
   @Input() name = 'MyTriggerModel';
   @Input() notes = '';
   @Input() slot = 1;
-  @Input() channel = 1;
-  @Input() node = 1;
 
-  // Dropdown expects string[]
-  @Input() slotOptions: number[] = [1, 2, 3, 4];
-  @Input() channelOptions: number[] = [1, 2];
-  @Input() nodeOptions: number[] = [1, 2, 3, 4];
+  @Input() slotOptions: ModelSlotOption[] = [];
 
-  // Emitted when user closes modal (acts as apply/confirm).
   @Output() closeWithValue = new EventEmitter<ModelModalValue>();
-  // Emitted when user clicks Trash.
   @Output() deleteClicked = new EventEmitter<void>();
-  // Emitted when user clicks Copy.
   @Output() copyClicked = new EventEmitter<void>();
+  @Output() slotChanged = new EventEmitter<number>();
 
-  // Convert numeric options to string options required by app-dropdown.
+  private selectedSlotLabel = '';
+
   get slotOptionsAsString(): string[] {
-    return this.slotOptions.map((x) => String(x));
-  }
-
-  get channelOptionsAsString(): string[] {
-    return this.channelOptions.map((x) => String(x));
-  }
-
-  get nodeOptionsAsString(): string[] {
-    return this.nodeOptions.map((x) => String(x));
+    return this.slotOptions.map((o) => o.label);
   }
 
   get slotValue(): string {
-    return String(this.slot);
-  }
-  set slotValue(value: string) {
-    this.slot = Number(value) || 1;
-  }
-
-  get channelValue(): string {
-    return String(this.channel);
-  }
-  set channelValue(value: string) {
-    this.channel = Number(value) || 1;
+    if (this.selectedSlotLabel) return this.selectedSlotLabel;
+    const found = this.slotOptions.find((o) => o.slot === this.slot);
+    return found?.label ?? this.slotOptions[0]?.label ?? '';
   }
 
-  get nodeValue(): string {
-    return String(this.node);
-  }
-  set nodeValue(value: string) {
-    this.node = Number(value) || 1;
+  set slotValue(label: string) {
+    this.selectedSlotLabel = label;
+    const selected = this.slotOptions.find((o) => o.label === label);
+
+    if (selected) {
+      this.slot = selected.slot;
+      this.slotChanged.emit(this.slot);
+      return;
+    }
+
+    // Fallback parser for values like "localnode.slot[3]"
+    const match = /slot\[(\d+)\]$/i.exec(label);
+    const parsed = match ? Number(match[1]) : Number(label);
+    this.slot = Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+    this.slotChanged.emit(this.slot);
   }
 
   onClose(): void {
     this.closeWithValue.emit({
       name: this.name.trim() || 'MyTriggerModel',
       slot: this.slot,
-      channel: this.channel,
-      node: this.node,
       notes: this.notes.trim(),
     });
   }

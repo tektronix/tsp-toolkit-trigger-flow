@@ -68,8 +68,8 @@ interface ModelModalRequest {
 interface ModelModalResult {
   name: string;
   slot: number;
-  channel: number;
-  node: number;
+  // channel: number;
+  // node: number;
   notes: string;
 }
 
@@ -99,11 +99,11 @@ export class Canvas implements AfterViewInit {
 
   sectionLayouts = computed<LaidOutSection[]>(() => {
     const size = this.canvasSize();
-    const width = Math.floor(size.width / 2);
-    // // Dynamic layout: split canvas equally across current section count.
-    // // Fallback to 1 avoids divide-by-zero when sections are empty.
-    // const count = Math.max(this.sections().length, 1);
-    // const width = Math.floor(size.width / count);
+    // const width = Math.floor(size.width / 2);
+    // Dynamic layout: split canvas equally across current section count.
+    // Fallback to 1 avoids divide-by-zero when sections are empty.
+    const count = Math.max(this.sections().length, 1);
+    const width = Math.floor(size.width / count);
     const height = Math.floor(size.height);
 
     return this.sections().map((section, index) => ({
