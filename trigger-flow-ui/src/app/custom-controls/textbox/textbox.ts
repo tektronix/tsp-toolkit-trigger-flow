@@ -1,17 +1,6 @@
 import { CommonModule } from '@angular/common';
-import {
-  Component,
-  Input,
-  Output,
-  EventEmitter,
-  forwardRef,
-  OnInit,
-} from '@angular/core';
-import {
-  ControlValueAccessor,
-  FormsModule,
-  NG_VALUE_ACCESSOR,
-} from '@angular/forms';
+import { Component, Input, Output, EventEmitter, forwardRef, OnInit } from '@angular/core';
+import { ControlValueAccessor, FormsModule, NG_VALUE_ACCESSOR } from '@angular/forms';
 
 @Component({
   selector: 'app-textbox',
@@ -27,9 +16,10 @@ import {
     },
   ],
 })
-export class Textbox implements ControlValueAccessor,OnInit {
+export class Textbox implements ControlValueAccessor, OnInit {
   @Input() label: string | undefined;
   @Input() disabled = false;
+  @Input() automationID: string | undefined;
   @Output() inputChange = new EventEmitter<string>();
 
   private _value = '';
@@ -44,6 +34,10 @@ export class Textbox implements ControlValueAccessor,OnInit {
   }
 
   set value(val: string) {
+    if (this._value === val) {
+      return;
+    }
+
     this._value = val;
     if (this.onChange) {
       this.onChange(this._value);
@@ -80,7 +74,7 @@ export class Textbox implements ControlValueAccessor,OnInit {
 
   onKeyDown(event: KeyboardEvent): void {
     if (event.key === 'Enter') {
-        this.onInputChange(event);
-      }
+      this.onInputChange(event);
+    }
   }
 }

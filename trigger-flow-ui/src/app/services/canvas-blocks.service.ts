@@ -258,7 +258,7 @@ export class CanvasBlocksService {
           return {
             type: block.type,
             block_id: block.block_id,
-            actual_parameters: block.actual_parameters,
+            block_parameters: block.actual_parameters,
             block_position: block.block_position,
             incoming: block.incoming,
             outgoing: block.outgoing,

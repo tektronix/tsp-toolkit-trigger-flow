@@ -1,9 +1,9 @@
 <div class="textbox">
   <label for="input">{{ label }}</label>
   <input
+    [attr.aria-label]="automationID"
     type="text"
     [value]="value"
-    (input)="onInputChange($event)"
     (blur)="onBlur($event)"
     (keydown)="onKeyDown($event)"
     [disabled]="disabled"

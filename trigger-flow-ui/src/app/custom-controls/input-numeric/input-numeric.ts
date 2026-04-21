@@ -1,17 +1,6 @@
 import { CommonModule } from '@angular/common';
-import {
-  Component,
-  Input,
-  Output,
-  EventEmitter,
-  forwardRef,
-  OnInit,
-} from '@angular/core';
-import {
-  ControlValueAccessor,
-  FormsModule,
-  NG_VALUE_ACCESSOR,
-} from '@angular/forms';
+import { Component, Input, Output, EventEmitter, forwardRef, OnInit } from '@angular/core';
+import { ControlValueAccessor, FormsModule, NG_VALUE_ACCESSOR } from '@angular/forms';
 
 @Component({
   selector: 'app-input-numeric',
@@ -45,6 +34,9 @@ export class InputNumeric implements ControlValueAccessor, OnInit {
   }
 
   set displayValue(val: number) {
+    if (this._value === val) {
+      return;
+    }
 
     this._value = val;
     if (this.onChange) {
@@ -95,7 +87,6 @@ export class InputNumeric implements ControlValueAccessor, OnInit {
         // Revert to the previous valid value
         inputElement.value = `${previousValue}`;
       }
-
     }
   }
 
