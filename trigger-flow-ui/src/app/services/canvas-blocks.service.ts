@@ -18,7 +18,7 @@ export interface CanvasBlock {
   incoming: string | null;
   outgoing: string | null;
   block_error: string | null;
-  block_parameters: ActualParameter[]; // To store actual values
+  actual_parameters: ActualParameter[]; // To store actual values
 }
 
 declare const acquireVsCodeApi: unknown;
@@ -97,7 +97,7 @@ export class CanvasBlocksService {
       incoming: null,
       outgoing: null,
       block_error: null,
-      block_parameters: actualParameters,
+      actual_parameters: actualParameters,
     };
 
     this.models[modelName].blocks.push(canvasBlock);
@@ -254,16 +254,11 @@ export class CanvasBlocksService {
         trigger_model_name: model.trigger_model_name,
         slot_index: model.slot_index,
         blocks: model.blocks.map((block) => {
-          const defaultParameters = this.getBlockDefaultParameters(block.type);
-          const actualParameters = block.block_parameters ?? {};
-
-          // Always include defaults; actual values override defaults
-          const blockParameters = { ...defaultParameters, ...actualParameters };
 
           return {
             type: block.type,
             block_id: block.block_id,
-            block_parameters: blockParameters,
+            actual_parameters: block.actual_parameters,
             block_position: block.block_position,
             incoming: block.incoming,
             outgoing: block.outgoing,

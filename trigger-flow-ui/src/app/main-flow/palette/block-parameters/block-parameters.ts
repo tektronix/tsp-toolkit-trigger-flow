@@ -3,6 +3,10 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AngularSvgIconModule } from 'angular-svg-icon';
 import { CanvasBlocksService } from '../../../services/canvas-blocks.service';
 import { findblockCategory } from '../../../models/blockParameterHelper';
+import { ActualParameter, ParamTypeName } from '../../../models/triggerBlock';
+import { Textbox } from '../../../custom-controls/textbox/textbox';
+import { InputNumeric } from '../../../custom-controls/input-numeric/input-numeric';
+import { FormsModule } from '@angular/forms';
 
 const CATEGORY_ICON_PATHS: Record<string, string> = {
   actions: 'assets/shapes/icons/TinyAction.svg',
@@ -13,7 +17,7 @@ const CATEGORY_ICON_PATHS: Record<string, string> = {
 
 @Component({
   selector: 'app-block-parameters',
-  imports: [AngularSvgIconModule],
+  imports: [AngularSvgIconModule, Textbox, InputNumeric, FormsModule],
   templateUrl: './block-parameters.html',
   styleUrl: './block-parameters.scss',
 })
@@ -24,6 +28,7 @@ export class BlockParameters {
   selectedBlockId: string | null = null;
   blockName = '';
   blockTypeSvgPath = '';
+  actualParameters: ActualParameter[] = [];
 
   constructor() {
     // Reacts to both: new block added (auto-select) and existing block clicked.
@@ -44,8 +49,39 @@ export class BlockParameters {
         if (category) {
           this.blockTypeSvgPath = CATEGORY_ICON_PATHS[category];
         }
+
+        this.actualParameters = canvasBlock.actual_parameters;
       }
     }
+  }
+
+  isNumberType(type: ParamTypeName): boolean {
+    return type === 'Number';
+  }
+
+  isStringType(type: ParamTypeName): boolean {
+    return type === 'String';
+  }
+
+  onParameterValueChange(): void {
+    if (this.selectedBlockId) {
+      const canvasBlock = this.canvasBlocksService.getBlockById(this.selectedBlockId);
+      if (canvasBlock) {
+        console.log(
+          'Updating block parameters for block ID:',
+          this.selectedBlockId,
+          'with values:',
+          this.actualParameters,
+        );
+        // Update the block's actual_parameters with the new values
+        // canvasBlock.actual_parameters = this.actualParameters;
+      }
+    }
+  }
+
+  shouldShowInUI(param: ActualParameter): boolean {
+    const hiddenParams = ['trigger_model_name'];
+    return !hiddenParams.includes(param.name);
   }
 
   closePanel(): void {

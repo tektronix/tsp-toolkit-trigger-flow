@@ -26,6 +26,23 @@
     </header>
 
     <div class="params-body">
+      @for (param of actualParameters; track param.name) {
+        @if (shouldShowInUI(param)) {
+          @if (isNumberType(param.type)) {
+            <app-input-numeric
+              [label]="param.name"
+              [(ngModel)]="param.value"
+              (inputChange)="onParameterValueChange()"
+            />
+          } @else {
+            <app-textbox
+              [label]="param.name"
+              [(ngModel)]="param.value"
+              (inputChange)="onParameterValueChange()"
+            />
+          }
+        }
+      }
     </div>
   </section>
 }
