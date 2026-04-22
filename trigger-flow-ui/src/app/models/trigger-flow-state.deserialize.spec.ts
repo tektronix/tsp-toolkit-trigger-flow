@@ -15,9 +15,9 @@ describe('TriggerFlowStatePayload deserialize', () => {
 
     expect(envelope.request_type).toBe('evaluate_request');
     expect(state.slot_channel_list.slots.length).toBe(3);
-    expect(state.slot_channel_list.slots[0].channels[0].in_use).toBe(true);
-    expect(state.models.MyTriggerModel.trigger_model_name).toBe('MyTriggerModel');
-    expect(state.models.MyTriggerModel.blocks[0].block_position.x).toBe(300);
-    expect(state.models.Model2.blocks.length).toBe(0);
+    expect(state.slot_channel_list.slots[0].channels[0].inUse).toBe(true);
+    expect(state.models['MyTriggerModel'].trigger_model_name).toBe('MyTriggerModel');
+    expect(state.models['MyTriggerModel'].blocks[0].block_position.x).toBe(300);
+    expect(state.models['Model2'].blocks.length).toBe(0);
   });
 });

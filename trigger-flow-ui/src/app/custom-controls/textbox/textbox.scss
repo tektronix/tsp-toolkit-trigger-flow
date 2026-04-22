@@ -8,25 +8,27 @@
 .input-plain label {
   font-size: 0.875rem;
   font-weight: 500;
-  color: #24292e;
+  color: var(--vscode-editor-foreground);
 }
 
 .input-plain input {
-  padding: 0.5rem;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  font-size: 0.875rem;
-  background-color: white;
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-editorWidget-border);
+  border-radius: 5px;
+  padding: 4px;
+  font-size: 0.875rem;  
 }
 
 .input-plain input:focus {
   outline: none;
-  border-color: #0969da;
+  border-color: var(--vscode-focusBorder);
   box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.1);
 }
 
 .input-plain input:disabled {
-  background-color: #f6f8fa;
+  background-color: var(--vscode-editorWidget-background, var(--vscode-input-background));
+  color: var(--vscode-disabledForeground, var(--vscode-input-foreground));
   cursor: not-allowed;
   opacity: 0.6;
 }
