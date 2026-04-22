@@ -7,13 +7,13 @@ import {
   ElementRef,
   AfterViewInit,
 } from '@angular/core';
-import { FFlowModule } from '@foblex/flow';
 import { CommonModule } from '@angular/common';
 import { AngularSvgIconModule } from 'angular-svg-icon';
 import { SvgManagerService } from '../../services/svg-manager.service';
 import { CanvasBlocksService } from '../../services/canvas-blocks.service';
 import { TriggerFlowDataService } from '../../services/triggerFlowDataService';
 import { BlockErrorEntry } from '../../models/trigger-flow-state.model';
+import { EFMarkerType, FFlowModule } from '@foblex/flow';
 
 interface FlowNode {
   id: string;
@@ -70,6 +70,7 @@ export class Canvas implements AfterViewInit {
   private svgManager = inject(SvgManagerService);
   private canvasBlocksService = inject(CanvasBlocksService);
   private triggerFlowDataService = inject(TriggerFlowDataService);
+  protected readonly eMarkerType = EFMarkerType;
 
   canvasSize = signal(this.getCanvasSize());
   connections = signal<FlowConnection[]>([]);
@@ -181,6 +182,18 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
         section.slotIndex,
       );
     }
+  }
+
+  getInputPosition(node: FlowNode): string {
+    const catalog = this.triggerFlowDataService.catalog$();
+    const blockCatalog = catalog?.blocks[node.catalogLabel || ''];
+    const hasBranchParam = blockCatalog?.parameters.some(
+      (param) => param.name === 'branch_to_block_name'
+    );
+    const hasReferenceParam = blockCatalog?.parameters.some(
+      (param) => param.name === 'reference_block_name'
+    );
+    return hasBranchParam? "right" : hasReferenceParam ? "left" :"NA";
   }
 
   getSvgStyle(node: FlowNode): { [key: string]: string } {

@@ -188,11 +188,12 @@ f-canvas {
   position: absolute;
   left: 50%;
   top: 0;
-  bottom: auto;
-  transform: translate(-50%, -50%);
+  --tx: -50%;
+  --ty: -50%;
+  transform: translate(var(--tx), var(--ty));
   width: 8px;
   height: 8px;
-  background: #4a90e2;
+  background: #3d8bfd;
   border: 2px solid white;
   border-radius: 50%;
   cursor: crosshair;
@@ -202,17 +203,19 @@ f-canvas {
 
 .input-connector:hover {
   background: #2e6bb8;
-  transform: translate(-50%, -50%) scale(1.2);
+  transform: translate(var(--tx), var(--ty)) scale(1.2);
 }
 
 .output-connector {
   position: absolute;
   left: 50%;
-  bottom: -10px;
-  transform: translate(-50%, -50%);
+  top: 0;
+  --tx: -50%;
+  --ty: -50%;
+  transform: translate(var(--tx), var(--ty));
   width: 8px;
   height: 8px;
-  background: #4a90e2;
+  background: #34a853;
   border: 2px solid white;
   border-radius: 50%;
   cursor: crosshair;
@@ -221,8 +224,32 @@ f-canvas {
 }
 
 .output-connector:hover {
-  background: #2e6bb8;
-  transform: translate(-50%, -50%) scale(1.2);
+  background: #2c8a46;
+  transform: translate(var(--tx), var(--ty)) scale(1.2);
+}
+
+.connector-top {
+  left: 50%;
+  top: 0;
+  --ty: -50%;
+}
+
+.connector-right {
+  left: 100%;
+  top: 40%;
+  --ty: -50%;
+}
+
+.connector-bottom {
+  left: 50%;
+  top: 100%;
+  --ty: 50%;
+}
+
+.connector-left {
+  left: 0;
+  top: 40%;
+  --ty: -50%;
 }
 
 /* Hide the connection drag handle circles at endpoints */
