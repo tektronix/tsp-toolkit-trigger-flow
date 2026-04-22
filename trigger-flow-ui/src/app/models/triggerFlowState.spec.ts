@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TriggerFlowStatePayload } from './trigger-flow-state.model';
+import { TriggerFlowStatePayload } from './triggerFlowState';
 
 const envelope = {
   request_type: 'evaluate_request',

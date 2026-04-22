@@ -14,16 +14,16 @@ import { AngularSvgIconModule } from 'angular-svg-icon';
 import { SvgManagerService } from '../../services/svg-manager.service';
 import { CanvasBlocksService } from '../../services/canvas-blocks.service';
 import { TriggerFlowDataService } from '../../services/triggerFlowDataService';
-import { BlockErrorEntry } from '../../models/trigger-flow-state.model';
+import { BlockErrorEntry } from '../../models/triggerFlowState';
 import { EFMarkerType, FFlowModule } from '@foblex/flow';
 
 interface FlowNode {
-  id: string;
+  blockId: string;
   sectionId: string;
   position: { x: number; y: number };
   svgPath: string;
   catalogLabel?: string;
-  type?: string;
+  blockType?: string;
   input?: string;
   outputs: string[];
   color?: string;
@@ -50,7 +50,6 @@ interface FlowCanvasEvent {
 
 interface FlowSection {
   id: string;
-  title: string;
   modelName: string;
   slotIndex: number;
   nodes: FlowNode[];
@@ -86,6 +85,8 @@ export class Canvas implements AfterViewInit {
   private canvasBlocksService = inject(CanvasBlocksService);
   private triggerFlowDataService = inject(TriggerFlowDataService);
   protected readonly eMarkerType = EFMarkerType;
+
+  private nodeCounter = 0;
 
   canvasSize = signal(this.getCanvasSize());
   connections = signal<FlowConnection[]>([]);
@@ -145,7 +146,8 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
 
         result[modelName] = {
           hasError: hasAnyError,
-          tooltip: lines.length > 0 ? lines.join('\n') : hasAnyError ? 'Validation errors found' : '',
+          tooltip:
+            lines.length > 0 ? lines.join('\n') : hasAnyError ? 'Validation errors found' : '',
         };
       }
 
@@ -153,12 +155,11 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
     },
   );
 
-  private nodeCounter = 0;
   private connectionCounter = 0;
 
   onCreateNode(event: FlowCanvasEvent): void {
     console.log('fCreateNode event:', event);
-    console.log("Block Type:", event.data?.type);
+    console.log('Block Type:', event.data?.type);
     if (!event.data || !event.data.type || !event.rect) return;
 
     // first block + no model => ask parent to open modal
@@ -183,7 +184,6 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
     // Create a new section/model from modal values.
     const newSection: FlowSection = {
       id: sectionId,
-      title: modelName,
       modelName,
       slotIndex: result.slot,
       nodes: [],
@@ -226,13 +226,15 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
     const section = this.getSectionById(targetSectionId);
     if (!section) return;
 
+    const uniqueBlockId = this.createUniqueNodeId();
+
     const newNode: FlowNode = {
-      id: `node-${++this.nodeCounter}`,
+      blockId: uniqueBlockId,
       sectionId: targetSectionId,
       position: { x: event.rect.x, y: event.rect.y },
       svgPath: event.data?.svgPath,
       catalogLabel: event.data?.catalogLabel,
-      type: event.data?.type,
+      blockType: event.data?.type,
       input: `input-${this.nodeCounter}`,
       outputs: [`output-${this.nodeCounter}`],
       color: '#FFFFFF',
@@ -246,16 +248,33 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
 
     // Keep data service in sync with visual node creation.
     this.canvasBlocksService.addBlock(
-      newNode.id,
+      newNode.blockId,
       newNode.catalogLabel || newNode.svgPath,
       newNode.position,
       section.modelName,
       section.slotIndex,
     );
+
+    this.canvasBlocksService.selectBlock(newNode.blockId);
+  }
+
+  private createUniqueNodeId(): string {
+    const existingIds = new Set(this.sectionNodes().map((node) => node.blockId));
+    let candidate = '';
+
+    do {
+      candidate = `node-${++this.nodeCounter}`;
+    } while (existingIds.has(candidate));
+
+    return candidate;
+  }
+
+  onNodeClick(blockId: string): void {
+    this.canvasBlocksService.selectBlock(blockId);
   }
 
   getSvgStyle(node: FlowNode): Record<string, string> {
-    const blockType = node.type;
+    const blockType = node.blockType;
     const cssConfig = this.getBlockCSSConfig(blockType);
     return {
       '--fill-color': cssConfig.fillColor,
@@ -266,16 +285,34 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
     };
   }
 
-  private getBlockCSSConfig(blockType: string | undefined): { fillColor: string; strokeColor: string; titleColor: string, eventFillColor?: string, eventStrokeColor?: string } {
+  private getBlockCSSConfig(blockType: string | undefined): {
+    fillColor: string;
+    strokeColor: string;
+    titleColor: string;
+    eventFillColor?: string;
+    eventStrokeColor?: string;
+  } {
     switch (blockType) {
       case 'Action':
         return { fillColor: '#173727', strokeColor: '#95C5AD', titleColor: '#95C5AD' };
       case 'Branch':
         return { fillColor: '#1E3A41', strokeColor: '#95BBC5', titleColor: '#95BBC5' };
       case 'Notify':
-        return { fillColor: '#3C2F20', strokeColor: '#E79F48', titleColor: '#E79F48', eventFillColor: '#26251A', eventStrokeColor: '#F1EF8B' };
+        return {
+          fillColor: '#3C2F20',
+          strokeColor: '#E79F48',
+          titleColor: '#E79F48',
+          eventFillColor: '#26251A',
+          eventStrokeColor: '#F1EF8B',
+        };
       case 'Timing':
-        return { fillColor: '#372E3F', strokeColor: '#C687FA', titleColor: '#C687FA', eventFillColor: '#26251A', eventStrokeColor: '#F1EF8B' };
+        return {
+          fillColor: '#372E3F',
+          strokeColor: '#C687FA',
+          titleColor: '#C687FA',
+          eventFillColor: '#26251A',
+          eventStrokeColor: '#F1EF8B',
+        };
       default:
         return { fillColor: '#FFFFFF', strokeColor: '#333333', titleColor: '#333333' };
     }
@@ -309,9 +346,9 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
       current.map((section) => ({
         ...section,
         nodes: section.nodes.map((node): FlowNode => {
-          const newPos = updates.get(node.id);
+          const newPos = updates.get(node.blockId);
           if (newPos) {
-            this.canvasBlocksService.updateBlockPosition(node.id, newPos);
+            this.canvasBlocksService.updateBlockPosition(node.blockId, newPos);
             return { ...node, position: newPos };
           }
           return node;
@@ -336,7 +373,7 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
     if (section) return section.id;
 
     const parentSection = this.sections().find((item) =>
-      item.nodes.some((node) => node.id === targetId),
+      item.nodes.some((node) => node.blockId === targetId),
     );
     return parentSection?.id || this.sections()[0]?.id || '';
   }

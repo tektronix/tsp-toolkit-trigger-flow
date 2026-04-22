@@ -1,7 +1,7 @@
 import { Injectable, signal } from '@angular/core';
-import { InitialPayload, Catalog } from '../models/trigger-blocks.model';
+import { InitialPayload, Catalog } from '../models/triggerBlock';
 import { SlotChannelList } from '../models/slotChannelModel';
-import { TriggerFlowStatePayload, TriggerModel } from '../models/trigger-flow-state.model';
+import { TriggerFlowStatePayload, TriggerModel } from '../models/triggerFlowState';
 
 @Injectable({
   providedIn: 'root',
