@@ -6,6 +6,8 @@ import {
   HostListener,
   ElementRef,
   AfterViewInit,
+  Output,
+  EventEmitter,
 } from '@angular/core';
 import { FFlowModule } from '@foblex/flow';
 import { CommonModule } from '@angular/common';
@@ -53,6 +55,19 @@ interface LaidOutSection extends FlowSection {
   size: { width: number; height: number };
 }
 
+interface ModelModalRequest {
+  suggestedName: string;
+  suggestedSlot: number;
+  notes: string;
+}
+
+//User entered data from Model Modal form
+interface ModelModalResult {
+  name: string;
+  slot: number;
+  notes: string;
+}
+
 @Component({
   selector: 'app-canvas',
   imports: [FFlowModule, CommonModule, AngularSvgIconModule],
@@ -69,24 +84,23 @@ export class Canvas implements AfterViewInit {
 
   canvasSize = signal(this.getCanvasSize());
 
-  sections = signal<FlowSection[]>([
-    {
-      id: 'group-1',
-      modelName: 'MyTriggerModel',
-      slotIndex: 1,
-      nodes: [],
-    },
-    {
-      id: 'group-2',
-      modelName: 'Model2',
-      slotIndex: 2,
-      nodes: [],
-    },
-  ]);
+  // Raised to parent (MainFlow) when first block is dropped and
+  // a model must be created before node insertion can continue.
+  @Output() requestModelModal = new EventEmitter<ModelModalRequest>();
+
+  // Stores the first dropped-node event temporarily until modal closes.
+  private pendingCreateNodeEvent: FlowCanvasEvent | null = null;
+
+  // Start empty -> first block drop triggers model modal
+  sections = signal<FlowSection[]>([]);
 
   sectionLayouts = computed<LaidOutSection[]>(() => {
     const size = this.canvasSize();
-    const width = Math.floor(size.width / 2);
+    // const width = Math.floor(size.width / 2);
+    // Dynamic layout: split canvas equally across current section count.
+    // Fallback to 1 avoids divide-by-zero when sections are empty.
+    const count = Math.max(this.sections().length, 1);
+    const width = Math.floor(size.width / count);
     const height = Math.floor(size.height);
 
     return this.sections().map((section, index) => ({
@@ -132,44 +146,93 @@ export class Canvas implements AfterViewInit {
     },
   );
 
-  onCreateNode(event: FlowCanvasEvent) {
-
+  onCreateNode(event: FlowCanvasEvent): void {
     console.log('fCreateNode event:', event);
-    console.log("Block Type:", event.data?.type);
-    if (event.data && event.data.type && event.rect) {
-      const targetSectionId = this.resolveTargetSectionId(event.fTargetNode);
-      const section = this.getSectionById(targetSectionId);
-      if (!section) return;
+    console.log('Block Type:', event.data?.type);
+    if (!event.data || !event.data.type || !event.rect) return;
 
-      const uniqueBlockId = this.createUniqueNodeId();
-
-      const newNode: FlowNode = {
-        blockId: uniqueBlockId,
-        sectionId: targetSectionId,
-        position: { x: event.rect.x, y: event.rect.y },
-        svgPath: event.data?.svgPath,
-        catalogLabel: event.data?.catalogLabel,
-        blockType: event.data?.type,
-        input: `input-${this.nodeCounter}`,
-        outputs: [`output-${this.nodeCounter}`],
-        color: '#FFFFFF',
-      };
-      this.sections.update((current) =>
-        current.map((item) =>
-          item.id === targetSectionId ? { ...item, nodes: [...item.nodes, newNode] } : item,
-        ),
-      );
-
-      this.canvasBlocksService.addBlock(
-        newNode.blockId,
-        newNode.catalogLabel || newNode.svgPath,
-        newNode.position,
-        section.modelName,
-        section.slotIndex,
-      );
-
-      this.canvasBlocksService.selectBlock(newNode.blockId);
+    // first block + no model => ask parent to open modal
+    if (this.sections().length === 0) {
+      this.pendingCreateNodeEvent = event;
+      this.requestModelModal.emit({
+        suggestedName: 'MyTriggerModel',
+        suggestedSlot: 1,
+        notes: '',
+      });
+      return;
     }
+
+    // Normal path when at least one section/model already exists.
+    this.createNodeInSection(event);
+  }
+
+  createModelAndContinue(result: ModelModalResult): void {
+    const sectionId = `group-${this.sections().length + 1}`;
+    const modelName = result.name.trim() || `Model${this.sections().length + 1}`;
+
+    // Create a new section/model from modal values.
+    const newSection: FlowSection = {
+      id: sectionId,
+      modelName,
+      slotIndex: result.slot,
+      nodes: [],
+    };
+
+    this.sections.update((current) => [...current, newSection]);
+
+    // Resume deferred first-drop node creation into this new section.
+    if (this.pendingCreateNodeEvent) {
+      const pending = this.pendingCreateNodeEvent;
+      this.pendingCreateNodeEvent = null;
+      this.createNodeInSection(pending, sectionId);
+    }
+  }
+
+  discardPendingCreateNode(): void {
+    // Called when user cancels/deletes from modal.
+    // Prevents accidental node creation after cancel.
+    this.pendingCreateNodeEvent = null;
+  }
+
+  private createNodeInSection(event: FlowCanvasEvent, forcedSectionId?: string): void {
+    if (!event.data || !event.rect) return;
+
+    // forcedSectionId is used by first-drop flow to place node into
+    // newly created model section; otherwise resolve from drop target.
+    const targetSectionId = forcedSectionId ?? this.resolveTargetSectionId(event.fTargetNode);
+    const section = this.getSectionById(targetSectionId);
+    if (!section) return;
+
+    const uniqueBlockId = this.createUniqueNodeId();
+
+    const newNode: FlowNode = {
+      blockId: uniqueBlockId,
+      sectionId: targetSectionId,
+      position: { x: event.rect.x, y: event.rect.y },
+      svgPath: event.data?.svgPath,
+      catalogLabel: event.data?.catalogLabel,
+      blockType: event.data?.type,
+      input: `input-${this.nodeCounter}`,
+      outputs: [`output-${this.nodeCounter}`],
+      color: '#FFFFFF',
+    };
+
+    this.sections.update((current) =>
+      current.map((item) =>
+        item.id === targetSectionId ? { ...item, nodes: [...item.nodes, newNode] } : item,
+      ),
+    );
+
+    // Keep data service in sync with visual node creation.
+    this.canvasBlocksService.addBlock(
+      newNode.blockId,
+      newNode.catalogLabel || newNode.svgPath,
+      newNode.position,
+      section.modelName,
+      section.slotIndex,
+    );
+
+    this.canvasBlocksService.selectBlock(newNode.blockId);
   }
 
   private createUniqueNodeId(): string {
@@ -183,8 +246,8 @@ export class Canvas implements AfterViewInit {
     return candidate;
   }
 
-  onNodeClick(nodeId: string): void {
-    this.canvasBlocksService.selectBlock(nodeId);
+  onNodeClick(blockId: string): void {
+    this.canvasBlocksService.selectBlock(blockId);
   }
 
   getSvgStyle(node: FlowNode): Record<string, string> {
@@ -199,16 +262,34 @@ export class Canvas implements AfterViewInit {
     };
   }
 
-  private getBlockCSSConfig(blockType: string | undefined): { fillColor: string; strokeColor: string; titleColor: string, eventFillColor?: string, eventStrokeColor?: string } {
+  private getBlockCSSConfig(blockType: string | undefined): {
+    fillColor: string;
+    strokeColor: string;
+    titleColor: string;
+    eventFillColor?: string;
+    eventStrokeColor?: string;
+  } {
     switch (blockType) {
       case 'Action':
         return { fillColor: '#173727', strokeColor: '#95C5AD', titleColor: '#95C5AD' };
       case 'Branch':
         return { fillColor: '#1E3A41', strokeColor: '#95BBC5', titleColor: '#95BBC5' };
       case 'Notify':
-        return { fillColor: '#3C2F20', strokeColor: '#E79F48', titleColor: '#E79F48', eventFillColor: '#26251A', eventStrokeColor: '#F1EF8B' };
+        return {
+          fillColor: '#3C2F20',
+          strokeColor: '#E79F48',
+          titleColor: '#E79F48',
+          eventFillColor: '#26251A',
+          eventStrokeColor: '#F1EF8B',
+        };
       case 'Timing':
-        return { fillColor: '#372E3F', strokeColor: '#C687FA', titleColor: '#C687FA', eventFillColor: '#26251A', eventStrokeColor: '#F1EF8B' };
+        return {
+          fillColor: '#372E3F',
+          strokeColor: '#C687FA',
+          titleColor: '#C687FA',
+          eventFillColor: '#26251A',
+          eventStrokeColor: '#F1EF8B',
+        };
       default:
         return { fillColor: '#FFFFFF', strokeColor: '#333333', titleColor: '#333333' };
     }
