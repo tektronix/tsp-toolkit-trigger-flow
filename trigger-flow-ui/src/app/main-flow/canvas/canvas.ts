@@ -15,7 +15,7 @@ import { SvgManagerService } from '../../services/svg-manager.service';
 import { CanvasBlocksService } from '../../services/canvas-blocks.service';
 import { TriggerFlowDataService } from '../../services/triggerFlowDataService';
 import { BlockErrorEntry } from '../../models/triggerFlowState';
-import { EFMarkerType, FFlowModule } from '@foblex/flow';
+import { EFMarkerType, FFlowModule, FSelectionChangeEvent } from '@foblex/flow';
 
 interface FlowNode {
   blockId: string;
@@ -90,6 +90,7 @@ export class Canvas implements AfterViewInit {
 
   canvasSize = signal(this.getCanvasSize());
   connections = signal<FlowConnection[]>([]);
+  selectedNodeIds = signal<string[]>([]);
   canvasMoveTrigger = (event: MouseEvent | TouchEvent | WheelEvent): boolean => {
     return event instanceof MouseEvent && event.button === 1; // middle mouse pan
   };
@@ -333,6 +334,10 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
     }
   }
 
+  onSelectionChange(event: FSelectionChangeEvent): void {
+    this.selectedNodeIds.set(event.fNodeIds ?? []);
+  }
+
   onMoveNodes(event: FlowCanvasEvent) {
     // FMoveNodesEvent: { fNodes: Array<{ id: string, position: IPoint }> }
     if (!event.fNodes || !event.fNodes.length || typeof event.fNodes[0] === 'string') return;
@@ -383,6 +388,32 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
     this.canvasSize.set(this.getCanvasSize());
   }
 
+  @HostListener('window:keydown', ['$event'])
+  onDeleteKey(event: KeyboardEvent): void {
+    const target = event.target as HTMLElement | null;
+    const isTypingTarget =
+      !!target &&
+      (target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable);
+
+    if (isTypingTarget) {
+      return;
+    }
+
+    if (event.key !== 'Delete' && event.key !== 'Backspace') {
+      return;
+    }
+
+    const nodeIds = this.selectedNodeIds();
+    if (!nodeIds.length) {
+      return;
+    }
+
+    event.preventDefault();
+    this.deleteNodes(nodeIds);
+  }
+
   ngAfterViewInit(): void {
     this.canvasSize.set(this.getCanvasSize());
   }
@@ -400,6 +431,34 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
       width: hostWidth || window.innerWidth,
       height: hostHeight || window.innerHeight,
     };
+  }
+
+  private deleteNodes(nodeIds: string[]): void {
+    const toDelete = new Set(nodeIds);
+
+    this.sections.update((sections) =>
+      sections.map((section) => ({
+        ...section,
+        nodes: section.nodes.filter((node) => !toDelete.has(node.blockId)),
+      })),
+    );
+
+    this.connections.update((connections) =>
+      connections.filter(
+        (connection) =>
+          !nodeIds.some(
+            (id) =>
+              connection.fInputId.startsWith(id + '-') ||
+              connection.fOutputId.startsWith(id + '-'),
+          ),
+      ),
+    );
+
+    for (const id of nodeIds) {
+      this.canvasBlocksService.removeBlock(id);
+    }
+
+    this.selectedNodeIds.set([]);
   }
 
   getSectionHasError(modelName: string): boolean {

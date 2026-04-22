@@ -3,6 +3,7 @@
   fDraggable
   fConnectionDraggable
   [fCanvasMoveTrigger]="canvasMoveTrigger"
+  (fSelectionChange)="onSelectionChange($event)"
   (fCreateNode)="onCreateNode($event)"
   (fMoveNodes)="onMoveNodes($event)"
   (fCreateConnection)="onCreateConnection($event)"
