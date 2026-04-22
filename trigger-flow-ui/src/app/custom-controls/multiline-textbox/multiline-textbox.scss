@@ -1,0 +1,21 @@
+.input-multiline {
+  .multiline-textarea {
+    resize: none;
+    font-family: inherit;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 8px;
+    width: 100%;
+    box-sizing: border-box;
+    
+    &:focus {
+      outline: none;
+      border-color: #007acc;
+    }
+    
+    &:disabled {
+      background-color: #f5f5f5;
+      color: #666;
+    }
+  }
+}

@@ -1,0 +1,61 @@
+:host {
+  width: 100%;
+  justify-content: flex-start;
+  align-items: flex-start;
+  text-align: left;
+}
+
+:host input {
+  width: 93%;
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-editorWidget-border);
+  border-radius: 5px;
+  padding: 4px;
+}
+
+:host select {
+  width: 94%;
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-editorWidget-border);
+  border-radius: 10px;
+  padding: 4px;
+}
+
+.input-numeric {
+  display: flex;
+  flex-direction: column;
+  // width: 100%;
+}
+
+.input-numeric label {
+  margin-bottom: 5px;
+}
+
+.input-numeric select {
+  // width: 100%;
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-editorWidget-border);
+  border-radius: 5px;
+  padding: 4px;
+}
+
+:host input:disabled,
+:host select:disabled,
+.input-numeric input:disabled,
+.input-numeric select:disabled {
+  background-color: var(--vscode-editorWidget-background, var(--vscode-input-background));
+  color: var(--vscode-disabledForeground, var(--vscode-input-foreground));
+  opacity: 0.6;
+  cursor: not-allowed;
+  border-color: var(--vscode-editorWidget-border);
+}
+
+/* Hide the spinner buttons for number inputs */
+:host input[type='number']::-webkit-inner-spin-button,
+:host input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}

@@ -1,8 +1,10 @@
-import { Component, Input, Output, EventEmitter, forwardRef } from '@angular/core';
-import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
+import { CommonModule } from '@angular/common';
+import { Component, Input, Output, EventEmitter, forwardRef, OnInit } from '@angular/core';
+import { ControlValueAccessor, FormsModule, NG_VALUE_ACCESSOR } from '@angular/forms';
 
 @Component({
   selector: 'app-textbox',
+  imports: [FormsModule, CommonModule],
   templateUrl: './textbox.html',
   styleUrl: './textbox.scss',
   standalone: true,
@@ -14,19 +16,28 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
     },
   ],
 })
-export class Textbox implements ControlValueAccessor {
+export class Textbox implements ControlValueAccessor, OnInit {
   @Input() label: string | undefined;
   @Input() disabled = false;
+  @Input() automationID: string | undefined;
   @Output() inputChange = new EventEmitter<string>();
 
   private _value = '';
   private onChange: ((value: string) => void) | undefined;
+
+  ngOnInit(): void {
+    console.log('TextboxComponent initialized with label:', this.label);
+  }
 
   get value(): string {
     return this._value;
   }
 
   set value(val: string) {
+    if (this._value === val) {
+      return;
+    }
+
     this._value = val;
     if (this.onChange) {
       this.onChange(this._value);

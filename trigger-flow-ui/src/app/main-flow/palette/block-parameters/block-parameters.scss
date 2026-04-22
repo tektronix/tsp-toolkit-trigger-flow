@@ -1,0 +1,63 @@
+@use '../../../../styles/variables' as *;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--vscode-editor-background);
+  padding: $spacing-sm;
+  overflow-y: auto;
+}
+
+.empty-state h3 {
+  margin: 0 0 $spacing-xs 0;
+}
+
+.empty-state p {
+  margin: 0;
+  color: var(--vscode-descriptionForeground, var(--vscode-foreground));
+}
+
+.params-shell {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+.params-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: $spacing-xs;
+  border-bottom: 1px solid var(--vscode-widget-border, transparent);
+}
+
+.params-header-left {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  min-width: 0;
+}
+
+.block-icon {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+
+.block-name {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.params-body {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+  overflow-y: auto;
+}

@@ -15,16 +15,33 @@
       >
         <div class="section-title">
           <div class="title-left">
-            <span class="title-chip title-chip-primary">{{ section.title }}</span>
+            <span class="title-chip title-chip-primary">{{ section.modelName }}</span>
             <span class="title-chip">Node Info</span>
             <span class="title-chip">Slot {{ section.slotIndex }}</span>
-            <button type="button" class="title-btn" aria-label="Model Settings" title="Model Settings">
+            <button
+              type="button"
+              class="title-btn"
+              aria-label="Model Settings"
+              title="Model Settings"
+            >
               <svg-icon src="assets/shapes/Icons/Pencil.svg" class="title-btn-icon"></svg-icon>
             </button>
           </div>
           <div class="title-right">
-            <button type="button" class="title-btn" aria-label="Model Errors" [title]="getSectionErrorTooltip(section.modelName)">
-              <svg-icon src="assets/shapes/Icons/Error.svg" [ngClass]="getSectionHasError(section.modelName) ? 'title-btn-icon error-icon--has-error' : 'title-btn-icon'"></svg-icon>
+            <button
+              type="button"
+              class="title-btn"
+              aria-label="Model Errors"
+              [title]="getSectionErrorTooltip(section.modelName)"
+            >
+              <svg-icon
+                src="assets/shapes/Icons/Error.svg"
+                [ngClass]="
+                  getSectionHasError(section.modelName)
+                    ? 'title-btn-icon error-icon--has-error'
+                    : 'title-btn-icon'
+                "
+              ></svg-icon>
             </button>
             <!-- <button type="button" class="title-btn">Button B</button> -->
           </div>
@@ -33,14 +50,18 @@
       </div>
     }
 
-    @for (node of sectionNodes(); track node.id) {
+    @for (node of sectionNodes(); track node.blockId) {
       <div
         fNode
         fDragHandle
         [fNodeParentId]="node.sectionId"
-        [fNodeId]="node.id"
+        [fNodeId]="node.blockId"
         [fNodePosition]="node.position"
         class="node-wrapper"
+        (click)="onNodeClick(node.blockId)"
+        role="button"
+        tabindex="0"
+        (keydown.enter)="onNodeClick(node.blockId)"
       >
         <div class="node-content">
           <svg-icon [src]="node.svgPath" [ngStyle]="getSvgStyle(node)" class="node-svg" fDragHandle>

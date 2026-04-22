@@ -1,11 +1,12 @@
-<div class="textbox">
+<div class="input-multiline">
   <label for="input">{{ label }}</label>
-  <input
+  <textarea
+    class="multiline-textarea"
     [attr.aria-label]="automationID"
-    type="text"
-    [value]="value"
+    [rows]="rows"
+    [value]="displayValue"
     (blur)="onBlur($event)"
     (keydown)="onKeyDown($event)"
     [disabled]="disabled"
-  />
+  ></textarea>
 </div>
