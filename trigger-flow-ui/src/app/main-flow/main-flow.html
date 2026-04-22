@@ -33,7 +33,19 @@
     </div>
   </aside>
   <main class="canvas-area">
-    <app-canvas></app-canvas>
+    <app-canvas (requestModelModal)="onRequestModelModal($event)"></app-canvas>
+
+    <app-model-modal
+      [open]="showModelModal"
+      [name]="modelName"
+      [slot]="modelSlot"
+      [notes]="modelNotes"
+      [slotOptions]="slotOptions"
+      (slotChanged)="onModelModalSlotChanged($event)"
+      (closeWithValue)="onModelModalClose($event)"
+      (deleteClicked)="onModelModalDelete()"
+      (copyClicked)="onModelModalCopy()">
+    </app-model-modal>
   </main>
   <aside class="parameters-sidebar">
     <div class="parameters-box">
