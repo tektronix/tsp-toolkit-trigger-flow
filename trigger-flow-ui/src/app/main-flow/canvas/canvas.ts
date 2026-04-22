@@ -6,6 +6,8 @@ import {
   HostListener,
   ElementRef,
   AfterViewInit,
+  Output,
+  EventEmitter,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AngularSvgIconModule } from 'angular-svg-icon';
@@ -59,6 +61,19 @@ interface LaidOutSection extends FlowSection {
   size: { width: number; height: number };
 }
 
+interface ModelModalRequest {
+  suggestedName: string;
+  suggestedSlot: number;
+  notes: string;
+}
+
+//User entered data from Model Modal form
+interface ModelModalResult {
+  name: string;
+  slot: number;
+  notes: string;
+}
+
 @Component({
   selector: 'app-canvas',
   imports: [FFlowModule, CommonModule, AngularSvgIconModule],
@@ -78,22 +93,15 @@ export class Canvas implements AfterViewInit {
     return event instanceof MouseEvent && event.button === 1; // middle mouse pan
   };
 
-  sections = signal<FlowSection[]>([
-    {
-      id: 'group-1',
-      title: 'MyTriggerModel',
-      modelName: 'MyTriggerModel',
-      slotIndex: 1,
-      nodes: []
-    },
-    {
-      id: 'group-2',
-      title: 'Model2',
-      modelName: 'Model2',
-      slotIndex: 2,
-      nodes: []
-    }
-  ]);
+  // Raised to parent (MainFlow) when first block is dropped and
+  // a model must be created before node insertion can continue.
+  @Output() requestModelModal = new EventEmitter<ModelModalRequest>();
+
+  // Stores the first dropped-node event temporarily until modal closes.
+  private pendingCreateNodeEvent: FlowCanvasEvent | null = null;
+
+  // Start empty -> first block drop triggers model modal
+  sections = signal<FlowSection[]>([]);
 
 sectionLayouts = computed<LaidOutSection[]>(() => {
   const size = this.canvasSize();
@@ -148,39 +156,46 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
   private nodeCounter = 0;
   private connectionCounter = 0;
 
-  onCreateNode(event: FlowCanvasEvent) {
-
+  onCreateNode(event: FlowCanvasEvent): void {
     console.log('fCreateNode event:', event);
     console.log("Block Type:", event.data?.type);
-    if (event.data && event.data.type && event.rect) {
-      const targetSectionId = this.resolveTargetSectionId(event.fTargetNode);
-      const section = this.getSectionById(targetSectionId);
-      if (!section) return;
+    if (!event.data || !event.data.type || !event.rect) return;
 
-      const newNode: FlowNode = {
-        id: `node-${++this.nodeCounter}`,
-        sectionId: targetSectionId,
-        position: { x: event.rect.x, y: event.rect.y },
-        svgPath: event.data?.svgPath,
-        catalogLabel: event.data?.catalogLabel,
-        type: event.data?.type,
-        input: `input-${this.nodeCounter}`,
-        outputs: [`output-${this.nodeCounter}`],
-        color: '#FFFFFF',
-      };
-      this.sections.update((current) =>
-        current.map((item) =>
-          item.id === targetSectionId ? { ...item, nodes: [...item.nodes, newNode] } : item,
-        ),
-      );
+    // first block + no model => ask parent to open modal
+    if (this.sections().length === 0) {
+      this.pendingCreateNodeEvent = event;
+      this.requestModelModal.emit({
+        suggestedName: 'MyTriggerModel',
+        suggestedSlot: 1,
+        notes: '',
+      });
+      return;
+    }
 
-      this.canvasBlocksService.addBlock(
-        newNode.id,
-        newNode.catalogLabel || newNode.svgPath,
-        newNode.position,
-        section.modelName,
-        section.slotIndex,
-      );
+    // Normal path when at least one section/model already exists.
+    this.createNodeInSection(event);
+  }
+
+  createModelAndContinue(result: ModelModalResult): void {
+    const sectionId = `group-${this.sections().length + 1}`;
+    const modelName = result.name.trim() || `Model${this.sections().length + 1}`;
+
+    // Create a new section/model from modal values.
+    const newSection: FlowSection = {
+      id: sectionId,
+      title: modelName,
+      modelName,
+      slotIndex: result.slot,
+      nodes: [],
+    };
+
+    this.sections.update((current) => [...current, newSection]);
+
+    // Resume deferred first-drop node creation into this new section.
+    if (this.pendingCreateNodeEvent) {
+      const pending = this.pendingCreateNodeEvent;
+      this.pendingCreateNodeEvent = null;
+      this.createNodeInSection(pending, sectionId);
     }
   }
 
@@ -196,7 +211,50 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
     return hasBranchParam? "right" : hasReferenceParam ? "left" :"NA";
   }
 
-  getSvgStyle(node: FlowNode): { [key: string]: string } {
+  discardPendingCreateNode(): void {
+    // Called when user cancels/deletes from modal.
+    // Prevents accidental node creation after cancel.
+    this.pendingCreateNodeEvent = null;
+  }
+
+  private createNodeInSection(event: FlowCanvasEvent, forcedSectionId?: string): void {
+    if (!event.data || !event.rect) return;
+
+    // forcedSectionId is used by first-drop flow to place node into
+    // newly created model section; otherwise resolve from drop target.
+    const targetSectionId = forcedSectionId ?? this.resolveTargetSectionId(event.fTargetNode);
+    const section = this.getSectionById(targetSectionId);
+    if (!section) return;
+
+    const newNode: FlowNode = {
+      id: `node-${++this.nodeCounter}`,
+      sectionId: targetSectionId,
+      position: { x: event.rect.x, y: event.rect.y },
+      svgPath: event.data?.svgPath,
+      catalogLabel: event.data?.catalogLabel,
+      type: event.data?.type,
+      input: `input-${this.nodeCounter}`,
+      outputs: [`output-${this.nodeCounter}`],
+      color: '#FFFFFF',
+    };
+
+    this.sections.update((current) =>
+      current.map((item) =>
+        item.id === targetSectionId ? { ...item, nodes: [...item.nodes, newNode] } : item,
+      ),
+    );
+
+    // Keep data service in sync with visual node creation.
+    this.canvasBlocksService.addBlock(
+      newNode.id,
+      newNode.catalogLabel || newNode.svgPath,
+      newNode.position,
+      section.modelName,
+      section.slotIndex,
+    );
+  }
+
+  getSvgStyle(node: FlowNode): Record<string, string> {
     const blockType = node.type;
     const cssConfig = this.getBlockCSSConfig(blockType);
     return {
