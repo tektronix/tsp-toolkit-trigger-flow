@@ -7,6 +7,7 @@ import { SidePanelAccordion } from './palette/side-panel-accordion/side-panel-ac
 import { BlockParameters } from './palette/block-parameters/block-parameters';
 import { ModelModal, ModelModalValue, ModelSlotOption } from './model-modal/model-modal';
 import { TriggerFlowDataService } from '../services/triggerFlowDataService';
+import { vscode } from '../services/canvas-blocks.service';
 
 @Component({
   selector: 'app-main-flow',
@@ -48,6 +49,7 @@ export class MainFlow {
 
   openScript(): void {
     console.log('Open Script clicked');
+    vscode.postMessage({ command: 'open_script'});
   }
 
   onRequestModelModal(req: {

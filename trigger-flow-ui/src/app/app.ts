@@ -6,6 +6,7 @@ import { IpcData } from './models/ipcData';
 import { InitialPayload } from './models/triggerBlock';
 import { TriggerFlowDataService } from './services/triggerFlowDataService';
 import { TriggerFlowStatePayload } from './models/triggerFlowState';
+import { vscode } from './services/canvas-blocks.service';
 
 @Component({
   selector: 'app-root',
@@ -52,15 +53,17 @@ export class App implements OnInit, OnDestroy {
             const initialPayload = new InitialPayload(data);
             this.triggerFlowDataService.setInitialPayload(initialPayload);
             console.log(initialPayload);
+            vscode.postMessage({ command: 'create_new_session' , payload: message});
           }
           break;
         }
-        case 'poc_response': {
+        case 'evaluate_response': {
           const data = JSON.parse(ipcData.json_value);
           if (data.slot_channel_list && data.models) {
             const statePayload = new TriggerFlowStatePayload(data);
             this.triggerFlowDataService.updateStatePayload(statePayload);
             console.log(statePayload);
+            vscode.postMessage({ command: 'update_session' , payload: message});
           }
           break;
         }

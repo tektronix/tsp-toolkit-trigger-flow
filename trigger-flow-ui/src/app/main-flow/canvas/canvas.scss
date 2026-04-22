@@ -113,6 +113,7 @@ f-canvas {
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
   /* background: white; */
   /* border: 2px solid #333; */
   /* border-radius: 8px; */
@@ -183,40 +184,77 @@ f-canvas {
   }
 }
 
-.f-node-input {
-  display: none;
+.input-connector {
   position: absolute;
-  left: -5px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 10px;
-  height: 10px;
-  background: #000;
-  border: 1px solid white;
+  left: 50%;
+  top: 0;
+  --tx: -50%;
+  --ty: -50%;
+  transform: translate(var(--tx), var(--ty));
+  width: 8px;
+  height: 8px;
+  background: #3d8bfd;
+  border: 2px solid white;
   border-radius: 50%;
   cursor: crosshair;
+  z-index: 100;
+  pointer-events: all;
+}
+
+.input-connector:hover {
+  background: #2e6bb8;
+  transform: translate(var(--tx), var(--ty)) scale(1.2);
 }
 
 .output-connector {
   position: absolute;
-  right: -5px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 10px;
-  height: 10px;
-  background: #000;
-  border: 1px solid white;
+  left: 50%;
+  top: 0;
+  --tx: -50%;
+  --ty: -50%;
+  transform: translate(var(--tx), var(--ty));
+  width: 8px;
+  height: 8px;
+  background: #34a853;
+  border: 2px solid white;
   border-radius: 50%;
   cursor: crosshair;
+  z-index: 100;
+  pointer-events: all;
 }
 
-.f-node-output {
+.output-connector:hover {
+  background: #2c8a46;
+  transform: translate(var(--tx), var(--ty)) scale(1.2);
+}
+
+.connector-top {
+  left: 50%;
+  top: 0;
+  --ty: -50%;
+}
+
+.connector-right {
+  left: 100%;
+  top: 40%;
+  --ty: -50%;
+}
+
+.connector-bottom {
+  left: 50%;
+  top: 100%;
+  --ty: 50%;
+}
+
+.connector-left {
+  left: 0;
+  top: 40%;
+  --ty: -50%;
+}
+
+/* Hide the connection drag handle circles at endpoints */
+::ng-deep .f-connection-drag-handle {
   display: none;
-  width: 10px;
-  height: 10px;
-  background: #000;
-  border: 1px solid white;
-  border-radius: 50%;
 }
 
 /* .f-node-input:hover,

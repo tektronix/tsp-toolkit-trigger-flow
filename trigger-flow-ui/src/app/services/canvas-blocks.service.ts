@@ -4,11 +4,6 @@ import { Catalog, BlockDefinition, ActualParameter } from '../models/triggerBloc
 import { Websocket } from './websocket';
 import { TriggerFlowDataService } from './triggerFlowDataService';
 
-interface CanvasModel {
-  trigger_model_name: string;
-  slot_index: number;
-  blocks: CanvasBlock[];
-}
 
 export interface CanvasBlock {
   block_id: string;
@@ -23,11 +18,10 @@ export interface CanvasBlock {
 
 declare const acquireVsCodeApi: unknown;
 // eslint-disable-next-line @typescript-eslint/no-empty-function
-const vscode =
-  typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : { postMessage: () => {} };
+export const vscode = typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : { postMessage: () => { } };
 
 export interface CanvasBlocksData {
-  blocks: CanvasBlock[];
+  blocks: Record<string, { trigger_model_name: string; slot_index: number; blocks: CanvasBlock[]; }>;
   timestamp: string;
 }
 
@@ -38,15 +32,25 @@ export class CanvasBlocksService {
   private triggerFlowDataService = inject(TriggerFlowDataService);
   private websocketService = inject(Websocket);
 
-  private canvasBlocks: CanvasBlock[] = [];
   private canvasBlocksSubject = new BehaviorSubject<CanvasBlocksData>(this.getCanvasData());
   public canvasBlocks$ = this.canvasBlocksSubject.asObservable();
 
+  // Support multiple models per canvas
+  private models: Record<string, {
+    trigger_model_name: string;
+    slot_index: number;
+    blocks: CanvasBlock[];
+  }> = {};
   private selectedBlockSubject = new BehaviorSubject<string | null>(null);
   public selectedBlock$ = this.selectedBlockSubject.asObservable();
 
-  // Support multiple models per canvas
-  private models: Record<string, CanvasModel> = {};
+  private toParameterMap(params: ActualParameter[]): Record<string, unknown> {
+    return params.reduce((acc, param) => {
+      acc[param.name] = param.value ?? param.default ?? null;
+      return acc;
+    }, {} as Record<string, unknown>);
+  }
+
 
   addBlock(
     blockId: string,
@@ -102,7 +106,7 @@ export class CanvasBlocksService {
 
     this.models[modelName].blocks.push(canvasBlock);
     this.updateAndPrint();
-    vscode.postMessage({ command: 'open_manual', payload: 'block_name: ' + blockLabel });
+    //vscode.postMessage({ command: 'open_manual', payload: 'block_name: ' + blockName });
   }
 
   // Remove block by nodeId from the model where it exists
@@ -171,8 +175,8 @@ export class CanvasBlocksService {
 
   private getCanvasData(): CanvasBlocksData {
     return {
-      blocks: this.canvasBlocks,
-      timestamp: new Date().toISOString(),
+      blocks: this.models,
+      timestamp: new Date().toISOString()
     };
   }
 
@@ -258,7 +262,7 @@ export class CanvasBlocksService {
           return {
             type: block.type,
             block_id: block.block_id,
-            block_parameters: block.actual_parameters,
+            block_parameters: this.toParameterMap(block.actual_parameters),
             block_position: block.block_position,
             incoming: block.incoming,
             outgoing: block.outgoing,

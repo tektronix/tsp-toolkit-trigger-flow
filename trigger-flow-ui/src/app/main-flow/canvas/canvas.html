@@ -1,10 +1,15 @@
 <f-flow
   class="flow-surface"
   fDraggable
+  fConnectionDraggable
+  [fCanvasMoveTrigger]="canvasMoveTrigger"
+  (fSelectionChange)="onSelectionChange($event)"
   (fCreateNode)="onCreateNode($event)"
   (fMoveNodes)="onMoveNodes($event)"
+  (fCreateConnection)="onCreateConnection($event)"
 >
-  <f-canvas>
+<!-- <f-line-alignment [fAlignThreshold]="100"></f-line-alignment> -->
+  <f-canvas  fZoom>
     @for (section of sectionLayouts(); track section.id) {
       <div
         class="section-group"
@@ -66,24 +71,75 @@
         <div class="node-content">
           <svg-icon [src]="node.svgPath" [ngStyle]="getSvgStyle(node)" class="node-svg" fDragHandle>
           </svg-icon>
-
+         @if (getInputPosition(node) === 'right') {
+        <div
+          fNodeInput
+          [fInputId]="node.blockId + '-in-right'"
+          fInputConnectableSide="right"
+          fInputMultiple="false"
+          class="input-connector connector-right"
+        ></div>
+         }
+         @if (getInputPosition(node) === 'left') {
+        <div
+          fNodeInput
+          [fInputId]="node.blockId + '-in-left'"
+          fInputConnectableSide="left"
+          fInputMultiple="false"
+          class="input-connector connector-left"
+        ></div>
+      }
           <div
-            fNodeInput
-            [fInputId]="node.input"
-            fInputConnectableSide="left"
-            class="input-connector"
+            fNodeOutput
+            [fOutputId]="node.blockId + '-out-right'"
+            [fOutputMultiple]="true"
+            fOutputConnectableSide="right"
+            class="output-connector connector-right"
           ></div>
-
-          @for (outputId of node.outputs; track outputId) {
-            <div
-              fNodeOutput
-              [fOutputId]="outputId"
-              fOutputConnectableSide="right"
-              class="output-connector"
-            ></div>
-          }
+          
+          <div
+            fNodeOutput
+            [fOutputId]="node.blockId + '-out-left'"
+            [fOutputMultiple]="true"
+            fOutputConnectableSide="left"
+            class="output-connector connector-left"
+          ></div>
         </div>
       </div>
     }
+
+    @for (connection of connections(); track connection.id) {
+      <f-connection 
+        [fConnectionId]="connection.id"
+        [fOutputId]="connection.fOutputId" 
+        [fInputId]="connection.fInputId"
+        [fType]="'segment'">
+      <!-- Start arrow -->
+  <svg
+    fMarker
+    [type]="eMarkerType.START"
+    [width]="10"
+    [height]="10"
+    [refX]="0"
+    [refY]="5"
+    orient="auto">
+    <path d="M10,0 L0,5 L10,10 Z" fill="#95C5AD"></path>
+  </svg>
+
+  <!-- End arrow -->
+  <svg
+    fMarker
+    [type]="eMarkerType.END"
+    [width]="10"
+    [height]="10"
+    [refX]="10"
+    [refY]="5"
+    orient="auto">
+    <path d="M0,0 L10,5 L0,10 Z" fill="#95C5AD"></path>
+  </svg>
+      </f-connection>
+    }
+    
+    <f-connection-for-create></f-connection-for-create>
   </f-canvas>
 </f-flow>

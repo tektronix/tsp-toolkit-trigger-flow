@@ -9,13 +9,13 @@ import {
   Output,
   EventEmitter,
 } from '@angular/core';
-import { FFlowModule } from '@foblex/flow';
 import { CommonModule } from '@angular/common';
 import { AngularSvgIconModule } from 'angular-svg-icon';
 import { SvgManagerService } from '../../services/svg-manager.service';
 import { CanvasBlocksService } from '../../services/canvas-blocks.service';
 import { TriggerFlowDataService } from '../../services/triggerFlowDataService';
 import { BlockErrorEntry } from '../../models/triggerFlowState';
+import { EFMarkerType, FFlowModule, FSelectionChangeEvent } from '@foblex/flow';
 
 interface FlowNode {
   blockId: string;
@@ -27,6 +27,11 @@ interface FlowNode {
   input?: string;
   outputs: string[];
   color?: string;
+}
+interface FlowConnection {
+  id: string;
+  fOutputId: string;
+  fInputId: string;
 }
 
 interface CreateNodePayload {
@@ -79,10 +84,16 @@ export class Canvas implements AfterViewInit {
   private svgManager = inject(SvgManagerService);
   private canvasBlocksService = inject(CanvasBlocksService);
   private triggerFlowDataService = inject(TriggerFlowDataService);
+  protected readonly eMarkerType = EFMarkerType;
 
   private nodeCounter = 0;
 
   canvasSize = signal(this.getCanvasSize());
+  connections = signal<FlowConnection[]>([]);
+  selectedNodeIds = signal<string[]>([]);
+  canvasMoveTrigger = (event: MouseEvent | TouchEvent | WheelEvent): boolean => {
+    return event instanceof MouseEvent && event.button === 1; // middle mouse pan
+  };
 
   // Raised to parent (MainFlow) when first block is dropped and
   // a model must be created before node insertion can continue.
@@ -94,25 +105,24 @@ export class Canvas implements AfterViewInit {
   // Start empty -> first block drop triggers model modal
   sections = signal<FlowSection[]>([]);
 
-  sectionLayouts = computed<LaidOutSection[]>(() => {
-    const size = this.canvasSize();
-    // const width = Math.floor(size.width / 2);
-    // Dynamic layout: split canvas equally across current section count.
-    // Fallback to 1 avoids divide-by-zero when sections are empty.
-    const count = Math.max(this.sections().length, 1);
-    const width = Math.floor(size.width / count);
-    const height = Math.floor(size.height);
+sectionLayouts = computed<LaidOutSection[]>(() => {
+  const size = this.canvasSize();
 
-    return this.sections().map((section, index) => ({
-      ...section,
-      position: {
-        x: index * width,
-        y: 0,
-      },
-      size: { width, height },
-    }));
-  });
+  const sectionWidth = 1400; // virtual width per section
+  const sectionHeight = Math.max(size.height, 2000); // virtual vertical space
 
+  return this.sections().map((section, index) => ({
+    ...section,
+    position: {
+      x: index * sectionWidth,
+      y: 0,
+    },
+    size: {
+      width: sectionWidth,
+      height: sectionHeight,
+    },
+  }));
+});
   sectionNodes = computed<FlowNode[]>(() => this.sections().flatMap((section) => section.nodes));
 
   readonly modelErrorSummary = computed<Record<string, { hasError: boolean; tooltip: string }>>(
@@ -145,6 +155,8 @@ export class Canvas implements AfterViewInit {
       return result;
     },
   );
+
+  private connectionCounter = 0;
 
   onCreateNode(event: FlowCanvasEvent): void {
     console.log('fCreateNode event:', event);
@@ -186,6 +198,18 @@ export class Canvas implements AfterViewInit {
       this.pendingCreateNodeEvent = null;
       this.createNodeInSection(pending, sectionId);
     }
+  }
+
+  getInputPosition(node: FlowNode): string {
+    const catalog = this.triggerFlowDataService.catalog$();
+    const blockCatalog = catalog?.blocks[node.catalogLabel || ''];
+    const hasBranchParam = blockCatalog?.parameters.some(
+      (param) => param.name === 'branch_to_block_name'
+    );
+    const hasReferenceParam = blockCatalog?.parameters.some(
+      (param) => param.name === 'reference_block_name'
+    );
+    return hasBranchParam? "right" : hasReferenceParam ? "left" :"NA";
   }
 
   discardPendingCreateNode(): void {
@@ -294,10 +318,24 @@ export class Canvas implements AfterViewInit {
         return { fillColor: '#FFFFFF', strokeColor: '#333333', titleColor: '#333333' };
     }
   }
+  onCreateConnection(event: any) {
+    console.log('🔗 CONNECTION CREATED! Event details:', event);
+    console.log('Connection data:', JSON.stringify(event, null, 2));
+    
+    if (event.fOutputId && event.fInputId) {
+      const newConnection: FlowConnection = {
+        id: `connection-${++this.connectionCounter}`,
+        fOutputId: event.fOutputId,
+        fInputId: event.fInputId
+      };
+      this.connections.update(current => [...current, newConnection]);
+      console.log('Connection added to array:', newConnection);
+      console.log('Total connections:', this.connections().length);
+    }
+  }
 
-  onCreateConnection(event: unknown) {
-    console.log('Connection created:', event);
-    // Handle connection creation here if needed
+  onSelectionChange(event: FSelectionChangeEvent): void {
+    this.selectedNodeIds.set(event.fNodeIds ?? []);
   }
 
   onMoveNodes(event: FlowCanvasEvent) {
@@ -350,6 +388,32 @@ export class Canvas implements AfterViewInit {
     this.canvasSize.set(this.getCanvasSize());
   }
 
+  @HostListener('window:keydown', ['$event'])
+  onDeleteKey(event: KeyboardEvent): void {
+    const target = event.target as HTMLElement | null;
+    const isTypingTarget =
+      !!target &&
+      (target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable);
+
+    if (isTypingTarget) {
+      return;
+    }
+
+    if (event.key !== 'Delete' && event.key !== 'Backspace') {
+      return;
+    }
+
+    const nodeIds = this.selectedNodeIds();
+    if (!nodeIds.length) {
+      return;
+    }
+
+    event.preventDefault();
+    this.deleteNodes(nodeIds);
+  }
+
   ngAfterViewInit(): void {
     this.canvasSize.set(this.getCanvasSize());
   }
@@ -367,6 +431,34 @@ export class Canvas implements AfterViewInit {
       width: hostWidth || window.innerWidth,
       height: hostHeight || window.innerHeight,
     };
+  }
+
+  private deleteNodes(nodeIds: string[]): void {
+    const toDelete = new Set(nodeIds);
+
+    this.sections.update((sections) =>
+      sections.map((section) => ({
+        ...section,
+        nodes: section.nodes.filter((node) => !toDelete.has(node.blockId)),
+      })),
+    );
+
+    this.connections.update((connections) =>
+      connections.filter(
+        (connection) =>
+          !nodeIds.some(
+            (id) =>
+              connection.fInputId.startsWith(id + '-') ||
+              connection.fOutputId.startsWith(id + '-'),
+          ),
+      ),
+    );
+
+    for (const id of nodeIds) {
+      this.canvasBlocksService.removeBlock(id);
+    }
+
+    this.selectedNodeIds.set([]);
   }
 
   getSectionHasError(modelName: string): boolean {

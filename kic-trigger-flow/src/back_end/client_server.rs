@@ -170,10 +170,75 @@ async fn ws_index(
                                         }
                                     };
                                     println!("Sending WebSocket response: {}", response);
-                                    if !response.contains("error") {
-                                        if let Err(e) = app_state.trigger_flow_tx.send(()) {
-                                            eprintln!("Failed to send signal: {e}");
+                                    let should_trigger_script =
+                                        serde_json::from_str::<serde_json::Value>(&response)
+                                            .map(|value| value.get("error").is_none())
+                                            .unwrap_or_else(|_| !response.contains("\"error\""));
+                                    println!(
+                                        "WebSocket trigger decision: should_trigger_script={}, receiver_count={}",
+                                        should_trigger_script,
+                                        app_state.trigger_flow_tx.receiver_count()
+                                    );
+                                    if should_trigger_script {
+                                        let mut state_persisted = false;
+                                        match serde_json::from_str::<IpcData>(&response) {
+                                            Ok(ipc_response) => {
+                                                match RequestType::try_from(&ipc_response) {
+                                                    Ok(RequestType::EvaluateRequest {
+                                                        trigger_flow_state,
+                                                    }) => {
+                                                        let mut state_lock = app_state
+                                                            .trigger_flow_state
+                                                            .lock()
+                                                            .await;
+                                                        *state_lock = trigger_flow_state;
+                                                        state_persisted = true;
+                                                        println!(
+                                                            "Persisted evaluate state from WebSocket response before script generation"
+                                                        );
+                                                    }
+                                                    Ok(RequestType::InitialRequest) => {
+                                                        println!(
+                                                            "WebSocket response did not contain evaluate state; skipping script-generation signal"
+                                                        );
+                                                    }
+                                                    Err(e) => {
+                                                        eprintln!(
+                                                            "Failed to parse WebSocket response into request type for state persistence: {:?}",
+                                                            e
+                                                        );
+                                                    }
+                                                }
+                                            }
+                                            Err(e) => {
+                                                eprintln!(
+                                                    "Failed to deserialize WebSocket response into IpcData for state persistence: {}",
+                                                    e
+                                                );
+                                            }
                                         }
+
+                                        if state_persisted {
+                                            match app_state.trigger_flow_tx.send(()) {
+                                                Ok(receiver_count) => {
+                                                    println!(
+                                                        "WebSocket trigger_flow_tx signal sent to {} receivers",
+                                                        receiver_count
+                                                    );
+                                                }
+                                                Err(e) => {
+                                                    eprintln!("Failed to send signal: {e}");
+                                                }
+                                            }
+                                        } else {
+                                            println!(
+                                                "Skipping trigger_flow_tx send because evaluate state was not persisted"
+                                            );
+                                        }
+                                    } else {
+                                        println!(
+                                            "Skipping trigger_flow_tx send for WebSocket response because payload contains an error"
+                                        );
                                     }
                                     session.text(&*response).await.unwrap();
                                 }
@@ -247,103 +312,147 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
     {
         let app_state_clone = app_state.clone();
         tokio::spawn(async move {
-            while let Ok(()) = trigger_flow_rx.recv().await {
-                println!("Signal received to start trigger flow!");
-                let trigger_flow_state = app_state_clone.trigger_flow_state.lock().await;
-                let work_folder_guard = app_state_clone.work_folder.lock().await;
-                let work_folder = work_folder_guard
-                    .as_deref()
-                    .map(Path::new)
-                    .unwrap_or_else(|| Path::new("./default.tsp"));
-                //need to add function that creates file and writes script buffer to it
-                let script = match Script::from_state(app_state_clone.catalog, &trigger_flow_state)
-                {
-                    Ok(script) => script,
-                    Err(e) => {
-                        eprintln!("Failed to create script from state: {}", e);
-                        continue; // Skip this iteration
-                    }
-                };
+            loop {
+                match trigger_flow_rx.recv().await {
+                    Ok(()) => {
+                        println!("Signal received to generate/update script");
+                        let trigger_flow_state = app_state_clone.trigger_flow_state.lock().await;
+                        println!(
+                            "Script generation state snapshot: models={}, slots={}",
+                            trigger_flow_state.models.len(),
+                            trigger_flow_state.slot_channel_list.slots.len()
+                        );
+                        let work_folder_guard = app_state_clone.work_folder.lock().await;
+                        let work_folder = work_folder_guard
+                            .as_deref()
+                            .map(Path::new)
+                            .unwrap_or_else(|| Path::new("./default.tsp"));
+                        //need to add function that creates file and writes script buffer to it
+                        let script = match Script::from_state(
+                            app_state_clone.catalog,
+                            &trigger_flow_state,
+                        ) {
+                            Ok(script) => script,
+                            Err(e) => {
+                                eprintln!("Failed to create script from state: {}", e);
+                                continue; // Skip this iteration
+                            }
+                        };
 
-                //TODO: Use script location and/or project name as appropriate
-                let script_output: PathBuf = PathBuf::from(work_folder);
-                if let Some(parent) = script_output.parent() {
-                    if !parent.exists() {
-                        if let Err(e) = std::fs::create_dir_all(parent) {
-                            eprintln!("Failed to create directory {}: {}", parent.display(), e);
-                            continue;
-                        }
-                    }
-                }
-                if script_output.exists() {
-                    let file_contents = match std::fs::read_to_string(&script_output) {
-                        Ok(file_contents) => file_contents,
-                        Err(e) => {
-                            eprintln!(
-                                "Failed to read existing script file at {}: {}",
-                                script_output.display(),
-                                e
-                            );
-                            continue; // Skip this iteration
-                        }
-                    };
-                    let updated = script.replace_generated(app_state_clone.catalog, &file_contents);
-                    match File::options()
-                        .truncate(true)
-                        .write(true)
-                        .open(&script_output)
-                    {
-                        Ok(mut file) => {
-                            if let Err(e) = file.write_all(updated.as_bytes()) {
-                                eprintln!(
-                                    "Failed to write updated script to {}: {}",
-                                    script_output.display(),
-                                    e
-                                );
-                            } else {
-                                println!(
-                                    "Successfully updated script file: {}",
-                                    script_output.display()
-                                );
+                        //TODO: Use script location and/or project name as appropriate
+                        let script_output: PathBuf = PathBuf::from(work_folder);
+                        if let Some(parent) = script_output.parent() {
+                            if !parent.exists() {
+                                if let Err(e) = std::fs::create_dir_all(parent) {
+                                    eprintln!(
+                                        "Failed to create directory {}: {}",
+                                        parent.display(),
+                                        e
+                                    );
+                                    continue;
+                                }
                             }
                         }
-                        Err(e) => {
-                            eprintln!(
-                                "Failed to open script file at {}: {}",
-                                script_output.display(),
-                                e
-                            );
-                        }
-                    }
-                } else {
-                    match File::options()
-                        .create(true) //create a new file
-                        .write(true)
-                        .truncate(true)
-                        .open(&script_output)
-                    {
-                        Ok(mut file) => {
-                            let script_content = script.to_string();
-                            if let Err(e) = file.write_all(script_content.as_bytes()) {
-                                eprintln!(
-                                    "Failed to write new script to {}: {}",
-                                    script_output.display(),
-                                    e
-                                );
+                        if script_output.exists() {
+                            let file_contents = match std::fs::read_to_string(&script_output) {
+                                Ok(file_contents) => file_contents,
+                                Err(e) => {
+                                    eprintln!(
+                                        "Failed to read existing script file at {}: {}",
+                                        script_output.display(),
+                                        e
+                                    );
+                                    continue; // Skip this iteration
+                                }
+                            };
+                            let begin_sentinel = app_state_clone
+                                .catalog
+                                .script_template
+                                .begin_sentinel
+                                .trim();
+                            let end_sentinel =
+                                app_state_clone.catalog.script_template.end_sentinel.trim();
+                            let has_sentinels =
+                                file_contents.lines().any(|l| l.trim() == begin_sentinel)
+                                    && file_contents.lines().any(|l| l.trim() == end_sentinel);
+
+                            let updated = if has_sentinels {
+                                script.replace_generated(app_state_clone.catalog, &file_contents)
                             } else {
                                 println!(
-                                    "Successfully created script file: {}",
-                                    script_output.display()
+                                    "Existing script file has no sentinels; replacing full file with generated script"
                                 );
+                                script.to_string()
+                            };
+                            match File::options()
+                                .truncate(true)
+                                .write(true)
+                                .open(&script_output)
+                            {
+                                Ok(mut file) => {
+                                    if let Err(e) = file.write_all(updated.as_bytes()) {
+                                        eprintln!(
+                                            "Failed to write updated script to {}: {}",
+                                            script_output.display(),
+                                            e
+                                        );
+                                    } else {
+                                        println!(
+                                            "Successfully updated script file: {}",
+                                            script_output.display()
+                                        );
+                                    }
+                                }
+                                Err(e) => {
+                                    eprintln!(
+                                        "Failed to open script file at {}: {}",
+                                        script_output.display(),
+                                        e
+                                    );
+                                }
+                            }
+                        } else {
+                            match File::options()
+                                .create(true) //create a new file
+                                .write(true)
+                                .truncate(true)
+                                .open(&script_output)
+                            {
+                                Ok(mut file) => {
+                                    let script_content = script.to_string();
+                                    if let Err(e) = file.write_all(script_content.as_bytes()) {
+                                        eprintln!(
+                                            "Failed to write new script to {}: {}",
+                                            script_output.display(),
+                                            e
+                                        );
+                                    } else {
+                                        println!(
+                                            "Successfully created script file: {}",
+                                            script_output.display()
+                                        );
+                                    }
+                                }
+                                Err(e) => {
+                                    eprintln!(
+                                        "Failed to create script file at {}: {}",
+                                        script_output.display(),
+                                        e
+                                    );
+                                }
                             }
                         }
-                        Err(e) => {
-                            eprintln!(
-                                "Failed to create script file at {}: {}",
-                                script_output.display(),
-                                e
-                            );
-                        }
+                    }
+                    Err(broadcast::error::RecvError::Lagged(skipped)) => {
+                        eprintln!(
+                            "trigger_flow_rx lagged by {} messages; continuing to listen",
+                            skipped
+                        );
+                        continue;
+                    }
+                    Err(broadcast::error::RecvError::Closed) => {
+                        eprintln!("trigger_flow_rx closed; stopping script generation task");
+                        break;
                     }
                 }
             }
@@ -361,11 +470,7 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
         while let Some(line) = reader.next_line().await.unwrap() {
             let trimmed_line = line.trim();
             println!("Received stdin line: {}", trimmed_line);
-            if trimmed_line == "shutdown" {
-                println!("Received shutdown command from stdin, shutting down...");
-                let _ = value.send(());
-                break;
-            } else if let Ok(msg) = StdinLine::try_from(trimmed_line) {
+            if let Ok(msg) = StdinLine::try_from(trimmed_line) {
                 print!("Received stdin message: {:?}", msg);
                 match msg {
                     StdinLine::Systems(msg) => {
@@ -380,23 +485,38 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                         let response = triggerflow_state
                             .process_system_config(&systems_json, app_state.catalog);
 
-                        println!("{}", response);
-                        if !response.contains("error") {
-                            if let Err(e) = app_state_clone.trigger_flow_tx.send(()) {
-                                eprintln!("Failed to send signal: {e}");
+                        let should_trigger_script =
+                            serde_json::from_str::<serde_json::Value>(&response)
+                                .map(|value| value.get("error").is_none())
+                                .unwrap_or_else(|_| !response.contains("\"error\""));
+                        println!(
+                            "Stdin Systems trigger decision: should_trigger_script={}, receiver_count={}",
+                            should_trigger_script,
+                            app_state_clone.trigger_flow_tx.receiver_count()
+                        );
+                        if should_trigger_script {
+                            match app_state_clone.trigger_flow_tx.send(()) {
+                                Ok(receiver_count) => {
+                                    println!(
+                                        "Stdin Systems trigger_flow_tx signal sent to {} receivers",
+                                        receiver_count
+                                    );
+                                }
+                                Err(e) => {
+                                    eprintln!("Failed to send signal: {e}");
+                                }
                             }
+                        } else {
+                            println!(
+                                "Skipping trigger_flow_tx send for Systems response because payload contains an error"
+                            );
                         }
-                        //if session exists, change in system will be evaluate request and should be handled and response sent to UI
-                        let mut session_lock = app_state_clone.session.lock().await;
-                        if let Some(ref mut session) = session_lock.as_mut() {
-                            if let Err(e) = session.text(response).await {
-                                eprintln!("Failed to send response to WebSocket: {:?}", e);
-                                // Clear the closed session
-                                *session_lock = None;
-                            }
+                        let mut session = app_state.session.lock().await;
+                        if let Some(session) = session.as_mut() {
+                            session.text(response).await.unwrap();
                         }
                     }
-                    StdinLine::Session(msg) => {
+                    StdinLine::SessionPath(msg) => {
                         // handle session
                         println!("Received Session command from stdin: {:?}", msg);
                         let mut work_folder_guard = app_state_clone.work_folder.lock().await;
@@ -423,9 +543,129 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                             }
                         }
                     }
+                    StdinLine::SessionData(msg) => {
+                        // handle session data
+                        println!("Received SessionData command from stdin: {:?}", msg);
+                        // For demonstration, we just print the session data. You can add your own processing logic here.
+                        match RequestType::try_from(&msg) {
+                            Ok(request) => {
+                                // Keep processor scoped so it is dropped before any await below.
+                                let response = {
+                                    let processor = RequestProcessor::new(app_state.catalog);
+                                    let response_type = processor.process_request(request);
+                                    match response_type {
+                                        Ok(Some(resp)) => resp,
+                                        Ok(None) => continue,
+
+                                        Err(e) => {
+                                            let error_response = serde_json::json!({
+                                                "error": e.to_string()
+                                            });
+                                            error_response.to_string()
+                                        }
+                                    }
+                                };
+                                println!("Sending WebSocket response: {}", response);
+
+                                let should_trigger_script =
+                                    serde_json::from_str::<serde_json::Value>(&response)
+                                        .map(|value| value.get("error").is_none())
+                                        .unwrap_or_else(|_| !response.contains("\"error\""));
+                                println!(
+                                    "SessionData trigger decision: should_trigger_script={}, receiver_count={}",
+                                    should_trigger_script,
+                                    app_state_clone.trigger_flow_tx.receiver_count()
+                                );
+                                if should_trigger_script {
+                                    let mut state_persisted = false;
+                                    match serde_json::from_str::<IpcData>(&response) {
+                                        Ok(ipc_response) => {
+                                            match RequestType::try_from(&ipc_response) {
+                                                Ok(RequestType::EvaluateRequest {
+                                                    trigger_flow_state,
+                                                }) => {
+                                                    let mut state_lock = app_state_clone
+                                                        .trigger_flow_state
+                                                        .lock()
+                                                        .await;
+                                                    *state_lock = trigger_flow_state;
+                                                    state_persisted = true;
+                                                    println!(
+                                                        "Persisted evaluate state from SessionData response before script generation"
+                                                    );
+                                                }
+                                                Ok(RequestType::InitialRequest) => {
+                                                    println!(
+                                                        "SessionData response did not contain evaluate state; skipping script-generation signal"
+                                                    );
+                                                }
+                                                Err(e) => {
+                                                    eprintln!(
+                                                        "Failed to parse SessionData response into request type for state persistence: {:?}",
+                                                        e
+                                                    );
+                                                }
+                                            }
+                                        }
+                                        Err(e) => {
+                                            eprintln!(
+                                                "Failed to deserialize SessionData response into IpcData for state persistence: {}",
+                                                e
+                                            );
+                                        }
+                                    }
+
+                                    if state_persisted {
+                                        match app_state_clone.trigger_flow_tx.send(()) {
+                                            Ok(receiver_count) => {
+                                                println!(
+                                                    "SessionData trigger_flow_tx signal sent to {} receivers",
+                                                    receiver_count
+                                                );
+                                            }
+                                            Err(e) => {
+                                                eprintln!("Failed to send signal: {e}");
+                                            }
+                                        }
+                                    } else {
+                                        println!(
+                                            "Skipping trigger_flow_tx send because evaluate state was not persisted"
+                                        );
+                                    }
+                                } else {
+                                    println!(
+                                        "Skipping trigger_flow_tx send for SessionData response because payload contains an error"
+                                    );
+                                }
+
+                                // if session exists, send response back to UI
+                                let mut session_lock = app_state_clone.session.lock().await;
+                                if let Some(ref mut session) = session_lock.as_mut() {
+                                    if let Err(e) = session.text(response).await {
+                                        eprintln!("Failed to send response to WebSocket: {:?}", e);
+                                        // Clear the closed session
+                                        *session_lock = None;
+                                    }
+                                }
+                            }
+                            Err(err) => {
+                                eprintln!("Failed to convert IpcData to RequestType: {err:?}");
+                                continue;
+                            }
+                        }
+                        //send response back to UI
+                    }
+                    StdinLine::Shutdown(_) => {
+                        println!("Received shutdown command from stdin, shutting down...");
+                        let _ = value.send(());
+                        break;
+                    }
                 }
             } else {
-                eprintln!("Failed to parse stdin JSON");
+                eprintln!(
+                    "Failed to parse stdin line into StdinLine: {}",
+                    trimmed_line
+                );
             }
         }
     });
