@@ -1,4 +1,4 @@
-import { Component, ViewChild } from '@angular/core';
+import { Component, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
@@ -35,7 +35,7 @@ export class MainFlow {
 
   slotOptions: ModelSlotOption[] = [];
 
-  constructor(private readonly triggerFlowDataService: TriggerFlowDataService) {}
+  private readonly triggerFlowDataService = inject(TriggerFlowDataService);
 
   toggleSidebar(): void {
     this.sidebarCollapsed = !this.sidebarCollapsed;
@@ -53,7 +53,6 @@ export class MainFlow {
   onRequestModelModal(req: {
     suggestedName: string;
     suggestedSlot: number;
-    suggestedNode?: number;
     notes: string;
   }): void {
     this.loadSlotOptions();

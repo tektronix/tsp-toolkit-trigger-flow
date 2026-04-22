@@ -59,8 +59,6 @@ interface LaidOutSection extends FlowSection {
 interface ModelModalRequest {
   suggestedName: string;
   suggestedSlot: number;
-  suggestedChannel: number;
-  suggestedNode: number;
   notes: string;
 }
 
@@ -68,8 +66,6 @@ interface ModelModalRequest {
 interface ModelModalResult {
   name: string;
   slot: number;
-  // channel: number;
-  // node: number;
   notes: string;
 }
 
@@ -161,8 +157,6 @@ export class Canvas implements AfterViewInit {
       this.requestModelModal.emit({
         suggestedName: 'MyTriggerModel',
         suggestedSlot: 1,
-        suggestedChannel: 1,
-        suggestedNode: 1,
         notes: '',
       });
       return;
@@ -238,7 +232,7 @@ export class Canvas implements AfterViewInit {
     );
   }
 
-  getSvgStyle(node: FlowNode): { [key: string]: string } {
+  getSvgStyle(node: FlowNode): Record<string, string> {
     const blockType = node.type;
     const cssConfig = this.getBlockCSSConfig(blockType);
     return {
