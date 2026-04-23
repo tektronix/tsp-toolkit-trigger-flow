@@ -80,7 +80,7 @@ export class BlockParameters {
   }
 
   shouldShowInUI(param: ActualParameter): boolean {
-    const hiddenParams = ['trigger_model_name'];
+    const hiddenParams = ['trigger_model_name', 'slot_index'];
     return !hiddenParams.includes(param.name);
   }
 

@@ -88,7 +88,7 @@ blocks:
       When trigger model execution reaches a loop counter block, it goes to a
       specified block until the count value is reached.
     shape: conditional
-  reset counter:
+  reset branch counter:
     parameters:
       - name: slot_index
         type: SlotIndex
@@ -100,7 +100,7 @@ blocks:
       - name: trigger_block_name
         type: string
         required: true
-        default: Reset Counter
+        default: Reset Branch Counter
       - name: reset_branch_count_block_name
         type: string
         required: true

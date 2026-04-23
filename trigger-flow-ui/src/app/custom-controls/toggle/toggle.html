@@ -1,15 +1,22 @@
 <div class="toggle-container">
-  <span *ngIf="label" class="toggle-label">{{ label }}</span>
-  
-  <!-- Display currently selected option outside toggle -->
-  <span class="selected-option-label">{{ selectedOption }}</span>
-  
-  <div class="toggle-options-box">
-    <div class="toggle-switch" [attr.aria-label]="automationID" [class.disabled]="disabled" (click)="!disabled && toggleOption(selectedOption === options[0] ? options[1] : options[0])">
-      <div class="toggle-track">
-        <div class="toggle-thumb" [class.active]="selectedOption === options[1]"></div>
-      </div>
-    </div>
-  </div>
-</div>
+  @if (label) {
+    <span class="toggle-label">{{ label }}</span>
+  }
 
+  <button
+    type="button"
+    class="toggle-switch"
+    role="switch"
+    [attr.aria-label]="automationID || label || 'toggle switch'"
+    [attr.aria-checked]="selectedOption === options[0]"
+    [class.on]="selectedOption === options[0]"
+    [disabled]="disabled"
+    (click)="toggleOption(selectedOption === options[0] ? options[1] : options[0])"
+  >
+    <span class="toggle-track">
+      <span class="toggle-thumb"></span>
+    </span>
+  </button>
+
+  <span class="selected-option-label">{{ selectedOption }}</span>
+</div>

@@ -18,6 +18,13 @@ import {
   imports: [FormsModule, CommonModule],
   templateUrl: './multiline-textbox.html',
   styleUrl: './multiline-textbox.scss',
+  providers: [
+    {
+      provide: NG_VALUE_ACCESSOR,
+      useExisting: forwardRef(() => MultilineTextbox),
+      multi: true,
+    },
+  ],
 })
 export class MultilineTextbox implements ControlValueAccessor, OnInit{
   @Input() label: string | undefined;

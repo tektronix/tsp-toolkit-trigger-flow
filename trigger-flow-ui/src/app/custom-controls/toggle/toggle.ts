@@ -17,6 +17,13 @@ import {
   imports: [CommonModule, FormsModule],
   templateUrl: './toggle.html',
   styleUrl: './toggle.scss',
+  providers: [
+    {
+      provide: NG_VALUE_ACCESSOR,
+      useExisting: forwardRef(() => Toggle),
+      multi: true,
+    },
+  ],
 })
 export class Toggle implements ControlValueAccessor{
   @Input() label: string | undefined;

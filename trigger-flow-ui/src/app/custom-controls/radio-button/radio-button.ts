@@ -17,12 +17,19 @@ import {
   imports: [FormsModule, CommonModule],
   templateUrl: './radio-button.html',
   styleUrl: './radio-button.scss',
+  providers: [
+    {
+      provide: NG_VALUE_ACCESSOR,
+      useExisting: forwardRef(() => RadioButton),
+      multi: true,
+    },
+  ],
 })
 export class RadioButton implements ControlValueAccessor {
   @Input() label: string | undefined;
   @Input() automationID: string | undefined;
   @Input() options: string[] = [];
-  @Input() name: string = 'radio-group';
+  @Input() name = 'radio-group';
   @Input() selectedValue: string | undefined;
   @Input() disabled = false;
   @Output() radioChange = new EventEmitter<string>();

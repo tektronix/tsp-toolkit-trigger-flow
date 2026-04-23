@@ -1,9 +1,9 @@
 import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 import { Catalog, BlockDefinition, ActualParameter } from '../models/triggerBlock';
+import { JsonValue } from '../models/triggerFlowState';
 import { Websocket } from './websocket';
 import { TriggerFlowDataService } from './triggerFlowDataService';
-
 
 export interface CanvasBlock {
   block_id: string;
@@ -18,10 +18,11 @@ export interface CanvasBlock {
 
 declare const acquireVsCodeApi: unknown;
 // eslint-disable-next-line @typescript-eslint/no-empty-function
-export const vscode = typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : { postMessage: () => { } };
+export const vscode =
+  typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : { postMessage: () => {} };
 
 export interface CanvasBlocksData {
-  blocks: Record<string, { trigger_model_name: string; slot_index: number; blocks: CanvasBlock[]; }>;
+  blocks: Record<string, { trigger_model_name: string; slot_index: number; blocks: CanvasBlock[] }>;
   timestamp: string;
 }
 
@@ -36,21 +37,16 @@ export class CanvasBlocksService {
   public canvasBlocks$ = this.canvasBlocksSubject.asObservable();
 
   // Support multiple models per canvas
-  private models: Record<string, {
-    trigger_model_name: string;
-    slot_index: number;
-    blocks: CanvasBlock[];
-  }> = {};
+  private models: Record<
+    string,
+    {
+      trigger_model_name: string;
+      slot_index: number;
+      blocks: CanvasBlock[];
+    }
+  > = {};
   private selectedBlockSubject = new BehaviorSubject<string | null>(null);
   public selectedBlock$ = this.selectedBlockSubject.asObservable();
-
-  private toParameterMap(params: ActualParameter[]): Record<string, unknown> {
-    return params.reduce((acc, param) => {
-      acc[param.name] = param.value ?? param.default ?? null;
-      return acc;
-    }, {} as Record<string, unknown>);
-  }
-
 
   addBlock(
     blockId: string,
@@ -90,8 +86,8 @@ export class CanvasBlocksService {
 
     // Initialize ActualParameter[] from blockData.parameters
     const actualParameters: ActualParameter[] = blockData.parameters.map(
-    (param) => new ActualParameter(param)
-  );
+      (param) => new ActualParameter(param),
+    );
 
     const canvasBlock: CanvasBlock = {
       block_id: blockId,
@@ -176,7 +172,7 @@ export class CanvasBlocksService {
   private getCanvasData(): CanvasBlocksData {
     return {
       blocks: this.models,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 
@@ -199,44 +195,12 @@ export class CanvasBlocksService {
     }
   }
 
-  private extractDefaultParams(params: any[] | undefined): Record<string, any> {
-    if (!Array.isArray(params)) return {};
-
-    return params.reduce((acc: Record<string, any>, p: any) => {
-      const name = p?.name ?? p?.parameter_name ?? p?.parameterName ?? p?.key;
-      if (!name) return acc;
-
-      // Prefer default fields first, then fallback to value
-      acc[name] = p?.default ?? p?.default_value ?? p?.value ?? null;
+  private toBlockParameters(actualParameters: ActualParameter[]): Record<string, JsonValue> {
+    return actualParameters.reduce((acc: Record<string, JsonValue>, param) => {
+      const value = param.value ?? param.default ?? null;
+      acc[param.name] = value as JsonValue;
       return acc;
     }, {});
-  }
-
-  private getBlockDefaultParameters(blockName: string): Record<string, any> {
-    const catalog = this.triggerFlowDataService.getCatalog();
-    if (!catalog) return {};
-
-    const normalizedName = blockName.toLowerCase().replace(/\s+/g, ' ').trim();
-
-    // Search in blocks
-    if (catalog.blocks) {
-      for (const [key, block] of Object.entries(catalog.blocks)) {
-        if (key.toLowerCase().replace(/\s+/g, ' ').trim() === normalizedName) {
-          return this.extractDefaultParams((block as any)?.parameters);
-        }
-      }
-    }
-
-    // Search in trigger_events
-    if (catalog.trigger_events) {
-      for (const [key, event] of Object.entries(catalog.trigger_events)) {
-        if (key.toLowerCase().replace(/\s+/g, ' ').trim() === normalizedName) {
-          return this.extractDefaultParams((event as any)?.parameters);
-        }
-      }
-    }
-
-    return {};
   }
 
   // BlockParameters uses this
@@ -258,11 +222,10 @@ export class CanvasBlocksService {
         trigger_model_name: model.trigger_model_name,
         slot_index: model.slot_index,
         blocks: model.blocks.map((block) => {
-
           return {
             type: block.type,
             block_id: block.block_id,
-            block_parameters: this.toParameterMap(block.actual_parameters),
+            block_parameters: this.toBlockParameters(block.actual_parameters),
             block_position: block.block_position,
             incoming: block.incoming,
             outgoing: block.outgoing,

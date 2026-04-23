@@ -1,23 +1,24 @@
 <div class="radio-button-group">
-  <span *ngIf="label" class="radio-group-label">{{ label }}</span>
-  
+  @if (label) {
+    <span class="radio-group-label">{{ label }}</span>
+  }
+
   <div class="radio-options">
-    <label 
-      *ngFor="let option of options" 
-      class="radio-label"
-    >
-      <input
-        type="radio"
-        class="radio-input"
-        [name]="name"
-        [value]="option"
-        [attr.aria-label]="automationID + '_' + option"
-        [checked]="selectedValue === option"
-        (change)="onRadioChange($event)"
-        (blur)="onBlur()"
-        [disabled]="disabled"
-      />
-      <span class="radio-text">{{ option }}</span>
-    </label>
+    @for (option of options; track option) {
+      <label class="radio-label">
+        <input
+          type="radio"
+          class="radio-input"
+          [name]="name"
+          [value]="option"
+          [attr.aria-label]="automationID + '_' + option"
+          [checked]="selectedValue === option"
+          (change)="onRadioChange($event)"
+          (blur)="onBlur()"
+          [disabled]="disabled"
+        />
+        <span class="radio-text">{{ option }}</span>
+      </label>
+    }
   </div>
 </div>
