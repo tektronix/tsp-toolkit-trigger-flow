@@ -38,7 +38,9 @@ export class SidePanelAccordion {
           shapes: [
             { type: 'Branch', svgPath: 'assets/shapes/palette/Branch/BranchBlock-Always.svg', catalogLabel: 'always' },
             { type: 'Branch', svgPath: 'assets/shapes/palette/Branch/BranchBlock-OnceExcluded.svg', catalogLabel: 'onceexcluded' },
-            { type: 'Branch', svgPath: 'assets/shapes/palette/Branch/BranchBlock-Counter.svg', catalogLabel: 'counter' },
+            { type: 'Branch', svgPath: 'assets/shapes/palette/Branch/BranchBlock-Once.svg', catalogLabel: 'once' },
+            { type: 'Branch', svgPath: 'assets/shapes/palette/Branch/BranchBlock-LoopCounter.svg', catalogLabel: 'counter' },
+            { type: 'Branch', svgPath: 'assets/shapes/palette/Branch/BranchBlock-OnEvent.svg', catalogLabel: 'event count' },
           ]
         },
         {
