@@ -7,15 +7,18 @@
     padding: 8px;
     width: 100%;
     box-sizing: border-box;
+    background-color: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    border: 1px solid var(--vscode-editorWidget-border);
     
     &:focus {
       outline: none;
-      border-color: #007acc;
+      border: 1px solid var(--vscode-editorWidget-border);;
     }
     
     &:disabled {
-      background-color: #f5f5f5;
-      color: #666;
+      background-color: var(--vscode-input-background);
+      color: var(--vscode-input-foreground);
     }
   }
 }

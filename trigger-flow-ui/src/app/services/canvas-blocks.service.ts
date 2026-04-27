@@ -14,6 +14,7 @@ export interface CanvasBlock {
   outgoing: string | null;
   block_error: string | null;
   actual_parameters: ActualParameter[]; // To store actual values
+  notes: string;
 }
 
 declare const acquireVsCodeApi: unknown;
@@ -98,6 +99,7 @@ export class CanvasBlocksService {
       outgoing: null,
       block_error: null,
       actual_parameters: actualParameters,
+      notes: '',
     };
 
     this.models[modelName].blocks.push(canvasBlock);

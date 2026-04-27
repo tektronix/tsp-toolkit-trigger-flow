@@ -28,7 +28,22 @@
     <div class="params-body">
       @for (param of actualParameters; track param.name) {
         @if (shouldShowInUI(param)) {
-          @if (isNumberType(param.type)) {
+          @if (getControlType(param) === 'radio') {
+            <app-radio-button
+              [label]="param.name"
+              [options]="getSelectOptions(param)"
+              [name]="getRadioGroupName(param)"
+              [(ngModel)]="param.value"
+              (radioChange)="onParameterValueChange()"
+            />
+          } @else if (getControlType(param) === 'select') {
+            <app-dropdown
+              [label]="param.name"
+              [options]="getSelectOptions(param)"
+              [(ngModel)]="param.value"
+              (selectedChange)="onParameterValueChange()"
+            />
+          } @else if (getControlType(param) === 'number') {
             <app-input-numeric
               [label]="param.name"
               [(ngModel)]="param.value"
@@ -43,6 +58,13 @@
           }
         }
       }
+
+      <app-multiline-textbox
+        label="Notes"
+        [rows]="4"
+        [(ngModel)]="blockNotes"
+        (inputChange)="onBlockNotesChange()"
+      />
     </div>
   </section>
 }
