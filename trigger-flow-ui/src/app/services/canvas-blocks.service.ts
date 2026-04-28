@@ -3,6 +3,7 @@ import { BehaviorSubject } from 'rxjs';
 import { Catalog, BlockDefinition, ActualParameter } from '../models/triggerBlock';
 import { Websocket } from './websocket';
 import { TriggerFlowDataService } from './triggerFlowDataService';
+import { IIpcDataInterface } from '../models/interface';
 
 
 export interface CanvasBlock {
@@ -190,7 +191,7 @@ export class CanvasBlocksService {
     this.logIpcDataFormat();
   }
 
-  private sendIpcDataToServer(ipcData: any): void {
+  private sendIpcDataToServer(ipcData: IIpcDataInterface): void {
     try {
       this.websocketService.send(JSON.stringify(ipcData));
       console.log('=======IpcData sent to server successfully=======');

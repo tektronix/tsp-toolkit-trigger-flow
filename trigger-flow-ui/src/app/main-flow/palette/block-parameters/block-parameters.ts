@@ -74,7 +74,8 @@ export class BlockParameters {
           this.actualParameters,
         );
         // Update the block's actual_parameters with the new values
-        // canvasBlock.actual_parameters = this.actualParameters;
+        canvasBlock.actual_parameters = this.actualParameters
+        this.canvasBlocksService.logIpcDataFormat()
       }
     }
   }
