@@ -1,24 +1,53 @@
+:host {
+  width: 100%;
+  justify-content: flex-start;
+  align-items: flex-start;
+  text-align: left;
+}
+
+:host textarea {
+  width: 100%;
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-editorWidget-border);
+  border-radius: 5px;
+  padding: 4px;
+}
+
 .input-multiline {
+  display: flex;
+  flex-direction: column;
+  width: 93%;
+
+  .label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+  }
+
+  .char-count {
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground, var(--vscode-input-foreground));
+    line-height: 1;
+  }
+
   .multiline-textarea {
     resize: none;
     font-family: inherit;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    padding: 8px;
-    width: 100%;
-    box-sizing: border-box;
-    background-color: var(--vscode-input-background);
-    color: var(--vscode-input-foreground);
-    border: 1px solid var(--vscode-editorWidget-border);
-    
+
     &:focus {
       outline: none;
-      border: 1px solid var(--vscode-editorWidget-border);;
-    }
-    
-    &:disabled {
-      background-color: var(--vscode-input-background);
-      color: var(--vscode-input-foreground);
+      border-color: var(--vscode-focusBorder, var(--vscode-editorWidget-border));
     }
   }
+}
+
+:host textarea:disabled,
+.input-multiline .multiline-textarea:disabled {
+  background-color: var(--vscode-editorWidget-background, var(--vscode-input-background));
+  color: var(--vscode-disabledForeground, var(--vscode-input-foreground));
+  opacity: 0.6;
+  cursor: not-allowed;
+  border-color: var(--vscode-editorWidget-border);
 }

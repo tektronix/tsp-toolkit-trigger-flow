@@ -37,6 +37,7 @@ pub enum ParamTypeName {
     BlockReference,
     EventItem,
     EventList,
+    MultiString,
 }
 
 /// Enum representing actual parameter values

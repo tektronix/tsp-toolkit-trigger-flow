@@ -1,11 +1,18 @@
 <div class="input-multiline">
-  <label for="input">{{ label }}</label>
+  <div class="label-row">
+    <label for="input">{{ label }}</label>
+    @if (hasMaxLength) {
+      <span class="char-count">{{ countText }}</span>
+    }
+  </div>
   <textarea
     class="multiline-textarea"
     [attr.aria-label]="automationID"
+    [attr.maxlength]="hasMaxLength ? maxLength : null"
     [rows]="rows"
-    [value]="displayValue"
-    (blur)="onBlur($event)"
+    [value]="draftValue"
+    (input)="onInputChange($event)"
+    (blur)="onBlur()"
     (keydown)="onKeyDown($event)"
     [disabled]="disabled"
   ></textarea>

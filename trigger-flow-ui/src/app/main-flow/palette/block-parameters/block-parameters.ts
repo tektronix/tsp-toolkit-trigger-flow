@@ -98,6 +98,10 @@ export class BlockParameters {
     return type === 'String';
   }
 
+  isMultiLineStringType(type: ParamTypeName): boolean {
+    return type === 'MultiString';
+  }
+
   getControlType(param: ActualParameter): ParamControlType {    
     return resolveParamControlType({
       name: param.name,

@@ -56,6 +56,7 @@ export type ParamTypeName =
   | 'TriggerEventType'
   | 'Number'
   | 'notifyType'
+  | 'MultiString'
   | 'EventItem'
   | 'EventList';
 
