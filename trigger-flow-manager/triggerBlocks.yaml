@@ -132,7 +132,7 @@ blocks:
         type: string
         required: true
       - name: event_id
-        type: triggerEventType
+        type: EventItem
         required: true
     syntax: >-
       slot[{{slot_index}}].trigger.model.addblock.branch.event("{{trigger_model_name}}",
@@ -596,18 +596,9 @@ blocks:
         type: string
         required: true
         default: Wait
-      - name: event0
-        type: triggerEventType
-        required: true
-      - name: event1
-        type: triggerEventType
-        required: false
-      - name: event2
-        type: triggerEventType
-        required: false
-      - name: event3
-        type: triggerEventType
-        required: false
+      - name: event
+        type: EventList
+        required: true      
       - name: clear
         type: ClearType
         required: false
@@ -625,19 +616,14 @@ blocks:
           - label: OR
             value: OR
     syntax: >-
-      slot[{{slot_index}}].trigger.model.addblock.wait("{{trigger_model_name}}",
+      slot[{{slot_index}}].trigger.model.addblock.wait(
+      "{{trigger_model_name}}",
       "{{trigger_block_name}}",
-      {{event0}}
-      {{#if clear}}, slot[{{slot_index}}].trigger.model.CLEAR_{{clear}}
-      {{#if logic}}, slot[{{slot_index}}].trigger.model.WAIT_{{logic}}
-      {{#if event1}}, {{event1}}
-      {{#if event2}}, {{event2}}
-      {{#if event3}}, {{event3}}
-      {{/if}}
-      {{/if}}
-      {{/if}}
-      {{/if}}
-      {{/if}}
+      {{#each events}}
+      {{this}}{{#unless @last}}, {{/unless}}
+      {{/each}}
+      {{#if clear}}, slot[{{slot_index}}].trigger.model.CLEAR_{{clear}}{{/if}}
+      {{#if logic}}, slot[{{slot_index}}].trigger.model.WAIT_{{logic}}{{/if}}
       )
     description: >-
       The wait block causes the trigger model to stop and wait for an event or
@@ -826,6 +812,23 @@ trigger_events:
             value: '3'
     syntax: tsplink.trigger[{{trigger_line}}].EVENT_ID
     shape: circle
+
+custom_types:
+  EventList:
+    description: "List of trigger events (max 4)"
+    max_items: 4
+    item:
+      type: EventItem
+
+  EventItem:
+    description: "Single trigger event selection"
+    fields:
+      - name: type
+        type: string
+        source: trigger_events   # reuse existing event definitions
+
+      - name: parameters
+        type: dynamic            # resolved based on selected event type
 
 templates:
     pulsed_sweep:

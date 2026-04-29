@@ -1,8 +1,12 @@
-import { Component, DestroyRef, inject } from '@angular/core';
+import { Component, DestroyRef, effect, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AngularSvgIconModule } from 'angular-svg-icon';
 import { CanvasBlocksService } from '../../../services/canvas-blocks.service';
-import { findblockCategory } from '../../../models/blockParameterHelper';
+import {
+  findblockCategory,
+  ParamControlType,
+  resolveParamControlType,
+} from '../../../models/blockParameterHelper';
 import { ActualParameter, ParamTypeName } from '../../../models/triggerBlock';
 import { Textbox } from '../../../custom-controls/textbox/textbox';
 import { InputNumeric } from '../../../custom-controls/input-numeric/input-numeric';
@@ -10,40 +14,15 @@ import { Dropdown } from '../../../custom-controls/dropdown/dropdown';
 import { RadioButton } from '../../../custom-controls/radio-button/radio-button';
 import { MultilineTextbox } from '../../../custom-controls/multiline-textbox/multiline-textbox';
 import { FormsModule } from '@angular/forms';
+import { EventBlockComponent } from './event-block/event-block';
+import { TriggerFlowDataService } from '../../../services/triggerFlowDataService';
+import { EventDefinition } from '../../../models/triggerBlock';
 
 const CATEGORY_ICON_PATHS: Record<string, string> = {
   actions: 'assets/shapes/icons/TinyAction.svg',
   branches: 'assets/shapes/icons/TinyBranch.svg',
   notify: 'assets/shapes/icons/TinyNotify.svg',
   timing: 'assets/shapes/icons/TinyTiming.svg',
-};
-
-// Centralize control decisions so adding support for new ParamTypeName values
-// stays in one place instead of spreading if/else logic across the template.
-type ParamControlType = 'number' | 'select' | 'radio' | 'text';
-
-// Mapping table for parameter-type driven rendering. This is the primary
-// extension point when new ParamTypeName values are introduced.
-// UX choice used here:
-// - radio: short mutually-exclusive enums where all options should be visible.
-// - select: potentially longer lists or externally-provided indexes/lists/events.
-// - number: numeric entry.
-// - text: free-form entry.
-const PARAM_TYPE_TO_CONTROL: Record<ParamTypeName, ParamControlType> = {
-  String: 'text',
-  SlotIndex: 'select',
-  EventID: 'select',
-  ChannelIndex: 'select',
-  DelayList: 'select',
-  DelayTime: 'number',
-  LogEventType: 'radio',
-  ChannelList: 'select',
-  SourceState: 'radio',
-  ClearType: 'radio',
-  LogicType: 'radio',
-  TriggerEventType: 'radio',
-  Number: 'number',
-  notifyType: 'radio',
 };
 
 @Component({
@@ -56,12 +35,14 @@ const PARAM_TYPE_TO_CONTROL: Record<ParamTypeName, ParamControlType> = {
     RadioButton,
     MultilineTextbox,
     FormsModule,
+    EventBlockComponent,
   ],
   templateUrl: './block-parameters.html',
   styleUrl: './block-parameters.scss',
 })
 export class BlockParameters {
   private canvasBlocksService = inject(CanvasBlocksService);
+  private triggerFlowDataService = inject(TriggerFlowDataService);
   private destroyRef = inject(DestroyRef);
 
   selectedBlockId: string | null = null;
@@ -69,6 +50,7 @@ export class BlockParameters {
   blockTypeSvgPath = '';
   actualParameters: ActualParameter[] = [];
   blockNotes = '';
+  triggerEvents: Record<string, EventDefinition> = {};
 
   constructor() {
     // Reacts to both: new block added (auto-select) and existing block clicked.
@@ -78,6 +60,15 @@ export class BlockParameters {
         this.selectedBlockId = blockId;
         this.updateBlockControls();
       });
+
+    // Catalog data is loaded asynchronously, so reading it once in ngOnInit can
+    // leave the Event custom UI empty. Keep the trigger event definitions in sync
+    // with the reactive catalog signal so raw event names and parameter labels are
+    // available as soon as the catalog arrives.
+    effect(() => {
+      const catalog = this.triggerFlowDataService.catalog$();
+      this.triggerEvents = catalog?.trigger_events || {};
+    });
   }
 
   private updateBlockControls() {
@@ -107,30 +98,26 @@ export class BlockParameters {
     return type === 'String';
   }
 
-  getControlType(param: ActualParameter): ParamControlType {
-    const mappedControl = PARAM_TYPE_TO_CONTROL[param.type];
+  getControlType(param: ActualParameter): ParamControlType {    
+    return resolveParamControlType({
+      name: param.name,
+      type: param.type,
+      hasOptions: this.hasSelectableOptions(param),
+    });
+  }
 
-    // If a type is mapped, honor it first.
-    if (mappedControl === 'number') {
-      return 'number';
+  getEventSelectionMode(param: ActualParameter): 'single' | 'multi' {
+    // New schema: EventItem => single, EventList => multi.
+    // Backward compatibility: keep event_id as single if older catalog still uses EventList.
+    if (param.type === 'EventItem') {
+      return 'single';
     }
 
-    // Radio/select require a concrete options array. If options are missing,
-    // we gracefully fallback to text to keep the UI functional.
-    if (mappedControl === 'radio') {
-      return this.hasSelectableOptions(param) ? 'radio' : 'text';
+    if (param.type === 'EventList') {
+      return param.name === 'event_id' ? 'single' : 'multi';
     }
 
-    if (mappedControl === 'select') {
-      return this.hasSelectableOptions(param) ? 'select' : 'text';
-    }
-
-    // For option-based params without explicit mapping, default to dropdown.
-    if (this.hasSelectableOptions(param)) {
-      return 'select';
-    }
-
-    return 'text';
+    return 'multi';
   }
 
   getSelectOptions(param: ActualParameter): string[] {

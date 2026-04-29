@@ -149,6 +149,18 @@ impl Parameter {
                     catalog.validate_event(event_value, block)?;
                 }
             }
+            ParamTypeName::EventItem => {
+                if let Some(event_value) = value {
+                    catalog.validate_event(event_value, block)?;
+                }
+            }
+            ParamTypeName::EventList => {
+                if let Some(Value::Array(events)) = value {
+                    for event_value in events {
+                        catalog.validate_event(event_value, block)?;
+                    }
+                }
+            }
             _ => {}
         }
         Ok(())

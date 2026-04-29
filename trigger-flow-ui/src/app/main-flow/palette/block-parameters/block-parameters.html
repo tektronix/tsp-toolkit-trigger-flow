@@ -28,7 +28,16 @@
     <div class="params-body">
       @for (param of actualParameters; track param.name) {
         @if (shouldShowInUI(param)) {
-          @if (getControlType(param) === 'radio') {
+          @if (getControlType(param) === 'custom') {
+            <app-event-block
+              [param]="param"
+              [triggerEvents]="triggerEvents"
+              [selectionMode]="getEventSelectionMode(param)"
+              (valueChange)="onParameterValueChange()"
+            />
+          }
+
+          @else if (getControlType(param) === 'radio') {
             <app-radio-button
               [label]="param.name"
               [options]="getSelectOptions(param)"

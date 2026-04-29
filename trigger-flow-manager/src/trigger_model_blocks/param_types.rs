@@ -35,6 +35,8 @@ pub enum ParamTypeName {
     TriggerLine,
     #[serde(rename = "blockReference")]
     BlockReference,
+    EventItem,
+    EventList,
 }
 
 /// Enum representing actual parameter values
@@ -51,9 +53,10 @@ pub enum ParamType {
     ClearType(ClearType),
     LogicType(LogicType),
     TriggerEventType(TriggerEventType),
+    EventList(EventList),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 #[allow(dead_code)]
 pub struct SlotIndex {
     slot_index: u8,
@@ -122,7 +125,7 @@ impl LogEventType {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct NotifyEvent {
     pub slot_index: SlotIndex,
     pub event_number: Option<u8>,
@@ -136,7 +139,7 @@ impl NotifyEvent {
         }
     }
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct DigioEventType {
     pub trigger_line: u8,
 }
@@ -145,7 +148,7 @@ impl DigioEventType {
         DigioEventType { trigger_line }
     }
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct SmuAtLimitType {
     pub slot_index: SlotIndex,
     pub channel_index: u8,
@@ -160,7 +163,7 @@ impl SmuAtLimitType {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct GeneratorEventType {
     pub generator_number: u8,
 }
@@ -171,7 +174,7 @@ impl GeneratorEventType {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct TimerEventType {
     pub trigger_timer_number: u8,
 }
@@ -184,7 +187,7 @@ impl TimerEventType {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct TsplinkEventType {
     pub trigger_line: u8,
 }
@@ -195,7 +198,7 @@ impl TsplinkEventType {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 pub enum TriggerEventType {
     DigioEvent(DigioEventType),
     SmuAtLimit(SmuAtLimitType),
@@ -203,4 +206,59 @@ pub enum TriggerEventType {
     GeneratorEvent(GeneratorEventType),
     TimerEvent(TimerEventType),
     TsplinkEvent(TsplinkEventType),
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct EventList {
+    pub items: Vec<EventItem>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct EventItem {
+    pub r#type: String,
+    pub parameters: serde_json::Value, // dynamic
+}
+
+impl EventItem {
+    pub fn to_trigger_event(&self) -> Result<TriggerEventType, String> {
+        match self.r#type.as_str() {
+            "DigioEvent" => {
+                let parsed: DigioEventType =
+                    serde_json::from_value(self.parameters.clone())
+                        .map_err(|e| e.to_string())?;
+                Ok(TriggerEventType::DigioEvent(parsed))
+            }
+            "SmuAtLimit" => {
+                let parsed: SmuAtLimitType =
+                    serde_json::from_value(self.parameters.clone())
+                        .map_err(|e| e.to_string())?;
+                Ok(TriggerEventType::SmuAtLimit(parsed))
+            }
+            "NotifyEvent" => {
+                let parsed: NotifyEvent =
+                    serde_json::from_value(self.parameters.clone())
+                        .map_err(|e| e.to_string())?;
+                Ok(TriggerEventType::NotifyEvent(parsed))
+            }
+            "GeneratorEvent" => {
+                let parsed: GeneratorEventType =
+                    serde_json::from_value(self.parameters.clone())
+                        .map_err(|e| e.to_string())?;
+                Ok(TriggerEventType::GeneratorEvent(parsed))
+            }
+            "TimerEvent" => {
+                let parsed: TimerEventType =
+                    serde_json::from_value(self.parameters.clone())
+                        .map_err(|e| e.to_string())?;
+                Ok(TriggerEventType::TimerEvent(parsed))
+            }
+            "TsplinkEvent" => {
+                let parsed: TsplinkEventType =
+                    serde_json::from_value(self.parameters.clone())
+                        .map_err(|e| e.to_string())?;
+                Ok(TriggerEventType::TsplinkEvent(parsed))
+            }
+            _ => Err(format!("Unknown event type: {}", self.r#type)),
+        }
+    }
 }

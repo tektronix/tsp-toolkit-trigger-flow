@@ -55,7 +55,9 @@ export type ParamTypeName =
   | 'LogicType'
   | 'TriggerEventType'
   | 'Number'
-  | 'notifyType';
+  | 'notifyType'
+  | 'EventItem'
+  | 'EventList';
 
 export class InitialPayload {
   slot_channel_list: SlotChannelList;
@@ -154,7 +156,7 @@ export class ActualParameter {
   options: ParameterOptions[] | null;
   default: string | number | null;
   range: ParameterRange | null;
-  value: string | number | null;  // User-edited or default-initialized value
+  value: ParameterValue;  // User-edited or default-initialized value
 
   constructor(parameter: Parameter) {
     this.name = parameter.name;
@@ -163,7 +165,14 @@ export class ActualParameter {
     this.default = parameter.default;
     this.range = parameter.range;
     // Initialize value from default when block is added
-    this.value = parameter.default;
+    // this.value = parameter.default;
+    if (this.type === 'EventList') {
+      this.value = []; // correct initialization
+    } else if (this.type === 'EventItem') {
+      this.value = null;
+    } else {
+      this.value = parameter.default ?? null;
+    }
   }
 
   // // Update value from user input (from control)
@@ -176,3 +185,15 @@ export class ActualParameter {
   //   return this.value !== null ? this.value : this.default;
   // }
 }
+
+export interface EventListItem {
+  type: string;
+  params: Record<string, string | number>;
+}
+
+export type ParameterValue =
+  | string
+  | number
+  | null
+  | EventListItem
+  | EventListItem[];
