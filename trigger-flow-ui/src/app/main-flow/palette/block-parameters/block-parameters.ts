@@ -7,6 +7,7 @@ import { ActualParameter, ParamTypeName } from '../../../models/triggerBlock';
 import { Textbox } from '../../../custom-controls/textbox/textbox';
 import { InputNumeric } from '../../../custom-controls/input-numeric/input-numeric';
 import { FormsModule } from '@angular/forms';
+import { MultilineTextbox } from '../../../custom-controls/multiline-textbox/multiline-textbox';
 
 const CATEGORY_ICON_PATHS: Record<string, string> = {
   actions: 'assets/shapes/icons/TinyAction.svg',
@@ -17,7 +18,7 @@ const CATEGORY_ICON_PATHS: Record<string, string> = {
 
 @Component({
   selector: 'app-block-parameters',
-  imports: [AngularSvgIconModule, Textbox, InputNumeric, FormsModule],
+  imports: [AngularSvgIconModule, Textbox, InputNumeric, FormsModule, MultilineTextbox],
   templateUrl: './block-parameters.html',
   styleUrl: './block-parameters.scss',
 })
@@ -61,6 +62,10 @@ export class BlockParameters {
 
   isStringType(type: ParamTypeName): boolean {
     return type === 'String';
+  }
+
+  isMultiLineStringType(type: ParamTypeName): boolean {
+    return type === 'MultiString';
   }
 
   onParameterValueChange(): void {

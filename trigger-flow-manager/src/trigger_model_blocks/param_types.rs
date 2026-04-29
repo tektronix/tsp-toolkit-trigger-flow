@@ -35,6 +35,7 @@ pub enum ParamTypeName {
     TriggerLine,
     #[serde(rename = "blockReference")]
     BlockReference,
+    MultiString,
 }
 
 /// Enum representing actual parameter values

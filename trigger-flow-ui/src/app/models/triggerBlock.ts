@@ -55,7 +55,8 @@ export type ParamTypeName =
   | 'LogicType'
   | 'TriggerEventType'
   | 'Number'
-  | 'notifyType';
+  | 'notifyType'
+  | 'MultiString';
 
 export class InitialPayload {
   slot_channel_list: SlotChannelList;
