@@ -117,7 +117,11 @@ impl Script {
 
 impl Display for Script {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}{}{}", self.preamble, self.contents, self.postamble)
+        write!(
+            f,
+            "{}\n{}\n{}",
+            self.preamble, self.contents, self.postamble
+        )
     }
 }
 
