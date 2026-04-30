@@ -576,6 +576,7 @@ blocks:
             value: 'ON'
           - label: 'OFF'
             value: 'OFF'
+        default: 'ON'
     syntax: >-
       slot[{{slot_index}}].trigger.model.addblock.source.output("{{trigger_model_name}}",
       "{{trigger_block_name}}",

@@ -21,12 +21,12 @@ export interface IParameter {
   name: string;
   type: ParamTypeName;
   required: boolean;
-  options?: IParameterOptions[] | null;
+  options?: IParameterOption[] | null;
   default?: string | number | null;
   range?: IParameterRange | null;
 }
 
-export interface IParameterOptions {
+export interface IParameterOption {
   label: string;
   value: string;
 }
@@ -103,7 +103,7 @@ export class Parameter {
   name: string;
   type: ParamTypeName;
   required: boolean;
-  options: ParameterOptions[] | null;
+  options: ParameterOption[] | null;
   default: string | number | null;
   range: ParameterRange | null;
 
@@ -112,18 +112,18 @@ export class Parameter {
     this.type = data.type;
     this.required = data.required;
     this.options = data.options
-      ? data.options.map((option) => new ParameterOptions(option))
+      ? data.options.map((option) => new ParameterOption(option))
       : null;
     this.default = data.default ?? null;
     this.range = data.range ? new ParameterRange(data.range) : null;
   }
 }
 
-export class ParameterOptions {
+export class ParameterOption {
   label: string;
   value: string;
 
-  constructor(data: IParameterOptions) {
+  constructor(data: IParameterOption) {
     this.label = data.label;
     this.value = data.value;
   }
@@ -152,7 +152,7 @@ export class EventDefinition {
 export class ActualParameter {
   name: string;
   type: ParamTypeName;
-  options: ParameterOptions[] | null;
+  options: ParameterOption[] | null;
   default: string | number | null;
   range: ParameterRange | null;
   value: string | number | null;  // User-edited or default-initialized value

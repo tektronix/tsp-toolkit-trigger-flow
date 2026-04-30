@@ -1,16 +1,7 @@
 import { CommonModule } from '@angular/common';
-import {
-  Component,
-  Input,
-  Output,
-  EventEmitter,
-  forwardRef,
-} from '@angular/core';
-import {
-  ControlValueAccessor,
-  FormsModule,
-  NG_VALUE_ACCESSOR,
-} from '@angular/forms';
+import { Component, Input, Output, EventEmitter, forwardRef } from '@angular/core';
+import { ControlValueAccessor, FormsModule, NG_VALUE_ACCESSOR } from '@angular/forms';
+import { ParameterOption } from '../../models/triggerBlock';
 
 @Component({
   selector: 'app-toggle',
@@ -25,17 +16,34 @@ import {
     },
   ],
 })
-export class Toggle implements ControlValueAccessor{
+export class Toggle implements ControlValueAccessor {
   @Input() label: string | undefined;
   @Input() automationID: string | undefined;
-  @Input() options: string[] = [];
+  @Input() options: ParameterOption[] = [];
   @Input() selectedOption: string | undefined;
   @Input() disabled = false;
   @Output() toggleOptionChange = new EventEmitter<string>();
 
+  get onOption(): ParameterOption | undefined {
+    return this.options[0];
+  }
+
+  get offOption(): ParameterOption | undefined {
+    return this.options[1];
+  }
+
+  get isOn(): boolean {
+    return this.selectedOption === this.onOption?.value;
+  }
+
+  get selectedOptionLabel(): string {
+    return this.options.find((option) => option.value === this.selectedOption)?.label ?? '';
+  }
+
   private onChange: (value: string) => void = (value: string) => {
     console.log('Value changed:', value);
   };
+  
   private onTouched: () => void = () => {
     console.log('Input touched');
   };
@@ -56,10 +64,15 @@ export class Toggle implements ControlValueAccessor{
     this.disabled = isDisabled;
   }
 
-  toggleOption(option: string): void {
+  toggleOption(option: string | undefined): void {
     if (this.disabled) {
       return;
     }
+
+    if (!option) {
+      return;
+    }
+
     if (this.selectedOption !== option) {
       this.selectedOption = option;
       this.onChange(this.selectedOption);
