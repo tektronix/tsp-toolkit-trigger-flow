@@ -1,3 +1,5 @@
+import { Module, SlotChannelList } from './slotChannelModel';
+
 export const BLOCK_CATEGORY_VALUES: Record<string, readonly string[]> = {
   actions: ['config list next', 'configlist prev', 'configlist recall', 'measure', 'measure overlapped', 'no operation', 'reset branch counter', 'source action bias', 'source action skip', 'source action step', 'source output'],
   branches: ['always', 'once excluded', 'on event'],
@@ -12,6 +14,23 @@ type ControlRuleContext = {
   name: string;
   type?: string;
   hasOptions: boolean;
+};
+
+export type ParamConstraintLike = {
+  options?: { label: string; value: string }[] | null;
+};
+
+export type ParamOptionSource = {
+  name: string;
+  type?: string;
+  options?: { label: string; value: string }[] | null;
+  // Optional conditional branches keyed by runtime selectors (for example SMU/PSU).
+  constraints?: Record<string, ParamConstraintLike> | null;
+};
+
+type ParamOptionContext = {
+  values: Record<string, string | number>;
+  slotChannelList: SlotChannelList | null;
 };
 
 // Mapping table for parameter-type driven rendering. This is the primary
@@ -77,6 +96,145 @@ export function resolveParamControlType(context: ControlRuleContext): ParamContr
   }
 
   return 'text';
+}
+
+export function resolveParameterOptions(
+  param: ParamOptionSource,
+  context: ParamOptionContext,
+): string[] {
+  // Resolution order: explicit options -> constrained options -> runtime-derived options -> fallback.
+  if (param.options?.length) {
+    return param.options.map((option) => option.value);
+  }
+
+  // Constraint-driven options take precedence over generic fallbacks because they depend
+  // on sibling parameter values such as the selected slot instrument.
+  const constrainedOptions = getConstrainedOptions(param, context);
+  if (constrainedOptions.length > 0) {
+    return constrainedOptions;
+  }
+
+  if (param.name === 'slot_index') {
+    return getSlotIndexOptions(context.slotChannelList);
+  }
+
+  if (param.name === 'channel_index') {
+    return getChannelIndexOptions(context.slotChannelList);
+  }
+
+  // Final fallback for index/number-like params with no catalog-defined options.
+  return Array.from({ length: 16 }, (_, index) => `${index + 1}`);
+}
+
+export function normalizeParameterValues(
+  params: ParamOptionSource[],
+  values: Record<string, string | number>,
+  slotChannelList: SlotChannelList | null,
+): Record<string, string | number> {
+  // Normalize against currently valid options so dependent params remain serializable
+  // after sibling updates (for example slot_index changing instrument family).
+  const normalizedValues = { ...values };
+
+  for (const param of params) {
+    const options = resolveParameterOptions(param, {
+      values: normalizedValues,
+      slotChannelList,
+    });
+
+    if (options.length === 0) {
+      continue;
+    }
+
+    const currentValue = normalizedValues[param.name];
+    // Keep the serialized payload valid by snapping missing/stale constrained values to the
+    // first allowed option for the current runtime context.
+    if (currentValue === undefined || currentValue === null || !options.includes(`${currentValue}`)) {
+      normalizedValues[param.name] = options[0];
+    }
+  }
+
+  return normalizedValues;
+}
+
+function getConstrainedOptions(param: ParamOptionSource, context: ParamOptionContext): string[] {
+  const constraints = param.constraints;
+  if (!constraints) {
+    return [];
+  }
+
+  // Constraints are keyed by instrument family such as SMU/PSU and currently
+  // use slot_index as the selector in event parameter payloads.
+  const slotIndex = context.values['slot_index'];
+  const instrumentKey = getConstraintKeyForSlot(slotIndex, context.slotChannelList);
+  const matchedOptions = instrumentKey ? constraints[instrumentKey]?.options ?? null : null;
+
+  if (matchedOptions?.length) {
+    return matchedOptions.map((option) => option.value);
+  }
+
+  // If runtime slot metadata is unavailable, expose the union so the control remains usable
+  // until the correct branch can be resolved.
+  const allOptions = Object.values(constraints)
+    .flatMap((constraint) => constraint.options ?? [])
+    .map((option) => option.value);
+
+  return Array.from(new Set(allOptions));
+}
+
+function getSlotIndexOptions(slotChannelList: SlotChannelList | null): string[] {
+  const slots = slotChannelList?.slots ?? [];
+
+  // Runtime slot metadata is authoritative: only expose installed modules.
+  // Empty slots should not be selectable for event parameter configuration.
+  if (slots.length > 0) {
+    return slots
+      .filter((slot) => slot.module !== 'Empty')
+      .map((slot) => `${slot.slotId}`);
+  }
+
+  // Keep a fallback only when slot metadata is not available yet.
+  return ['1', '2', '3'];
+}
+
+function getChannelIndexOptions(slotChannelList: SlotChannelList | null): string[] {
+  const slots = slotChannelList?.slots ?? [];
+  const unique = new Set<string>();
+
+  for (const slot of slots) {
+    for (const channel of slot.channels) {
+      unique.add(`${channel.channelIndex}`);
+    }
+  }
+
+  const values = Array.from(unique).sort((a, b) => Number(a) - Number(b));
+  return values.length > 0 ? values : ['1', '2'];
+}
+
+function getConstraintKeyForSlot(
+  slotIndex: string | number | undefined,
+  slotChannelList: SlotChannelList | null,
+): string | null {
+  const slotId = Number(slotIndex);
+  if (!Number.isFinite(slotId)) {
+    return null;
+  }
+
+  const slot = slotChannelList?.slots.find((candidate) => candidate.slotId === slotId);
+  return slot ? getConstraintKeyForModule(slot.module) : null;
+}
+
+function getConstraintKeyForModule(module: Module): string | null {
+  // Catalog constraints are authored against broad instrument families, while runtime slot
+  // metadata uses concrete module names. Collapse those names back to the schema keys here.
+  if (/SMU/i.test(module)) {
+    return 'SMU';
+  }
+
+  if (/PSU/i.test(module)) {
+    return 'PSU';
+  }
+
+  return null;
 }
 
 export function findblockCategory(value: string): string | null {

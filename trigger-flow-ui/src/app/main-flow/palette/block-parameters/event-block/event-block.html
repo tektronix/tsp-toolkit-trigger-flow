@@ -40,14 +40,16 @@
             @if (getControlType(param) === 'select') {
               <app-dropdown
                 [label]="param.name"
-                [options]="getOptions(param)"
+                [options]="getOptions(type, param)"
+                [selected]="getParamValue(type, param.name)"
                 [disabled]="!isSelected(type)"
                 (selectedChange)="updateParam(type, param.name, $event)"
               />
             } @else if (getControlType(param) === 'number') {
               <app-dropdown
                 [label]="param.name"
-                [options]="getOptions(param)"
+                [options]="getOptions(type, param)"
+                [selected]="getParamValue(type, param.name)"
                 [disabled]="!isSelected(type)"
                 (selectedChange)="updateParam(type, param.name, $event)"
               />

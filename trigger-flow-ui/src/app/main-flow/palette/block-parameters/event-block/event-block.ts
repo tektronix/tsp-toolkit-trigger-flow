@@ -5,11 +5,19 @@ import { Textbox } from '../../../../custom-controls/textbox/textbox';
 import { Dropdown } from '../../../../custom-controls/dropdown/dropdown';
 import { TriggerFlowDataService } from '../../../../services/triggerFlowDataService';
 import { SlotChannelList } from '../../../../models/slotChannelModel';
-import { ParamControlType, resolveParamControlType } from '../../../../models/blockParameterHelper';
+import {
+  normalizeParameterValues,
+  ParamConstraintLike,
+  ParamControlType,
+  resolveParameterOptions,
+  resolveParamControlType,
+} from '../../../../models/blockParameterHelper';
 
 type EventParamView = {
   name: string;
+  type?: string;
   options?: { label: string; value: string }[] | null;
+  constraints?: Record<string, ParamConstraintLike> | null;
 };
 
 // Fallback event set used when trigger_events has not arrived from catalog yet.
@@ -148,6 +156,13 @@ export class EventBlockComponent implements OnChanges {
     return this.triggerEvents[type]?.parameters || FALLBACK_EVENT_DEFINITIONS[type]?.parameters || [];
   }
 
+  getParamValue(type: string, paramName: string): string {
+    const eventItem = this.selectedEvents.find((event) => event.type === type);
+    const value = eventItem?.params?.[paramName];
+    // Dropdown controls work with strings, so normalize stored numbers/strings to one shape.
+    return value === undefined || value === null ? '' : `${value}`;
+  }
+
   getControlType(param: { name: string; type?: string; options?: { value: string }[] | null }): ParamControlType {
     return resolveParamControlType({
       name: param.name,
@@ -184,50 +199,38 @@ export class EventBlockComponent implements OnChanges {
       return e;
     });
 
+    // Re-run dependent option/value normalization immediately so the UI and payload
+    // do not retain stale values after constrained fields change.
+    const normalized = updated.map((eventItem) =>
+      eventItem.type === type
+        ? {
+            ...eventItem,
+            params: normalizeParameterValues(
+              this.getParamsForType(eventItem.type),
+              eventItem.params,
+              this.slotChannelList,
+            ),
+          }
+        : eventItem,
+    );
+
     if (this.param.type === 'EventItem') {
-      this.param.value = updated[0] ?? null;
+      this.param.value = normalized[0] ?? null;
     } else {
-      this.param.value = updated;
+      this.param.value = normalized;
     }
     this.valueChange.emit();
   }
 
-  getOptions(param: { options: { value: string }[] | null }): string[] {
-    if (param.options?.length) {
-      return param.options.map((o) => o.value);
-    }
-
-    const name = (param as { name?: string }).name ?? '';
-
-    if (name === 'slot_index') {
-      return this.getSlotIndexOptions();
-    }
-
-    if (name === 'channel_index') {
-      return this.getChannelIndexOptions();
-    }
-
-    // Final fallback options for index/number-like params with no catalog options.
-    return Array.from({ length: 16 }, (_, index) => `${index + 1}`);
+  getOptions(type: string, param: EventParamView): string[] {
+    return resolveParameterOptions(param, {
+      values: this.getParamValues(type),
+      slotChannelList: this.slotChannelList,
+    });
   }
 
-  private getSlotIndexOptions(): string[] {
-    const slots = this.slotChannelList?.slots ?? [];
-    const values = slots.map((slot) => `${slot.slotId}`);
-    return values.length > 0 ? values : ['1', '2', '3', '4'];
-  }
-
-  private getChannelIndexOptions(): string[] {
-    const slots = this.slotChannelList?.slots ?? [];
-    const unique = new Set<string>();
-
-    for (const slot of slots) {
-      for (const channel of slot.channels) {
-        unique.add(`${channel.channelIndex}`);
-      }
-    }
-
-    const values = Array.from(unique).sort((a, b) => Number(a) - Number(b));
-    return values.length > 0 ? values : ['1', '2'];
+  private getParamValues(type: string): Record<string, string | number> {
+    const eventItem = this.selectedEvents.find((event) => event.type === type);
+    return eventItem?.params ?? {};
   }
 }
