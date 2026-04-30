@@ -1,13 +1,29 @@
+:host {
+  width: 100%;
+  justify-content: flex-start;
+  align-items: flex-start;
+  text-align: left;
+}
+
 .toggle-container {
   display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.toggle-label {
+  user-select: none;
+  margin-bottom: 5px;
+}
+
+.toggle-row {
+  display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 0.5rem;
 }
 
 .selected-option-label {
   min-width: 32px;
-  color: var(--vscode-input-foreground);
-  font-weight: 600;
   user-select: none;
 }
 
@@ -51,11 +67,24 @@
 }
 
 .toggle-switch:focus-visible {
-  outline: 1px solid var(--vscode-focusBorder);
-  outline-offset: 2px;
+  outline: none;
+}
+
+.toggle-switch:focus-visible .toggle-track {
+  border-color: var(--vscode-focusBorder, var(--vscode-editorWidget-border));
+  box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.1);
 }
 
 .toggle-switch:disabled {
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+.toggle-switch:disabled .toggle-track {
+  background-color: var(--vscode-editorWidget-background, var(--vscode-input-background));
+  border-color: var(--vscode-editorWidget-border);
+}
+
+.toggle-switch:disabled .toggle-thumb {
+  background-color: var(--vscode-disabledForeground, var(--vscode-input-foreground));
 }

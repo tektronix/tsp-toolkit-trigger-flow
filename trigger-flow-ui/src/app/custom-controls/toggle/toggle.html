@@ -3,20 +3,22 @@
     <span class="toggle-label">{{ label }}</span>
   }
 
-  <button
-    type="button"
-    class="toggle-switch"
-    role="switch"
-    [attr.aria-label]="automationID || label || 'toggle switch'"
-    [attr.aria-checked]="selectedOption === options[0]"
-    [class.on]="selectedOption === options[0]"
-    [disabled]="disabled"
-    (click)="toggleOption(selectedOption === options[0] ? options[1] : options[0])"
-  >
-    <span class="toggle-track">
-      <span class="toggle-thumb"></span>
-    </span>
-  </button>
+  <div class="toggle-row">
+    <button
+      type="button"
+      class="toggle-switch"
+      role="switch"
+      [attr.aria-label]="automationID"
+      [attr.aria-checked]="isOn"
+      [class.on]="isOn"
+      [disabled]="disabled"
+      (click)="toggleOption(isOn ? offOption?.value : onOption?.value)"
+    >
+      <span class="toggle-track">
+        <span class="toggle-thumb"></span>
+      </span>
+    </button>
 
-  <span class="selected-option-label">{{ selectedOption }}</span>
+    <span class="selected-option-label">{{ selectedOptionLabel }}</span>
+  </div>
 </div>

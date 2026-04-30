@@ -58,16 +58,21 @@
               [(ngModel)]="param.value"
               (inputChange)="onParameterValueChange()"
             />
-          }
-          @else if (isMultiLineStringType(param.type)) {
+          } @else if (isMultiLineStringType(param.type)) {
             <app-multiline-textbox
               [label]="param.name"
               [(ngModel)]="param.value"
               [maxLength]="52"
               (inputChange)="onParameterValueChange()"
             />
-          }
-           @else {
+          } @else if (isToggleType(param.type) && param.options) {
+            <app-toggle
+              [label]="param.name"
+              [options]="param.options"
+              [(ngModel)]="param.value"
+              (toggleOptionChange)="onParameterValueChange()"
+            />
+          } @else {
             <app-textbox
               [label]="param.name"
               [(ngModel)]="param.value"

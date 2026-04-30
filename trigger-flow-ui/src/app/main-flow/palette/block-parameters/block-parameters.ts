@@ -17,6 +17,7 @@ import { FormsModule } from '@angular/forms';
 import { EventBlockComponent } from './event-block/event-block';
 import { TriggerFlowDataService } from '../../../services/triggerFlowDataService';
 import { EventDefinition } from '../../../models/triggerBlock';
+import { Toggle } from '../../../custom-controls/toggle/toggle';
 
 const CATEGORY_ICON_PATHS: Record<string, string> = {
   actions: 'assets/shapes/icons/TinyAction.svg',
@@ -34,6 +35,7 @@ const CATEGORY_ICON_PATHS: Record<string, string> = {
     Dropdown,
     RadioButton,
     MultilineTextbox,
+    Toggle,
     FormsModule,
     EventBlockComponent,
   ],
@@ -100,6 +102,10 @@ export class BlockParameters {
 
   isMultiLineStringType(type: ParamTypeName): boolean {
     return type === 'MultiString';
+  }
+
+  isToggleType(type: ParamTypeName): boolean {
+    return type === 'SourceState';
   }
 
   getControlType(param: ActualParameter): ParamControlType {    
