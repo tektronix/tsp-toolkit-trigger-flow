@@ -225,38 +225,32 @@ impl EventItem {
         match self.r#type.as_str() {
             "DigioEvent" => {
                 let parsed: DigioEventType =
-                    serde_json::from_value(self.parameters.clone())
-                        .map_err(|e| e.to_string())?;
+                    serde_json::from_value(self.parameters.clone()).map_err(|e| e.to_string())?;
                 Ok(TriggerEventType::DigioEvent(parsed))
             }
             "SmuAtLimit" => {
                 let parsed: SmuAtLimitType =
-                    serde_json::from_value(self.parameters.clone())
-                        .map_err(|e| e.to_string())?;
+                    serde_json::from_value(self.parameters.clone()).map_err(|e| e.to_string())?;
                 Ok(TriggerEventType::SmuAtLimit(parsed))
             }
             "NotifyEvent" => {
                 let parsed: NotifyEvent =
-                    serde_json::from_value(self.parameters.clone())
-                        .map_err(|e| e.to_string())?;
+                    serde_json::from_value(self.parameters.clone()).map_err(|e| e.to_string())?;
                 Ok(TriggerEventType::NotifyEvent(parsed))
             }
             "GeneratorEvent" => {
                 let parsed: GeneratorEventType =
-                    serde_json::from_value(self.parameters.clone())
-                        .map_err(|e| e.to_string())?;
+                    serde_json::from_value(self.parameters.clone()).map_err(|e| e.to_string())?;
                 Ok(TriggerEventType::GeneratorEvent(parsed))
             }
             "TimerEvent" => {
                 let parsed: TimerEventType =
-                    serde_json::from_value(self.parameters.clone())
-                        .map_err(|e| e.to_string())?;
+                    serde_json::from_value(self.parameters.clone()).map_err(|e| e.to_string())?;
                 Ok(TriggerEventType::TimerEvent(parsed))
             }
             "TsplinkEvent" => {
                 let parsed: TsplinkEventType =
-                    serde_json::from_value(self.parameters.clone())
-                        .map_err(|e| e.to_string())?;
+                    serde_json::from_value(self.parameters.clone()).map_err(|e| e.to_string())?;
                 Ok(TriggerEventType::TsplinkEvent(parsed))
             }
             _ => Err(format!("Unknown event type: {}", self.r#type)),
