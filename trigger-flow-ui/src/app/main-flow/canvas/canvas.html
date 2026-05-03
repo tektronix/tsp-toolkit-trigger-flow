@@ -69,7 +69,7 @@
         (keydown.enter)="onNodeClick(node.blockId)"
       >
         <div class="node-content">
-          <svg-icon [src]="node.svgPath" [ngStyle]="getSvgStyle(node)" class="node-svg" fDragHandle>
+          <svg-icon [src]="node.svgPath" class="node-svg" fDragHandle>
           </svg-icon>
          @if (getInputPosition(node) === 'right') {
         <div

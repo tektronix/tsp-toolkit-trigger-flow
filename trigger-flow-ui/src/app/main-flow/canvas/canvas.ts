@@ -8,12 +8,14 @@ import {
   AfterViewInit,
   Output,
   EventEmitter,
+  effect,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AngularSvgIconModule } from 'angular-svg-icon';
 import { SvgManagerService } from '../../services/svg-manager.service';
 import { CanvasBlocksService } from '../../services/canvas-blocks.service';
 import { TriggerFlowDataService } from '../../services/triggerFlowDataService';
+import { PaletteDataService } from '../../services/palette-data.service';
 import { BlockErrorEntry } from '../../models/triggerFlowState';
 import { EFMarkerType, FFlowModule, FSelectionChangeEvent } from '@foblex/flow';
 
@@ -84,6 +86,7 @@ export class Canvas implements AfterViewInit {
   private svgManager = inject(SvgManagerService);
   private canvasBlocksService = inject(CanvasBlocksService);
   private triggerFlowDataService = inject(TriggerFlowDataService);
+  private paletteDataService = inject(PaletteDataService);
   protected readonly eMarkerType = EFMarkerType;
 
   private nodeCounter = 0;
@@ -124,6 +127,23 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
   }));
 });
   sectionNodes = computed<FlowNode[]>(() => this.sections().flatMap((section) => section.nodes));
+
+  constructor() {
+    // Session restoration effect - runs whenever models$() signal changes
+    effect(() => {
+      const models = this.triggerFlowDataService.models$();
+      const currentSections = this.sections();
+      
+      console.log('Models changed, checking for restoration...', models);
+      
+      // Detection logic: restore if canvas is empty but models have data
+      if (this.shouldRestoreFromModels(models, currentSections)) {
+        console.log('Session restoration triggered - converting models to canvas sections');
+        const newSections = this.convertModelsToSections(models);
+        this.sections.set(newSections);
+      }
+    });
+  }
 
   readonly modelErrorSummary = computed<Record<string, { hasError: boolean; tooltip: string }>>(
     () => {
@@ -228,12 +248,12 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
     if (!section) return;
 
     const uniqueBlockId = this.createUniqueNodeId();
-
+    const newSVGPath = this.changeSVGPath(event.data?.svgPath);
     const newNode: FlowNode = {
       blockId: uniqueBlockId,
       sectionId: targetSectionId,
       position: { x: event.rect.x, y: event.rect.y },
-      svgPath: event.data?.svgPath,
+      svgPath: newSVGPath,
       catalogLabel: event.data?.catalogLabel,
       blockType: event.data?.type,
       input: `input-${this.nodeCounter}`,
@@ -259,6 +279,14 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
     this.canvasBlocksService.selectBlock(newNode.blockId);
   }
 
+  private changeSVGPath(svgPath: string): string {
+    return svgPath.replace('palette/', 'canvas/');
+  }
+  private getSVGPath(blockType: string): string {
+    console.log('################Getting SVG path for block type:', blockType);
+    const svgPath = this.paletteDataService.getSVGPathByCatalogLabel(blockType);
+    return this.changeSVGPath(svgPath || '');
+  }
   private createUniqueNodeId(): string {
     const existingIds = new Set(this.sectionNodes().map((node) => node.blockId));
     let candidate = '';
@@ -274,50 +302,6 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
     this.canvasBlocksService.selectBlock(blockId);
   }
 
-  getSvgStyle(node: FlowNode): Record<string, string> {
-    const blockType = node.blockType;
-    const cssConfig = this.getBlockCSSConfig(blockType);
-    return {
-      '--fill-color': cssConfig.fillColor,
-      '--stroke-color': cssConfig.strokeColor,
-      '--title-color': cssConfig.titleColor,
-      '--event-fill-color': cssConfig.eventFillColor || cssConfig.fillColor,
-      '--event-stroke-color': cssConfig.eventStrokeColor || cssConfig.strokeColor,
-    };
-  }
-
-  private getBlockCSSConfig(blockType: string | undefined): {
-    fillColor: string;
-    strokeColor: string;
-    titleColor: string;
-    eventFillColor?: string;
-    eventStrokeColor?: string;
-  } {
-    switch (blockType) {
-      case 'Action':
-        return { fillColor: '#173727', strokeColor: '#95C5AD', titleColor: '#95C5AD' };
-      case 'Branch':
-        return { fillColor: '#1E3A41', strokeColor: '#95BBC5', titleColor: '#95BBC5' };
-      case 'Notify':
-        return {
-          fillColor: '#3C2F20',
-          strokeColor: '#E79F48',
-          titleColor: '#E79F48',
-          eventFillColor: '#26251A',
-          eventStrokeColor: '#F1EF8B',
-        };
-      case 'Timing':
-        return {
-          fillColor: '#372E3F',
-          strokeColor: '#C687FA',
-          titleColor: '#C687FA',
-          eventFillColor: '#26251A',
-          eventStrokeColor: '#F1EF8B',
-        };
-      default:
-        return { fillColor: '#FFFFFF', strokeColor: '#333333', titleColor: '#333333' };
-    }
-  }
   onCreateConnection(event: any) {
     console.log('🔗 CONNECTION CREATED! Event details:', event);
     console.log('Connection data:', JSON.stringify(event, null, 2));
@@ -485,4 +469,110 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
   private hasBlockErrorItems(blockError: BlockErrorEntry[] | null | undefined): boolean {
     return Array.isArray(blockError) && blockError.length > 0;
   }
+
+  /**
+   * Determines if we should restore the canvas from service models
+   * This happens when:
+   * 1. Canvas is empty (no sections) 
+   * 2. Service has model data
+   * 3. It's not a user-initiated change (session restore scenario)
+   */
+  private shouldRestoreFromModels(models: Record<string, any>, currentSections: FlowSection[]): boolean {
+    // Canvas is empty but service has models = session restoration needed
+    const canvasIsEmpty = currentSections.length === 0;
+    const serviceHasModels = Object.keys(models).length > 0;
+    
+    console.log('Restoration check:', { canvasIsEmpty, serviceHasModels, modelCount: Object.keys(models).length });
+    
+    return canvasIsEmpty && serviceHasModels;
+  }
+
+  /**
+   * Converts service models to canvas sections
+   * This is the core transformation: backend data → visual canvas elements
+   */
+  private convertModelsToSections(models: Record<string, any>): FlowSection[] {
+    console.log('Converting models to sections:', models);
+    
+    // Object.entries converts {key: value} to [[key, value], ...]
+    return Object.entries(models).map(([modelName, model], index) => {
+      console.log(`Processing model ${index + 1}:`, modelName, model);
+      
+      // Each model becomes a canvas section
+      const sectionId = `group-${index + 1}`;
+      
+      return {
+        id: sectionId,
+        modelName: model.trigger_model_name || modelName,
+        slotIndex: model.slot_index || 0,
+        nodes: this.convertBlocksToNodes(model.blocks || [], sectionId)
+      };
+    });
+  }
+
+  /**
+   * Converts an array of service blocks to canvas FlowNodes
+   */
+  private convertBlocksToNodes(blocks: any[], sectionId: string): FlowNode[] {
+    return blocks.map((block, index) => {
+      console.log(`Converting block ${index + 1}:`, block);
+      const blockSVG= this.getSVGPath(block.type);
+      return {
+        blockId: block.block_id || `restored-block-${index + 1}`,
+        sectionId: sectionId,
+        position: {
+          x: block.block_position?.x || (100 + index * 150), // Fallback positioning
+          y: block.block_position?.y || 100
+        },
+        blockType: block.type,
+        catalogLabel: 'UnknownBlock', // Placeholder since deriveCatalogLabel is commented out
+        svgPath: blockSVG, // Placeholder since deriveSvgPath is commented out
+        input: `input-${block.block_id || index}`,
+        outputs: [`output-${block.block_id || index}`],
+        color: '#FFFFFF'
+      };
+    });
+  }
+
+  /**
+   * Derives the catalog label (block name) from service block data
+   * This determines which catalog definition to use for the block
+  //  */
+  // private deriveCatalogLabel(block: any): string {
+  //   // Try to get block name from parameters first
+  //   if (block.block_parameters?.block_name) {
+  //     return block.block_parameters.block_name;
+  //   }
+    
+  //   // Fallback to type-based naming
+  //   if (block.type) {
+  //     return `${block.type}Block`;
+  //   }
+    
+  //   // Last resort fallback
+  //   return 'UnknownBlock';
+  // }
+
+  /**
+   * Derives the SVG path from service block data
+   * This determines which icon to show for the block
+   */
+  // private deriveSvgPath(block: any): string {
+  //   const blockType = block.type;
+    
+  //   // Map block types to their SVG paths
+  //   // This should match your existing drag-and-drop logic
+  //   switch (blockType) {
+  //     case 'Action':
+  //       return 'assets/icons/action-block.svg'; // Adjust to your actual paths
+  //     case 'Branch':
+  //       return 'assets/icons/branch-block.svg';
+  //     case 'Notify':
+  //       return 'assets/icons/notify-block.svg';
+  //     case 'Timing':
+  //       return 'assets/icons/timing-block.svg';
+  //     default:
+  //       return 'assets/icons/default-block.svg';
+  //   }
+  // }
 }
