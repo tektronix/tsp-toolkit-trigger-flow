@@ -66,6 +66,7 @@
         (click)="onNodeClick(node.blockId)"
         role="button"
         tabindex="0"
+        [aria-label]="node.sectionId + '_' + node.catalogLabel"
         (keydown.enter)="onNodeClick(node.blockId)"
       >
         <div class="node-content">

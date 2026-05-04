@@ -20,7 +20,7 @@
                             <ng-container *ngIf="sub.shapes && sub.shapes.length > 0; else subgroupContent">
                                 <div *ngFor="let shape of sub.shapes" class="palette-item" 
                                     >
-                                    <div class="shape-icon" fExternalItem [fData]="shape">
+                                    <div class="shape-icon" fExternalItem [fData]="shape" [attr.aria-label]='shape.catalogLabel+"_"+"palette"'>
                                         <img [src]="shape.svgPath" class="shape-svg" />
                                     </div>
                                     <!-- <span class="shape-label">{{ shape.label }}</span> -->
