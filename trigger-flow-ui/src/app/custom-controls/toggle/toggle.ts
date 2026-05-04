@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, Input, Output, EventEmitter, forwardRef } from '@angular/core';
 import { ControlValueAccessor, FormsModule, NG_VALUE_ACCESSOR } from '@angular/forms';
-import { ParameterOption } from '../../models/triggerBlock';
+import { ParameterOptions } from '../../models/triggerBlock';
 
 @Component({
   selector: 'app-toggle',
@@ -19,16 +19,16 @@ import { ParameterOption } from '../../models/triggerBlock';
 export class Toggle implements ControlValueAccessor {
   @Input() label: string | undefined;
   @Input() automationID: string | undefined;
-  @Input() options: ParameterOption[] = [];
+  @Input() options: ParameterOptions[] = [];
   @Input() selectedOption: string | undefined;
   @Input() disabled = false;
   @Output() toggleOptionChange = new EventEmitter<string>();
 
-  get onOption(): ParameterOption | undefined {
+  get onOption(): ParameterOptions | undefined {
     return this.options[0];
   }
 
-  get offOption(): ParameterOption | undefined {
+  get offOption(): ParameterOptions | undefined {
     return this.options[1];
   }
 

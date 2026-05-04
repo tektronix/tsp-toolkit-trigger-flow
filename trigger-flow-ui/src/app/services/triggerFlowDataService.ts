@@ -46,6 +46,10 @@ export class TriggerFlowDataService {
     return this.catalog();
   }
 
+  getTriggerEvents(): any {
+    return this.catalog()?.trigger_events || {};
+  }
+
   getSlotChannelList(): SlotChannelList | null {
     return this.slotChannelList();
   }

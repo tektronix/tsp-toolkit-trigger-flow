@@ -76,6 +76,9 @@ pub struct Parameter {
     pub param_type: ParamTypeName,
     pub required: bool,
     pub options: Option<Vec<ParameterOptions>>,
+    // Conditional option branches from YAML (for example SMU vs PSU specific options).
+    // These are serialized to the UI so the frontend can resolve them using runtime context.
+    pub constraints: Option<HashMap<String, ParameterConstraint>>,
     pub default: Option<serde_json::Value>,
     pub range: Option<ParameterRange>,
 }
@@ -149,6 +152,18 @@ impl Parameter {
                     catalog.validate_event(event_value, block)?;
                 }
             }
+            ParamTypeName::EventItem => {
+                if let Some(event_value) = value {
+                    catalog.validate_event(event_value, block)?;
+                }
+            }
+            ParamTypeName::EventList => {
+                if let Some(Value::Array(events)) = value {
+                    for event_value in events {
+                        catalog.validate_event(event_value, block)?;
+                    }
+                }
+            }
             _ => {}
         }
         Ok(())
@@ -159,6 +174,11 @@ impl Parameter {
 pub struct ParameterOptions {
     pub label: String,
     pub value: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ParameterConstraint {
+    pub options: Option<Vec<ParameterOptions>>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
