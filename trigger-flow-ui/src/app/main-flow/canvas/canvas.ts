@@ -228,18 +228,6 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
     }
   }
 
-  getInputPosition(node: FlowNode): string {
-    const catalog = this.triggerFlowDataService.catalog$();
-    const blockCatalog = catalog?.blocks[node.catalogLabel || ''];
-    const hasBranchParam = blockCatalog?.parameters.some(
-      (param) => param.name === 'branch_to_block_name'
-    );
-    const hasReferenceParam = blockCatalog?.parameters.some(
-      (param) => param.name === 'reference_block_name'
-    );
-    return hasBranchParam? "right" : hasReferenceParam ? "left" :"NA";
-  }
-
   /**
    * Returns true when the node's SVG contains a `<g class="Connector">` group
    * (i.e. an input port should be rendered). Triggers a background fetch on
