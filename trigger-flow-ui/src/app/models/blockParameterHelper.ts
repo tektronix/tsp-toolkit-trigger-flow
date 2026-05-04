@@ -1,43 +1,49 @@
 import { Module, SlotChannelList } from './slotChannelModel';
 
 export const BLOCK_CATEGORY_VALUES: Record<string, readonly string[]> = {
-  actions: ['config list next', 'configlist prev', 'configlist recall', 'measure', 'measure overlapped', 'no operation', 'reset branch counter', 'source action bias', 'source action skip', 'source action step', 'source output'],
+  actions: ['config list next', 'config list prev', 'config list recall', 'measure', 'measure overlapped', 'no operation', 'reset branch counter', 'source action bias', 'source action skip', 'source action step', 'source output'],
   branches: ['always', 'once excluded', 'on event'],
   notify: ['log event', 'notify'],
   timing: ['delay constant', 'wait on event'],
 };
 
-// Centralize control decisions so adding support for new ParamTypeName values stays in one place
-export type ParamControlType = 'number' | 'select' | 'radio' | 'text' | 'custom';
+const HIDDEN_PARAMETER_NAMES = new Set(['trigger_model_name', 'slot_index']);
 
-type ControlRuleContext = {
+const PARAMETER_DISPLAY_NAMES: Record<string, string> = {
+  trigger_block_name: 'Block Name',
+};
+
+// Centralize control decisions so adding support for new ParamTypeName values stays in one place
+export type ParamControlType = 'number' | 'select' | 'radio' | 'text' | 'toggle' | 'multiline' | 'custom' | 'unknown';
+
+interface ControlRuleContext {
   name: string;
   type?: string;
   hasOptions: boolean;
-};
+}
 
-export type ParamConstraintLike = {
+export interface ParamConstraintLike {
   options?: { label: string; value: string }[] | null;
-};
+}
 
-export type ParamOptionSource = {
+export interface ParamOptionSource {
   name: string;
   type?: string;
   options?: { label: string; value: string }[] | null;
   // Optional conditional branches keyed by runtime selectors (for example SMU/PSU).
   constraints?: Record<string, ParamConstraintLike> | null;
-};
+}
 
-type ParamOptionContext = {
+interface ParamOptionContext {
   values: Record<string, string | number>;
   slotChannelList: SlotChannelList | null;
-};
+}
 
 // Mapping table for parameter-type driven rendering. This is the primary
 // extension point when new ParamTypeName values are introduced.
 const PARAM_TYPE_TO_CONTROL: Record<string, ParamControlType> = {
-  String: 'text',
-  Number: 'number',
+  string: 'text',
+  number: 'number',
   DelayTime: 'number',
   SlotIndex: 'select',
   ChannelIndex: 'select',
@@ -45,13 +51,14 @@ const PARAM_TYPE_TO_CONTROL: Record<string, ParamControlType> = {
   EventID: 'select',
   ChannelList: 'select',
   LogEventType: 'radio',
-  SourceState: 'radio',
   ClearType: 'radio',
   LogicType: 'radio',
   TriggerEventType: 'radio',
   notifyType: 'radio',
+  SourceState: 'toggle',
   EventItem: 'custom',
   EventList: 'custom',
+  MultiString: 'multiline',
 };
 
 export function resolveParamControlType(context: ControlRuleContext): ParamControlType {
@@ -59,6 +66,10 @@ export function resolveParamControlType(context: ControlRuleContext): ParamContr
   const mapped = context.type ? PARAM_TYPE_TO_CONTROL[context.type] : undefined;
   const isIndexLike =
     /(index|number)/i.test(context.name) || /(Index|Number)/i.test(context.type ?? '');
+
+  if (mapped === 'text') {
+    return 'text';
+  }
 
   if (mapped === 'custom') {
     return 'custom';
@@ -73,6 +84,10 @@ export function resolveParamControlType(context: ControlRuleContext): ParamContr
     return context.hasOptions ? 'radio' : 'text';
   }
 
+  if (mapped === 'multiline') {
+    return 'multiline';
+  }
+
   if (mapped === 'select') {
     // Some select-like fields (for example SlotIndex/ChannelIndex) can resolve
     // options dynamically at runtime, so keep those as dropdowns even when
@@ -80,8 +95,6 @@ export function resolveParamControlType(context: ControlRuleContext): ParamContr
     if (context.hasOptions || isIndexLike) {
       return 'select';
     }
-
-    return 'text';
   }
 
   // Generic fallback for enum-like values even when the type is unknown.
@@ -95,7 +108,7 @@ export function resolveParamControlType(context: ControlRuleContext): ParamContr
     return 'select';
   }
 
-  return 'text';
+  return 'unknown';
 }
 
 export function resolveParameterOptions(
@@ -247,4 +260,21 @@ export function findblockCategory(value: string): string | null {
   }
 
   return null;
+}
+
+export function shouldShowBlockParameter(paramName: string): boolean {
+  return !HIDDEN_PARAMETER_NAMES.has(paramName);
+}
+
+export function getBlockParameterDisplayName(paramName: string): string {
+  const override = PARAMETER_DISPLAY_NAMES[paramName];
+  if (override) {
+    return override;
+  }
+
+  return paramName
+    .split('_')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 }
