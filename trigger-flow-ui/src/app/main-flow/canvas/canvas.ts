@@ -403,8 +403,65 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
   onCreateConnection(event: any) {
     console.log('🔗 CONNECTION CREATED! Event details:', event);
     console.log('Connection data:', JSON.stringify(event, null, 2));
-    
+
     if (event.fOutputId && event.fInputId) {
+      const outputBlockId = this.extractBlockIdFromPortId(event.fOutputId);
+      const inputBlockId = this.extractBlockIdFromPortId(event.fInputId);
+
+      const outputBlock = outputBlockId
+        ? this.canvasBlocksService.getBlockById(outputBlockId)
+        : null;
+      const inputBlock = inputBlockId
+        ? this.canvasBlocksService.getBlockById(inputBlockId)
+        : null;
+
+      console.log('Output node:', outputBlockId, outputBlock);
+      console.log('Output block parameters:', outputBlock?.actual_parameters);
+      console.log('Input node:', inputBlockId, inputBlock);
+      console.log('Input block parameters:', inputBlock?.actual_parameters);
+
+      // Wire the connection in the data model:
+      //  1. Read `trigger_block_name` from the output (source) block.
+      //  2. If the output block has a `branch_to_block_name` parameter, set it there.
+      //  3. Otherwise, if the input (target) block has `reference_block_name`, set it there.
+      if (outputBlock && inputBlock && outputBlockId && inputBlockId) {
+        const triggerBlockName = outputBlock.actual_parameters.find(
+          (p) => p.name === 'trigger_block_name',
+        )?.value;
+
+        const sourceValue =
+          triggerBlockName !== undefined && triggerBlockName !== null
+            ? triggerBlockName
+            : outputBlock.block_id;
+
+        const inputHasBranch = inputBlock.actual_parameters.some(
+          (p) => p.name === 'branch_to_block_name',
+        );
+        const inputHasReference = inputBlock.actual_parameters.some(
+          (p) => p.name === 'reference_block_name',
+        );
+
+        if (inputHasBranch) {
+          this.canvasBlocksService.updateBlockParameterValue(
+            inputBlockId,
+            'branch_to_block_name',
+            sourceValue,
+          );
+          console.log(
+            `Set branch_to_block_name=${sourceValue} on input block ${inputBlockId}`,
+          );
+        } else if (inputHasReference) {
+          this.canvasBlocksService.updateBlockParameterValue(
+            inputBlockId,
+            'reference_block_name',
+            sourceValue,
+          );
+          console.log(
+            `Set reference_block_name=${sourceValue} on input block ${inputBlockId}`,
+          );
+        }
+      }
+
       const newConnection: FlowConnection = {
         id: `connection-${++this.connectionCounter}`,
         fOutputId: event.fOutputId,
@@ -414,6 +471,19 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
       console.log('Connection added to array:', newConnection);
       console.log('Total connections:', this.connections().length);
     }
+  }
+
+  /**
+   * Port ids are constructed as `<blockId>-out-<side>` or `<blockId>-in[-<side>]`.
+   * Strip the trailing port suffix so we can resolve back to the FlowNode/block.
+   */
+  private extractBlockIdFromPortId(portId: string): string | null {
+    if (!portId) return null;
+    const match = portId.match(/^(.*)-(?:in|out)(?:-[a-z]+)?$/i);
+    if (match) return match[1];
+    // Fallback: match against known block ids.
+    const node = this.sectionNodes().find((n) => portId.startsWith(n.blockId + '-'));
+    return node?.blockId ?? null;
   }
 
   onSelectionChange(event: FSelectionChangeEvent): void {

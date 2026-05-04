@@ -261,6 +261,24 @@ export class CanvasBlocksService {
     return null;
   }
 
+  /**
+   * Updates the `value` of an actual parameter on a block. Returns true if a
+   * matching parameter was found and updated.
+   */
+  updateBlockParameterValue(
+    blockId: string,
+    parameterName: string,
+    value: string | number | null,
+  ): boolean {
+    const block = this.getBlockById(blockId);
+    if (!block) return false;
+    const param = block.actual_parameters.find((p) => p.name === parameterName);
+    if (!param) return false;
+    param.value = value;
+    this.updateAndPrint();
+    return true;
+  }
+
   logIpcDataFormat(): void {
     const slot_channel_list = this.triggerFlowDataService.getSlotChannelList() || { slots: [] };
     // Build models object, omitting syntax, description, and shape from blocks
