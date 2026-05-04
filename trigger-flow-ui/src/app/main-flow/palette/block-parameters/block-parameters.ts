@@ -64,19 +64,19 @@ export class BlockParameters {
   }
 
   onParameterValueChange(): void {
-    if (this.selectedBlockId) {
-      const canvasBlock = this.canvasBlocksService.getBlockById(this.selectedBlockId);
-      if (canvasBlock) {
-        console.log(
-          'Updating block parameters for block ID:',
-          this.selectedBlockId,
-          'with values:',
-          this.actualParameters,
-        );
-        // Update the block's actual_parameters with the new values
-        canvasBlock.actual_parameters = this.actualParameters;
-      }
-    }
+    if (!this.selectedBlockId) return;
+
+    const canvasBlock = this.canvasBlocksService.getBlockById(this.selectedBlockId);
+    if (!canvasBlock) return;
+
+    console.log(
+      'Updating block parameters for block ID:',
+      this.selectedBlockId,
+      'with values:',
+      this.actualParameters,
+    );
+    canvasBlock.actual_parameters = this.actualParameters;
+    this.canvasBlocksService.updateAndPrint();
   }
 
   shouldShowInUI(param: ActualParameter): boolean {

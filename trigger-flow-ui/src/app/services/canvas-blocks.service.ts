@@ -193,7 +193,7 @@ export class CanvasBlocksService {
     };
   }
 
-  private updateAndPrint(): void {
+   updateAndPrint(): void {
     const data = this.getCanvasData();
     this.canvasBlocksSubject.next(data);
 
