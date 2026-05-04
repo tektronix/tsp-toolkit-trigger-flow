@@ -403,14 +403,9 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
         ? this.canvasBlocksService.getBlockById(inputBlockId)
         : null;
 
-      console.log('Output node:', outputBlockId, outputBlock);
-      console.log('Output block parameters:', outputBlock?.actual_parameters);
-      console.log('Input node:', inputBlockId, inputBlock);
-      console.log('Input block parameters:', inputBlock?.actual_parameters);
-
       // Wire the connection in the data model:
       //  1. Read `trigger_block_name` from the output (source) block.
-      //  2. If the output block has a `branch_to_block_name` parameter, set it there.
+      //  2. If the input (target) block has a `branch_to_block_name` parameter, set it there.
       //  3. Otherwise, if the input (target) block has `reference_block_name`, set it there.
       if (outputBlock && inputBlock && outputBlockId && inputBlockId) {
         const triggerBlockName = outputBlock.actual_parameters.find(
