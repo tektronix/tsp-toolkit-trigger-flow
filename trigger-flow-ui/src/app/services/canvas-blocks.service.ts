@@ -199,7 +199,7 @@ export class CanvasBlocksService {
     this.logIpcDataFormat();
   }
 
-  private sendIpcDataToServer(ipcData: any): void {
+  private sendIpcDataToServer(ipcData: { request_type: string; additional_info: string; json_value: string }): void {
     try {
       this.websocketService.send(JSON.stringify(ipcData));
       console.log('=======IpcData sent to server successfully=======');
@@ -228,7 +228,7 @@ export class CanvasBlocksService {
   logIpcDataFormat(): void {
     const slot_channel_list = this.triggerFlowDataService.getSlotChannelList() || { slots: [] };
     // Build models object, omitting syntax, description, and shape from blocks
-    const filteredModels: any = {};
+    const filteredModels: Record<string, { trigger_model_name: string; slot_index: number; blocks: Record<string, unknown>[] }> = {};
 
     for (const [modelName, model] of Object.entries(this.models)) {
       filteredModels[modelName] = {

@@ -15,23 +15,26 @@
 
     <div class="event-row">
       <div class="event-type-selector">
-        <label>
-          @if (isSingleSelection) {
+        @if (isSingleSelection) {
+          <label>
             <input
               type="radio"
               name="event-list-selection"
               [checked]="isSelected(type)"
               (change)="selectSingleEvent(type)"
             />
-          } @else {
+            {{ type }}
+          </label>
+        } @else {
+          <label>
             <input
               type="checkbox"
               [checked]="isSelected(type)"
               (change)="toggleEvent(type)"
             />
-          }
-          {{ type }}
-        </label>
+            {{ type }}
+          </label>
+        }
       </div>
 
       <div class="event-config">

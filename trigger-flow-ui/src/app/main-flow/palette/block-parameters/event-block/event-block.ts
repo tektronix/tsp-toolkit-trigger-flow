@@ -13,12 +13,12 @@ import {
   resolveParamControlType,
 } from '../../../../models/blockParameterHelper';
 
-type EventParamView = {
+interface EventParamView {
   name: string;
   type?: string;
   options?: { label: string; value: string }[] | null;
   constraints?: Record<string, ParamConstraintLike> | null;
-};
+}
 
 // Fallback event set used when trigger_events has not arrived from catalog yet.
 // This ensures the Event custom UI still shows the expected checkboxes/parameter names.

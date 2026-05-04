@@ -10,28 +10,28 @@ export const BLOCK_CATEGORY_VALUES: Record<string, readonly string[]> = {
 // Centralize control decisions so adding support for new ParamTypeName values stays in one place
 export type ParamControlType = 'number' | 'select' | 'radio' | 'text' | 'custom';
 
-type ControlRuleContext = {
+interface ControlRuleContext {
   name: string;
   type?: string;
   hasOptions: boolean;
-};
+}
 
-export type ParamConstraintLike = {
+export interface ParamConstraintLike {
   options?: { label: string; value: string }[] | null;
-};
+}
 
-export type ParamOptionSource = {
+export interface ParamOptionSource {
   name: string;
   type?: string;
   options?: { label: string; value: string }[] | null;
   // Optional conditional branches keyed by runtime selectors (for example SMU/PSU).
   constraints?: Record<string, ParamConstraintLike> | null;
-};
+}
 
-type ParamOptionContext = {
+interface ParamOptionContext {
   values: Record<string, string | number>;
   slotChannelList: SlotChannelList | null;
-};
+}
 
 // Mapping table for parameter-type driven rendering. This is the primary
 // extension point when new ParamTypeName values are introduced.
