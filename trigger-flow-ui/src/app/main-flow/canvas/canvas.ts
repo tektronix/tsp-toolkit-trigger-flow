@@ -11,6 +11,7 @@ import {
   effect,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
 import { AngularSvgIconModule } from 'angular-svg-icon';
 import { SvgManagerService } from '../../services/svg-manager.service';
 import { CanvasBlocksService } from '../../services/canvas-blocks.service';
@@ -87,7 +88,14 @@ export class Canvas implements AfterViewInit {
   private canvasBlocksService = inject(CanvasBlocksService);
   private triggerFlowDataService = inject(TriggerFlowDataService);
   private paletteDataService = inject(PaletteDataService);
+  private http = inject(HttpClient);
   protected readonly eMarkerType = EFMarkerType;
+
+  // Cache of input-connector positions (as % of node bounds) keyed by svgPath.
+  // null = SVG has no <g class="Connector"> group, so no input should render.
+  private connectorPositions = signal<Record<string, { xPct: number; yPct: number } | null>>({});
+  // svgPaths whose load is in flight, to avoid duplicate HTTP requests.
+  private connectorLoadInFlight = new Set<string>();
 
   private nodeCounter = 0;
 
@@ -230,6 +238,96 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
       (param) => param.name === 'reference_block_name'
     );
     return hasBranchParam? "right" : hasReferenceParam ? "left" :"NA";
+  }
+
+  /**
+   * Returns true when the node's SVG contains a `<g class="Connector">` group
+   * (i.e. an input port should be rendered). Triggers a background fetch on
+   * first access for each unique svgPath.
+   */
+  hasInputConnector(node: FlowNode): boolean {
+    const pos = this.connectorPositions()[node.svgPath];
+    if (pos === undefined) {
+      this.loadConnectorPosition(node.svgPath);
+      return false;
+    }
+    return pos !== null;
+  }
+
+  /**
+   * Inline style positioning the input connector exactly on top of the SVG's
+   * Connector element (expressed as % of the node's bounding box).
+   */
+  getInputStyle(node: FlowNode): Record<string, string> {
+    const pos = this.connectorPositions()[node.svgPath];
+    if (!pos) return {};
+    return {
+      left: `${pos.xPct}%`,
+      top: `${pos.yPct}%`,
+    };
+  }
+
+  private loadConnectorPosition(svgPath: string): void {
+    if (!svgPath) return;
+    if (svgPath in this.connectorPositions()) return;
+    if (this.connectorLoadInFlight.has(svgPath)) return;
+    this.connectorLoadInFlight.add(svgPath);
+
+    this.http.get(svgPath, { responseType: 'text' }).subscribe({
+      next: (svgText) => {
+        const parsed = this.parseConnectorPosition(svgText);
+        this.connectorPositions.update((current) => ({ ...current, [svgPath]: parsed }));
+        this.connectorLoadInFlight.delete(svgPath);
+      },
+      error: () => {
+        this.connectorPositions.update((current) => ({ ...current, [svgPath]: null }));
+        this.connectorLoadInFlight.delete(svgPath);
+      },
+    });
+  }
+
+  private parseConnectorPosition(svgText: string): { xPct: number; yPct: number } | null {
+    try {
+      const doc = new DOMParser().parseFromString(svgText, 'image/svg+xml');
+      const svg = doc.querySelector('svg');
+      if (!svg) return null;
+
+      const connector = doc.querySelector('g.Connector');
+      if (!connector) return null;
+
+      const viewBoxAttr = svg.getAttribute('viewBox');
+      let vbX = 0, vbY = 0, vbW = 0, vbH = 0;
+      if (viewBoxAttr) {
+        const parts = viewBoxAttr.trim().split(/\s+|,/).map(Number);
+        if (parts.length === 4 && parts.every((n) => Number.isFinite(n))) {
+          [vbX, vbY, vbW, vbH] = parts;
+        }
+      }
+      if (!vbW || !vbH) {
+        vbW = Number(svg.getAttribute('width')) || 0;
+        vbH = Number(svg.getAttribute('height')) || 0;
+      }
+      if (!vbW || !vbH) return null;
+
+      // Prefer a circle inside the Connector group (the visual port).
+      const circle = connector.querySelector('circle');
+      let cx: number | null = null;
+      let cy: number | null = null;
+      if (circle) {
+        cx = Number(circle.getAttribute('cx'));
+        cy = Number(circle.getAttribute('cy'));
+      }
+      if (cx === null || cy === null || !Number.isFinite(cx) || !Number.isFinite(cy)) {
+        return null;
+      }
+
+      return {
+        xPct: ((cx - vbX) / vbW) * 100,
+        yPct: ((cy - vbY) / vbH) * 100,
+      };
+    } catch {
+      return null;
+    }
   }
 
   discardPendingCreateNode(): void {
