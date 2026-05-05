@@ -8,7 +8,6 @@ import {
   AfterViewInit,
   Output,
   EventEmitter,
-  effect,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
@@ -80,9 +79,9 @@ interface ModelModalResult {
 const BLOCK_TYPE_TO_SVG_PATH: Record<string, string> = {
   // Branch blocks
   always: 'assets/shapes/palette/Branch/BranchBlock-Always.svg',
-  counter: 'assets/shapes/palette/Branch/BranchBlock-Counter.svg',
-  event: 'assets/shapes/palette/Branch/BranchBlock-Always.svg', // No dedicated SVG, use Always
-  once: 'assets/shapes/palette/Branch/BranchBlock-Always.svg', // No dedicated SVG, use Always
+  counter: 'assets/shapes/palette/Branch/BranchBlock-LoopCounter.svg',
+  event: 'assets/shapes/palette/Branch/BranchBlock-OnEvent.svg',
+  once: 'assets/shapes/palette/Branch/BranchBlock-Once.svg',
   onceexcluded: 'assets/shapes/palette/Branch/BranchBlock-OnceExcluded.svg',
 
   // Action blocks
@@ -94,7 +93,7 @@ const BLOCK_TYPE_TO_SVG_PATH: Record<string, string> = {
   'no operation': 'assets/shapes/palette/Action/Action-NoOperation.svg',
   'reset counter': 'assets/shapes/palette/Action/Action-ResetBranchCounter.svg',
   'source action bias': 'assets/shapes/palette/Action/Action-SourceActionBias.svg',
-  'source action set': 'assets/shapes/palette/Action/Action-SourceOutput.svg', // No dedicated SVG, use SourceOutput
+  'source action set': 'assets/shapes/palette/Action/Action-SourceActionSet.svg',
   'source action skip': 'assets/shapes/palette/Action/Action-SourceActionSkip.svg',
   'source action step': 'assets/shapes/palette/Action/Action-SourceActionStep.svg',
   'source output': 'assets/shapes/palette/Action/Action-SourceOutput.svg',
@@ -167,20 +166,7 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
   sectionNodes = computed<FlowNode[]>(() => this.sections().flatMap((section) => section.nodes));
 
   constructor() {
-    // Session restoration effect - runs whenever models$() signal changes
-    effect(() => {
-      const models = this.triggerFlowDataService.models$();
-      const currentSections = this.sections();
-
-      console.log('Models changed, checking for restoration...', models);
-
-      // Detection logic: restore if canvas is empty but models have data
-      if (this.shouldRestoreFromModels(models, currentSections)) {
-        console.log('Session restoration triggered - converting models to canvas sections');
-        const newSections = this.convertModelsToSections(models);
-        this.sections.set(newSections);
-      }
-    });
+    // Sections are derived from the service stream via computed projection.
   }
 
   readonly modelErrorSummary = computed<Record<string, { hasError: boolean; tooltip: string }>>(
