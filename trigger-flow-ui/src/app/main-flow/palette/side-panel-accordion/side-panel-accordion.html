@@ -1,5 +1,5 @@
 <div class="custom-accordion">
-    <div *ngFor="let group of groups; let i = index" class="accordion-item">
+    <div *ngFor="let group of groups(); let i = index" class="accordion-item">
         <div class="accordion-header" (click)="togglePanel(i)">
             <mat-icon class="arrow" [class.expanded]="expanded.has(i)">
                 {{ expanded.has(i) ? 'keyboard_arrow_down' : 'keyboard_arrow_right' }}

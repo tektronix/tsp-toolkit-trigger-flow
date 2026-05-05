@@ -173,8 +173,8 @@ export class CanvasBlocksService {
 
     // Initialize ActualParameter[] from blockData.parameters
     const actualParameters: ActualParameter[] = blockData.parameters.map(
-    (param) => new ActualParameter(param)
-  );
+      (param) => new ActualParameter(param)
+    );
 
     const canvasBlock: CanvasBlock = {
       block_id: blockId,
@@ -188,6 +188,7 @@ export class CanvasBlocksService {
     };
 
     this.models[modelName].blocks.push(canvasBlock);
+    this.sortBlocksByVerticalPosition(this.models[modelName]);
     this.updateAndPrint();
     //vscode.postMessage({ command: 'open_manual', payload: 'block_name: ' + blockName });
   }
@@ -209,12 +210,23 @@ export class CanvasBlocksService {
       const block = model.blocks.find((b) => b.block_id === nodeId);
       if (block) {
         block.block_position = position;
+        this.sortBlocksByVerticalPosition(model);
         this.updateAndPrint();
         break;
       }
     }
   }
 
+  private sortBlocksByVerticalPosition(model: {
+    blocks: CanvasBlock[];
+  }): void {
+    model.blocks.sort((a, b) => {
+      const dy = a.block_position.y - b.block_position.y;
+      if (dy !== 0) return dy;
+      // tie-breaker: left-to-right when y is equal
+      return a.block_position.x - b.block_position.x;
+    });
+  }
 
   clearAll(): void {
     for (const model of Object.values(this.models)) {
