@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 pub enum ParamTypeName {
     #[serde(alias = "string")]
     String,
-    #[serde(alias = "number")]
+    #[serde(alias = "number", alias = "double", alias = "integer")]
     Number,
     SlotIndex,
     ChannelIndex,
@@ -38,6 +38,7 @@ pub enum ParamTypeName {
     EventItem,
     EventList,
     MultiString,
+    DelayListConfig,
 }
 
 /// Enum representing actual parameter values

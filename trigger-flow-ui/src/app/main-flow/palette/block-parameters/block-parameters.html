@@ -53,9 +53,13 @@
               (selectedChange)="onParameterValueChange()"
             />
           } @else if (getControlType(param) === 'number') {
+            <!-- delay_time is shown in seconds and stays visible but disabled when List mode is enabled. -->
             <app-input-numeric
               [label]="param.name"
+              [unit]="param.name === 'delay_time' ? 's' : undefined"
+              [floatAllowed]="param.name === 'delay_time'"
               [(ngModel)]="param.value"
+              [disabled]="param.name === 'delay_time' && isDelayListEnabled()"
               (inputChange)="onParameterValueChange()"
             />
           } @else if (isMultiLineStringType(param.type)) {
@@ -82,11 +86,36 @@
         }
       }
 
+      @if (hasDelayListConfig()) {
+        <div class="delay-list-row">
+          <!-- Checkbox toggles list_config on/off; Edit opens the modal for sweep value details. -->
+          <app-checkbox
+              class="delay-list-checkbox"
+            label="List"
+            [checked]="isDelayListEnabled()"
+            (checkedChange)="onDelayListCheckedChange($event)"
+          />
+          @if (isDelayListEnabled()) {
+            <button type="button" class="delay-list-configure-btn" (click)="openDelayListModal()">
+              Edit
+            </button>
+          }
+        </div>
+      }
+
       <app-multiline-textbox
         label="Notes"
         [rows]="4"
         [(ngModel)]="blockNotes"
         (inputChange)="onBlockNotesChange()"
+      />
+
+      <app-delay-list-modal
+        [open]="showDelayListModal"
+        [points]="delayListModalPoints"
+        [sweepValues]="delayListModalSweepValues"
+        (cancelled)="onDelayListCancel()"
+        (applyList)="onDelayListApply($event)"
       />
     </div>
   </section>

@@ -54,6 +54,7 @@ export type ParamTypeName =
   | 'EventID'
   | 'ChannelIndex'
   | 'DelayList'
+  | 'DelayListConfig'
   | 'DelayTime'
   | 'LogEventType'
   | 'ChannelList'
@@ -220,9 +221,16 @@ export interface EventListItem {
   params: Record<string, string | number>;
 }
 
+export interface DelayListConfigValue {
+  points: number;
+  sweep_values: number[];
+}
+
 export type ParameterValue =
   | string
   | number
+  | boolean
   | null
   | EventListItem
-  | EventListItem[];
+  | EventListItem[]
+  | DelayListConfigValue;

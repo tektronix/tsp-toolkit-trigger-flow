@@ -1,0 +1,55 @@
+@if (open) {
+  <div class="tf-modal-backdrop">
+    <section class="tf-modal tf-delay-list-modal" role="dialog" aria-modal="true" aria-label="Delay List">
+      <header class="tf-modal__header">
+        <h2>Delay List</h2>
+        <button type="button" class="icon-btn" (click)="onCancel()" aria-label="Close">
+          <img class="icon-img" src="assets/shapes/Icons/X.svg" alt="Close" />
+        </button>
+      </header>
+
+      <div class="tf-modal__body">
+        <div class="tf-modal__divider tf-modal__divider--header"></div>
+
+        <app-textbox
+          label="Points / Steps"
+          [ngModel]="getLocalPointsAsText()"
+          (inputChange)="onPointsChange($event)"
+          automationID ="Input-List-Points"
+        />
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Point #</th>
+                <th>Sweep column</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (value of localSweepValues; track $index; let rowIndex = $index) {
+                <tr>
+                  <td>{{ rowIndex + 1 }}</td>
+                  <td class="sweep-cell">
+                    <app-textbox
+                      class="sweep-input"
+                      [label]="''"
+                      [unit]="'s'"
+                      [ngModel]="getSweepValueAsText(rowIndex)"
+                      (inputChange)="updateSweepValue(rowIndex, $event)"
+                    />
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <div class="tf-modal__actions">
+          <button type="button" class="btn ghost" (click)="onCancel()">Cancel</button>
+          <button type="button" class="btn primary" (click)="onApply()">Apply</button>
+        </div>
+      </div>
+    </section>
+  </div>
+}
