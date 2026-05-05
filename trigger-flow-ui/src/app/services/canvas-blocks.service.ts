@@ -4,6 +4,7 @@ import { Catalog, BlockDefinition, ActualParameter } from '../models/triggerBloc
 import { Websocket } from './websocket';
 import { TriggerFlowDataService } from './triggerFlowDataService';
 import { IIpcDataInterface } from '../models/interface';
+import { BlockErrorEntry, TriggerModel } from '../models/triggerFlowState';
 
 
 export interface CanvasBlock {
@@ -13,7 +14,7 @@ export interface CanvasBlock {
   block_position: { x: number; y: number };
   incoming: string | null;
   outgoing: string | null;
-  block_error: string | null;
+  block_error: BlockErrorEntry[] | null;
   actual_parameters: ActualParameter[]; // To store actual values
 }
 
@@ -45,6 +46,11 @@ export class CanvasBlocksService {
   private selectedBlockSubject = new BehaviorSubject<string | null>(null);
   public selectedBlock$ = this.selectedBlockSubject.asObservable();
 
+  constructor() {
+    // Register this service so TriggerFlowDataService can push runtime state.
+    this.triggerFlowDataService.canvas = this;
+  }
+
   private toParameterMap(params: ActualParameter[]): Record<string, unknown> {
     return params.reduce((acc, param) => {
       acc[param.name] = param.value ?? param.default ?? null;
@@ -52,6 +58,82 @@ export class CanvasBlocksService {
     }, {} as Record<string, unknown>);
   }
 
+  /**
+   * Set the data for the trigger model of this canvas
+   * @param models The list of models to set the local model to.
+   */
+  setBlockData(models: Record<string, TriggerModel>): void {
+    console.log('setBlockData:', models);
+
+    const nextModels: Record<
+      string,
+      {
+        trigger_model_name: string;
+        slot_index: number;
+        blocks: CanvasBlock[];
+      }
+    > = {};
+
+    for (const [name, model] of Object.entries(models)) {
+      const blocks = model.blocks
+        .map((item) => {
+          const blockData =
+            this.findBlockInCatalog(item.type, this.triggerFlowDataService.getCatalog()) ??
+            this.createFallbackBlockDefinition();
+
+          const canvasBlock: CanvasBlock = {
+            block_id: item.block_id,
+            type: item.type,
+            blockData,
+            block_position: item.block_position,
+            incoming: item.incoming,
+            outgoing: item.outgoing,
+            block_error: item.block_error,
+            actual_parameters: blockData.parameters.map((param) => {
+              const actual = new ActualParameter(param);
+              actual.value = item.block_parameters[param.name] ?? actual.value;
+              return actual;
+            }),
+          };
+
+          return canvasBlock;
+        })
+        .filter((item): item is CanvasBlock => item !== null);
+
+      nextModels[name] = {
+        trigger_model_name: model.trigger_model_name,
+        slot_index: model.slot_index,
+        blocks,
+      };
+    }
+
+    this.models = nextModels;
+    this.update(this.getCanvasData());
+  }
+
+  ensureModel(modelName: string, slotIndex: number): void {
+    if (!modelName.trim()) {
+      return;
+    }
+
+    if (!this.models[modelName]) {
+      this.models[modelName] = {
+        trigger_model_name: modelName,
+        slot_index: slotIndex,
+        blocks: [],
+      };
+      this.updateAndPrint();
+      return;
+    }
+
+    if (this.models[modelName].slot_index !== slotIndex) {
+      this.models[modelName] = {
+        ...this.models[modelName],
+        slot_index: slotIndex,
+      };
+      this.updateAndPrint();
+    }
+  }
 
   addBlock(
     blockId: string,
@@ -133,16 +215,6 @@ export class CanvasBlocksService {
     }
   }
 
-  // updateBlockParameters(nodeId: string, parameters: Record<string, any>): void {
-  //   for (const model of Object.values(this.models)) {
-  //     const block = model.blocks.find((b) => b.block_id === nodeId);
-  //     if (block) {
-  //       block.block_parameters = parameters;
-  //       this.updateAndPrint();
-  //       break;
-  //     }
-  //   }
-  // }
 
   clearAll(): void {
     for (const model of Object.values(this.models)) {
@@ -159,12 +231,12 @@ export class CanvasBlocksService {
       return null;
     }
 
-    const normalizedBlockName = blockName.toLowerCase().replace(/\s+/g, ' ').trim();
+    const normalizedBlockName = this.normalizeBlockName(blockName);
 
     // Search in blocks
     if (catalogData.blocks) {
       for (const [key, value] of Object.entries(catalogData.blocks)) {
-        const normalizedKey = key.toLowerCase().replace(/\s+/g, ' ').trim();
+        const normalizedKey = this.normalizeBlockName(key);
         if (normalizedKey === normalizedBlockName) {
           return value;
         }
@@ -174,6 +246,23 @@ export class CanvasBlocksService {
     return null;
   }
 
+  private normalizeBlockName(value: string): string {
+    return value
+      .toLowerCase()
+      .replace(/[_-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  private createFallbackBlockDefinition(): BlockDefinition {
+    return {
+      parameters: [],
+      syntax: '',
+      description: '',
+      shape: '',
+    } as BlockDefinition;
+  }
+
   private getCanvasData(): CanvasBlocksData {
     return {
       blocks: this.models,
@@ -181,9 +270,13 @@ export class CanvasBlocksService {
     };
   }
 
+  private update(data: CanvasBlocksData): void {
+    this.canvasBlocksSubject.next(data);
+  }
+
   private updateAndPrint(): void {
     const data = this.getCanvasData();
-    this.canvasBlocksSubject.next(data);
+    this.update(data);
 
     console.log('=== Canvas Blocks JSON ===');
     console.log(JSON.stringify(data, null, 2));

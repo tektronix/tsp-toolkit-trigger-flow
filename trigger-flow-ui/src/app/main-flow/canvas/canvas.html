@@ -10,7 +10,7 @@
 >
 <!-- <f-line-alignment [fAlignThreshold]="100"></f-line-alignment> -->
   <f-canvas  fZoom>
-    @for (section of sectionLayouts(); track section.id) {
+    @for (section of sectionLayouts(); track $index) {
       <div
         class="section-group"
         fGroup
@@ -55,7 +55,7 @@
       </div>
     }
 
-    @for (node of sectionNodes(); track node.blockId) {
+    @for (node of sectionNodes(); track $index) {
       <div
         fNode
         fDragHandle
@@ -96,7 +96,7 @@
             fOutputConnectableSide="right"
             class="output-connector connector-right"
           ></div>
-          
+
           <div
             fNodeOutput
             [fOutputId]="node.blockId + '-out-left'"
@@ -109,9 +109,9 @@
     }
 
     @for (connection of connections(); track connection.id) {
-      <f-connection 
+      <f-connection
         [fConnectionId]="connection.id"
-        [fOutputId]="connection.fOutputId" 
+        [fOutputId]="connection.fOutputId"
         [fInputId]="connection.fInputId"
         [fType]="'segment'">
       <!-- Start arrow -->
@@ -139,7 +139,7 @@
   </svg>
       </f-connection>
     }
-    
+
     <f-connection-for-create></f-connection-for-create>
   </f-canvas>
 </f-flow>

@@ -9,6 +9,7 @@ import {
   Output,
   EventEmitter,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { AngularSvgIconModule } from 'angular-svg-icon';
 import { SvgManagerService } from '../../services/svg-manager.service';
@@ -73,6 +74,40 @@ interface ModelModalResult {
   notes: string;
 }
 
+// Hard-coded mapping from block types (as defined in triggerBlocks.yaml) to SVG asset paths
+const BLOCK_TYPE_TO_SVG_PATH: Record<string, string> = {
+  // Branch blocks
+  always: 'assets/shapes/palette/Branch/BranchBlock-Always.svg',
+  counter: 'assets/shapes/palette/Branch/BranchBlock-Counter.svg',
+  event: 'assets/shapes/palette/Branch/BranchBlock-Always.svg', // No dedicated SVG, use Always
+  once: 'assets/shapes/palette/Branch/BranchBlock-Always.svg', // No dedicated SVG, use Always
+  onceexcluded: 'assets/shapes/palette/Branch/BranchBlock-OnceExcluded.svg',
+
+  // Action blocks
+  'configlist next': 'assets/shapes/palette/Action/Action-ConfigListNext.svg',
+  'configlist prev': 'assets/shapes/palette/Action/Action-ConfigListPrev.svg',
+  'configlist recall': 'assets/shapes/palette/Action/Action-ConfigListRecall.svg',
+  measure: 'assets/shapes/palette/Action/Action-Measure.svg',
+  'measure overlapped': 'assets/shapes/palette/Action/Action-MeasureOverlapped.svg',
+  'no operation': 'assets/shapes/palette/Action/Action-NoOperation.svg',
+  'reset counter': 'assets/shapes/palette/Action/Action-ResetBranchCounter.svg',
+  'source action bias': 'assets/shapes/palette/Action/Action-SourceActionBias.svg',
+  'source action set': 'assets/shapes/palette/Action/Action-SourceOutput.svg', // No dedicated SVG, use SourceOutput
+  'source action skip': 'assets/shapes/palette/Action/Action-SourceActionSkip.svg',
+  'source action step': 'assets/shapes/palette/Action/Action-SourceActionStep.svg',
+  'source output': 'assets/shapes/palette/Action/Action-SourceOutput.svg',
+
+  // Notify blocks
+  'log event': 'assets/shapes/palette/Notify/NotifyBlock-LogEvent.svg',
+  log_event: 'assets/shapes/palette/Notify/NotifyBlock-LogEvent.svg',
+  notify: 'assets/shapes/palette/Notify/NotifyBlock-Notify.svg',
+
+  // Timing blocks
+  'delay constant': 'assets/shapes/palette/Timing/Timing-ConstantDelay.svg',
+  wait: 'assets/shapes/palette/Timing/Timing-WaitOnEvent.svg',
+  'wait on event': 'assets/shapes/palette/Timing/Timing-WaitOnEvent.svg',
+};
+
 @Component({
   selector: 'app-canvas',
   imports: [FFlowModule, CommonModule, AngularSvgIconModule],
@@ -102,8 +137,11 @@ export class Canvas implements AfterViewInit {
   // Stores the first dropped-node event temporarily until modal closes.
   private pendingCreateNodeEvent: FlowCanvasEvent | null = null;
 
-  // Start empty -> first block drop triggers model modal
-  sections = signal<FlowSection[]>([]);
+  private readonly canvasBlocksData = toSignal(this.canvasBlocksService.canvasBlocks$, {
+    initialValue: { blocks: {}, timestamp: '' },
+  });
+
+  sections = computed<FlowSection[]>(() => this.mapSectionsFromService());
 
 sectionLayouts = computed<LaidOutSection[]>(() => {
   const size = this.canvasSize();
@@ -159,9 +197,16 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
   private connectionCounter = 0;
 
   onCreateNode(event: FlowCanvasEvent): void {
-    console.log('fCreateNode event:', event);
-    console.log('Block Type:', event.data?.type);
-    if (!event.data || !event.data.type || !event.rect) return;
+    console.log('🎯 fCreateNode event:', event);
+    console.log('📦 Block Type:', event.data?.type);
+    console.log('📍 Current sections count:', this.sections().length);
+    console.log('📋 Event data:', event.data);
+    console.log('📐 Event rect:', event.rect);
+    console.log('🎲 Event fTargetNode:', event.fTargetNode);
+    if (!event.data || !event.data.type || !event.rect) {
+      console.warn('❌ Early return: missing event data, type, or rect');
+      return;
+    }
 
     // first block + no model => ask parent to open modal
     if (this.sections().length === 0) {
@@ -179,18 +224,10 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
   }
 
   createModelAndContinue(result: ModelModalResult): void {
-    const sectionId = `group-${this.sections().length + 1}`;
     const modelName = result.name.trim() || `Model${this.sections().length + 1}`;
+    const sectionId = this.getSectionIdForModel(modelName);
 
-    // Create a new section/model from modal values.
-    const newSection: FlowSection = {
-      id: sectionId,
-      modelName,
-      slotIndex: result.slot,
-      nodes: [],
-    };
-
-    this.sections.update((current) => [...current, newSection]);
+    this.canvasBlocksService.ensureModel(modelName, result.slot);
 
     // Resume deferred first-drop node creation into this new section.
     if (this.pendingCreateNodeEvent) {
@@ -240,12 +277,6 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
       outputs: [`output-${this.nodeCounter}`],
       color: '#FFFFFF',
     };
-
-    this.sections.update((current) =>
-      current.map((item) =>
-        item.id === targetSectionId ? { ...item, nodes: [...item.nodes, newNode] } : item,
-      ),
-    );
 
     // Keep data service in sync with visual node creation.
     this.canvasBlocksService.addBlock(
@@ -321,7 +352,7 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
   onCreateConnection(event: any) {
     console.log('🔗 CONNECTION CREATED! Event details:', event);
     console.log('Connection data:', JSON.stringify(event, null, 2));
-    
+
     if (event.fOutputId && event.fInputId) {
       const newConnection: FlowConnection = {
         id: `connection-${++this.connectionCounter}`,
@@ -344,22 +375,12 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
 
     const movedNodes = event.fNodes as { id: string; position: { x: number; y: number } }[];
 
-    const updates = new Map<string, { x: number; y: number }>(
-      movedNodes.map((item) => [item.id, { x: item.position.x, y: item.position.y }]),
-    );
-    this.sections.update((current) =>
-      current.map((section) => ({
-        ...section,
-        nodes: section.nodes.map((node): FlowNode => {
-          const newPos = updates.get(node.blockId);
-          if (newPos) {
-            this.canvasBlocksService.updateBlockPosition(node.blockId, newPos);
-            return { ...node, position: newPos };
-          }
-          return node;
-        }),
-      })),
-    );
+    for (const item of movedNodes) {
+      this.canvasBlocksService.updateBlockPosition(item.id, {
+        x: item.position.x,
+        y: item.position.y,
+      });
+    }
   }
 
   onDropToGroup(event: FlowCanvasEvent) {
@@ -434,15 +455,6 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
   }
 
   private deleteNodes(nodeIds: string[]): void {
-    const toDelete = new Set(nodeIds);
-
-    this.sections.update((sections) =>
-      sections.map((section) => ({
-        ...section,
-        nodes: section.nodes.filter((node) => !toDelete.has(node.blockId)),
-      })),
-    );
-
     this.connections.update((connections) =>
       connections.filter(
         (connection) =>
@@ -484,5 +496,80 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
 
   private hasBlockErrorItems(blockError: BlockErrorEntry[] | null | undefined): boolean {
     return Array.isArray(blockError) && blockError.length > 0;
+  }
+
+  private mapSectionsFromService(): FlowSection[] {
+    const models = this.canvasBlocksData().blocks ?? {};
+
+    return Object.entries(models).map(([modelName, model]) => ({
+      id: this.getSectionIdForModel(modelName),
+      modelName: model.trigger_model_name || modelName,
+      slotIndex: model.slot_index,
+      nodes: model.blocks.map((block) => ({
+        blockId: block.block_id,
+        sectionId: this.getSectionIdForModel(modelName),
+        position: { x: block.block_position.x, y: block.block_position.y },
+        svgPath: this.resolveSvgPath(block.type),
+        catalogLabel: block.type,
+        blockType: this.toBlockTypeLabel(block.type),
+        input: `input-${block.block_id}`,
+        outputs: [`output-${block.block_id}`],
+        color: '#FFFFFF',
+      })),
+    }));
+  }
+
+  private resolveSvgPath(blockType: string): string {
+    // Normalize the block type: convert to lowercase, replace hyphens/underscores with spaces
+    const normalized = blockType.toLowerCase().replace(/[_-]+/g, ' ').trim();
+
+    // Look up in the mapping table
+    if (normalized in BLOCK_TYPE_TO_SVG_PATH) {
+      return BLOCK_TYPE_TO_SVG_PATH[normalized as keyof typeof BLOCK_TYPE_TO_SVG_PATH];
+    }
+
+    // Fallback: use a generic placeholder if type not found
+    console.warn(`Block type "${blockType}" not found in SVG mapping, using fallback`);
+    return 'assets/shapes/palette/Action/Action-NoOperation.svg';
+  }
+
+  private getSectionIdForModel(modelName: string): string {
+    return `group-${modelName.toLowerCase().replace(/[^a-z0-9_-]+/g, '-')}`;
+  }
+
+  private toBlockTypeLabel(value: string): string {
+    const normalized = value.toLowerCase().replace(/[_-]+/g, ' ').trim();
+
+    if (
+      [
+        'configlist next',
+        'configlist prev',
+        'configlist recall',
+        'measure',
+        'measure overlapped',
+        'no operation',
+        'reset counter',
+        'source action bias',
+        'source action skip',
+        'source action step',
+        'source output',
+      ].includes(normalized)
+    ) {
+      return 'Action';
+    }
+
+    if (['always', 'onceexcluded', 'counter', 'once', 'event'].includes(normalized)) {
+      return 'Branch';
+    }
+
+    if (['log event', 'log_event', 'notify'].includes(normalized)) {
+      return 'Notify';
+    }
+
+    if (['delay constant', 'wait', 'wait on event'].includes(normalized)) {
+      return 'Timing';
+    }
+
+    return value;
   }
 }

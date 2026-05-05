@@ -1,4 +1,5 @@
 import { ISlotChannelList, SlotChannelList } from "./slotChannelModel";
+import { JsonValue } from "./triggerFlowState";
 
 export interface IInitialPayload {
   slot_channel_list: ISlotChannelList;
@@ -154,7 +155,7 @@ export class ActualParameter {
   options: ParameterOptions[] | null;
   default: string | number | null;
   range: ParameterRange | null;
-  value: string | number | null;  // User-edited or default-initialized value
+  value: JsonValue | null;  // User-edited or default-initialized value
 
   constructor(parameter: Parameter) {
     this.name = parameter.name;
