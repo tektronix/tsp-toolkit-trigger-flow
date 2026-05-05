@@ -43,6 +43,7 @@ export class CanvasBlocksService {
     {
       trigger_model_name: string;
       slot_index: number;
+      node_id: string;
       blocks: CanvasBlock[];
     }
   > = {};
@@ -55,6 +56,7 @@ export class CanvasBlocksService {
     position: { x: number; y: number },
     modelName: string,
     slotIndex: number,
+    nodeId: string,
   ): void {
     const catalogData = this.triggerFlowDataService.getCatalog();
     if (!catalogData) {
@@ -81,6 +83,7 @@ export class CanvasBlocksService {
       this.models[modelName] = {
         trigger_model_name: modelName,
         slot_index: slotIndex,
+        node_id: nodeId,
         blocks: [],
       };
     }
@@ -234,6 +237,7 @@ export class CanvasBlocksService {
       filteredModels[modelName] = {
         trigger_model_name: model.trigger_model_name,
         slot_index: model.slot_index,
+        node_id: model.node_id,
         blocks: model.blocks.map((block) => {
           return {
             type: block.type,

@@ -1,0 +1,58 @@
+.checkbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.checkbox-group-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--vscode-editor-foreground);
+}
+
+.checkbox-group-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 4px;
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-editorWidget-border);
+  border-radius: 5px;
+}
+
+.checkbox-group-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox-group-input {
+  width: 1rem;
+  height: 1rem;
+  cursor: pointer;
+  accent-color: #0969da;
+}
+
+.checkbox-group-input:focus {
+  outline: 2px solid var(--vscode-focusBorder, #0969da);
+  outline-offset: 2px;
+}
+
+.checkbox-group-text {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.checkbox-group-item.disabled,
+.checkbox-group-item:has(.checkbox-group-input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.6;
+
+  .checkbox-group-input {
+    cursor: not-allowed;
+  }
+}

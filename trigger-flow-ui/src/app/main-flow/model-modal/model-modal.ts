@@ -7,12 +7,14 @@ import { Dropdown } from '../../custom-controls/dropdown/dropdown';
 export interface ModelModalValue {
   name: string;
   slot: number;
+  nodeId: string;
   notes: string;
 }
 
 export interface ModelSlotOption {
   label: string; // e.g. localnode.slot[1], node2.slot[3]
   slot: number;
+  nodeId: string;
 }
 
 @Component({
@@ -27,6 +29,7 @@ export class ModelModal {
   @Input() name = 'MyTriggerModel';
   @Input() notes = '';
   @Input() slot = 1;
+  @Input() nodeId = '';
 
   @Input() slotOptions: ModelSlotOption[] = [];
 
@@ -53,6 +56,7 @@ export class ModelModal {
 
     if (selected) {
       this.slot = selected.slot;
+      this.nodeId = selected.nodeId;
       this.slotChanged.emit(this.slot);
       return;
     }
@@ -68,6 +72,7 @@ export class ModelModal {
     this.closeWithValue.emit({
       name: this.name.trim() || 'MyTriggerModel',
       slot: this.slot,
+      nodeId: this.nodeId,
       notes: this.notes.trim(),
     });
   }

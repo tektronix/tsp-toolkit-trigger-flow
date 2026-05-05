@@ -205,7 +205,7 @@ blocks:
         type: ChannelIndex
         required: true
       - name: config_list_name
-        type: MultiString
+        type: string
         required: true
     syntax: |
       -- NOTE: The configuration list must be defined before the trigger model uses this block.
@@ -232,7 +232,7 @@ blocks:
         type: ChannelIndex
         required: true
       - name: config_list_name
-        type: MultiString
+        type: string
         required: true
     syntax: |
       -- The configuration list must be defined before the trigger model uses this block.
@@ -264,6 +264,7 @@ blocks:
       - name: recall_index
         type: number
         required: false
+        default: 1
     syntax: |
       -- The configuration list must be defined before the trigger model uses this block.
       slot[{{slot_index}}].trigger.model.addblock.configlist.recall("{{trigger_model_name}}", "{{trigger_block_name}}", {{channel_index}}, "{{config_list_name}}"{{#if recall_index}}, {{recall_index}}{{/if}})

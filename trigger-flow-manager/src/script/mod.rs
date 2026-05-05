@@ -362,6 +362,7 @@ slot[{{this.slot_index}}].trigger.model.create("{{this.trigger_model_name}}")
                 TriggerModelState {
                     model_name: "tm1".to_string(),
                     slot_index: SlotIndex(1),
+                    node_id: "node[1]".to_string(),
                     blocks: vec![TriggerModelBlock {
                         block_type: "always".to_string(),
                         block_parameters: HashMap::from([
@@ -419,6 +420,7 @@ slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_blo
                 TriggerModelState {
                     model_name: "tm1".to_string(),
                     slot_index: SlotIndex(1),
+                    node_id: "node[1]".to_string(),
                     blocks: vec![
                         TriggerModelBlock {
                             block_type: "always".to_string(),
@@ -490,6 +492,7 @@ slot[1].trigger.model.addblock.measure("tm1", "tm1_measure_001", { 1 }, 5)
                     TriggerModelState {
                         model_name: "tm1".to_string(),
                         slot_index: SlotIndex(1),
+                        node_id: "node[1]".to_string(),
                         blocks: vec![TriggerModelBlock {
                             block_type: "always".to_string(),
                             block_parameters: HashMap::from([
@@ -511,6 +514,7 @@ slot[1].trigger.model.addblock.measure("tm1", "tm1_measure_001", { 1 }, 5)
                     TriggerModelState {
                         model_name: "tm2".to_string(),
                         slot_index: SlotIndex(2),
+                        node_id: "node[2]".to_string(),
                         blocks: vec![TriggerModelBlock {
                             block_type: "measure".to_string(),
                             block_parameters: HashMap::from([
@@ -570,6 +574,7 @@ slot[2].trigger.model.addblock.measure("tm2", "tm2_measure_001", { 1 }, 5)
                     TriggerModelState {
                         model_name: "tm1".to_string(),
                         slot_index: SlotIndex(1),
+                        node_id: "node[1]".to_string(),
                         blocks: vec![
                             TriggerModelBlock {
                                 block_type: "always".to_string(),
@@ -608,6 +613,7 @@ slot[2].trigger.model.addblock.measure("tm2", "tm2_measure_001", { 1 }, 5)
                     TriggerModelState {
                         model_name: "tm2".to_string(),
                         slot_index: SlotIndex(2),
+                        node_id: "node[2]".to_string(),
                         blocks: vec![
                             TriggerModelBlock {
                                 block_type: "always".to_string(),
@@ -692,6 +698,7 @@ slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_blo
                 TriggerModelState {
                     model_name: "tm2".to_string(),
                     slot_index: SlotIndex(2),
+                    node_id: "node[2]".to_string(),
                     blocks: vec![TriggerModelBlock {
                         block_type: "always".to_string(),
                         block_parameters: HashMap::from([
@@ -748,6 +755,7 @@ slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_blo
                 TriggerModelState {
                     model_name: "tm2".to_string(),
                     slot_index: SlotIndex(2),
+                    node_id: "node[2]".to_string(),
                     blocks: vec![TriggerModelBlock {
                         block_type: "always".to_string(),
                         block_parameters: HashMap::from([
