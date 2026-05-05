@@ -144,8 +144,7 @@ export class CanvasBlocksService {
   ): void {
     const catalogData = this.triggerFlowDataService.getCatalog();
     if (!catalogData) {
-      console.warn('Catalog data not loaded yet');
-      return;
+      console.warn('Catalog data not loaded yet; creating block with fallback definition');
     }
 
     blockLabel = blockLabel.toLowerCase().trim();
@@ -155,12 +154,13 @@ export class CanvasBlocksService {
       return;
     }
 
-    // Search for block in catalog (case-insensitive)
-    const blockData = this.findBlockInCatalog(blockLabel, catalogData);
+    // Search for block in catalog (case-insensitive). If unavailable yet,
+    // still create the block so loaded sessions can continue editing.
+    const blockData =
+      this.findBlockInCatalog(blockLabel, catalogData) ?? this.createFallbackBlockDefinition();
 
-    if (!blockData) {
-      console.warn(`Block "${blockLabel}" not found in catalog`);
-      return;
+    if (!catalogData || blockData.parameters.length === 0) {
+      console.warn(`Block "${blockLabel}" created with fallback metadata`);
     }
 
     if (!this.models[modelName]) {
