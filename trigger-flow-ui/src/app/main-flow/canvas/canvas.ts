@@ -285,7 +285,10 @@ export class Canvas implements AfterViewInit {
     const hasReferenceParam = blockCatalog?.parameters.some(
       (param) => param.name === 'reference_block_name'
     );
-    return hasBranchParam ? "right" : hasReferenceParam ? "left" : "";
+    const hasResetBranchCountParam = blockCatalog?.parameters.some(
+      (param) => param.name === 'reset_branch_count_block_name'
+    );
+    return hasBranchParam ? "right" : hasResetBranchCountParam ? "left": hasReferenceParam ? "left" : "right";
   }
 
 
