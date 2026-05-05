@@ -75,7 +75,7 @@
             <div
               fNodeInput
               [fInputId]="node.blockId + '-in'"
-              fInputConnectableSide="right"
+              [fInputConnectableSide]="getInputDirection(node)"
               fInputMultiple="false"
               class="input-connector input-connector--svg"
               [style]="getInputStyle(node)"

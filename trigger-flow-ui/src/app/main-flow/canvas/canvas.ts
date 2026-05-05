@@ -119,24 +119,24 @@ export class Canvas implements AfterViewInit {
   // Start empty -> first block drop triggers model modal
   sections = signal<FlowSection[]>([]);
 
-sectionLayouts = computed<LaidOutSection[]>(() => {
-  const size = this.canvasSize();
+  sectionLayouts = computed<LaidOutSection[]>(() => {
+    const size = this.canvasSize();
 
-  const sectionWidth = 1400; // virtual width per section
-  const sectionHeight = Math.max(size.height, 2000); // virtual vertical space
+    const sectionWidth = 1400; // virtual width per section
+    const sectionHeight = Math.max(size.height, 2000); // virtual vertical space
 
-  return this.sections().map((section, index) => ({
-    ...section,
-    position: {
-      x: index * sectionWidth,
-      y: 0,
-    },
-    size: {
-      width: sectionWidth,
-      height: sectionHeight,
-    },
-  }));
-});
+    return this.sections().map((section, index) => ({
+      ...section,
+      position: {
+        x: index * sectionWidth,
+        y: 0,
+      },
+      size: {
+        width: sectionWidth,
+        height: sectionHeight,
+      },
+    }));
+  });
   sectionNodes = computed<FlowNode[]>(() => this.sections().flatMap((section) => section.nodes));
 
   constructor() {
@@ -144,9 +144,9 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
     effect(() => {
       const models = this.triggerFlowDataService.models$();
       const currentSections = this.sections();
-      
+
       console.log('Models changed, checking for restoration...', models);
-      
+
       // Detection logic: restore if canvas is empty but models have data
       if (this.shouldRestoreFromModels(models, currentSections)) {
         console.log('Session restoration triggered - converting models to canvas sections');
@@ -275,6 +275,19 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
     }
     return pos !== null;
   }
+
+  getInputDirection(node: FlowNode): string {
+    const catalog = this.triggerFlowDataService.catalog$();
+    const blockCatalog = catalog?.blocks[node.catalogLabel || ''];
+    const hasBranchParam = blockCatalog?.parameters.some(
+      (param) => param.name === 'branch_to_block_name'
+    );
+    const hasReferenceParam = blockCatalog?.parameters.some(
+      (param) => param.name === 'reference_block_name'
+    );
+    return hasBranchParam ? "right" : hasReferenceParam ? "left" : "";
+  }
+
 
   /**
    * Inline style positioning the input connector exactly on top of the SVG's
@@ -458,6 +471,10 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
           (p) => p.name === 'reference_block_name',
         );
 
+        const inputHasResetBranchCounter = inputBlock.actual_parameters.some(
+          (p) => p.name === 'reset_branch_count_block_name',
+        );
+
         if (inputHasBranch) {
           this.canvasBlocksService.updateBlockParameterValue(
             inputBlockId,
@@ -475,6 +492,16 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
           );
           console.log(
             `Set reference_block_name=${sourceValue} on input block ${inputBlockId}`,
+          );
+        }
+        else if (inputHasResetBranchCounter) {
+          this.canvasBlocksService.updateBlockParameterValue(
+            inputBlockId,
+            'reset_branch_count_block_name',
+            sourceValue,
+          );
+          console.log(
+            `Set reset_branch_count_block_name=${sourceValue} on input block ${inputBlockId}`,
           );
         }
       }
@@ -666,9 +693,9 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
     // Canvas is empty but service has models = session restoration needed
     const canvasIsEmpty = currentSections.length === 0;
     const serviceHasModels = Object.keys(models).length > 0;
-    
+
     console.log('Restoration check:', { canvasIsEmpty, serviceHasModels, modelCount: Object.keys(models).length });
-    
+
     return canvasIsEmpty && serviceHasModels;
   }
 
@@ -678,14 +705,14 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
    */
   private convertModelsToSections(models: Record<string, any>): FlowSection[] {
     console.log('Converting models to sections:', models);
-    
+
     // Object.entries converts {key: value} to [[key, value], ...]
     return Object.entries(models).map(([modelName, model], index) => {
       console.log(`Processing model ${index + 1}:`, modelName, model);
-      
+
       // Each model becomes a canvas section
       const sectionId = `group-${index + 1}`;
-      
+
       return {
         id: sectionId,
         modelName: model.trigger_model_name || modelName,
@@ -701,7 +728,7 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
   private convertBlocksToNodes(blocks: any[], sectionId: string): FlowNode[] {
     return blocks.map((block, index) => {
       console.log(`Converting block ${index + 1}:`, block);
-      const blockSVG= this.getSVGPath(block.type);
+      const blockSVG = this.getSVGPath(block.type);
       return {
         blockId: block.block_id || `restored-block-${index + 1}`,
         sectionId: sectionId,
@@ -728,12 +755,12 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
   //   if (block.block_parameters?.block_name) {
   //     return block.block_parameters.block_name;
   //   }
-    
+
   //   // Fallback to type-based naming
   //   if (block.type) {
   //     return `${block.type}Block`;
   //   }
-    
+
   //   // Last resort fallback
   //   return 'UnknownBlock';
   // }
@@ -744,7 +771,7 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
    */
   // private deriveSvgPath(block: any): string {
   //   const blockType = block.type;
-    
+
   //   // Map block types to their SVG paths
   //   // This should match your existing drag-and-drop logic
   //   switch (blockType) {

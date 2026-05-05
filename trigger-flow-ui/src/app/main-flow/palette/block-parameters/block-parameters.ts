@@ -79,7 +79,7 @@ export class BlockParameters {
     this.canvasBlocksService.updateAndPrint();
     // check if its required to create connection between blocks based on parameter changes
     const sourceParam = canvasBlock.actual_parameters.find(
-      (p) => p.name === 'branch_to_block_name' || p.name === 'reference_block_name',
+      (p) => p.name === 'branch_to_block_name' || p.name === 'reference_block_name' || p.name === 'reset_branch_count_block_name',
     );
     const sourceValue = sourceParam?.value ? String(sourceParam.value) : '';
 
