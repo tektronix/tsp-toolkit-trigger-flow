@@ -319,6 +319,51 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
     this.canvasBlocksService.selectBlock(blockId);
   }
 
+  getSvgStyle(node: FlowNode): Record<string, string> {
+    const blockType = node.blockType;
+    const cssConfig = this.getBlockCSSConfig(blockType);
+    return {
+      '--fill-color': cssConfig.fillColor,
+      '--stroke-color': cssConfig.strokeColor,
+      '--title-color': cssConfig.titleColor,
+      '--event-fill-color': cssConfig.eventFillColor || cssConfig.fillColor,
+      '--event-stroke-color': cssConfig.eventStrokeColor || cssConfig.strokeColor,
+    };
+  }
+
+  private getBlockCSSConfig(blockType: string | undefined): {
+    fillColor: string;
+    strokeColor: string;
+    titleColor: string;
+    eventFillColor?: string;
+    eventStrokeColor?: string;
+  } {
+    switch (blockType) {
+      case 'Action':
+        return { fillColor: '#173727', strokeColor: '#95C5AD', titleColor: '#95C5AD' };
+      case 'Branch':
+        return { fillColor: '#1E3A41', strokeColor: '#95BBC5', titleColor: '#95BBC5' };
+      case 'Notify':
+        return {
+          fillColor: '#3C2F20',
+          strokeColor: '#E79F48',
+          titleColor: '#E79F48',
+          eventFillColor: '#26251A',
+          eventStrokeColor: '#F1EF8B',
+        };
+      case 'Timing':
+        return {
+          fillColor: '#372E3F',
+          strokeColor: '#C687FA',
+          titleColor: '#C687FA',
+          eventFillColor: '#26251A',
+          eventStrokeColor: '#F1EF8B',
+        };
+      default:
+        return { fillColor: '#FFFFFF', strokeColor: '#333333', titleColor: '#333333' };
+    }
+  }
+
   onCreateConnection(event: any) {
     console.log('🔗 CONNECTION CREATED! Event details:', event);
     console.log('Connection data:', JSON.stringify(event, null, 2));
@@ -495,12 +540,14 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
 
     // Look up in the mapping table
     if (normalized in BLOCK_TYPE_TO_SVG_PATH) {
-      return BLOCK_TYPE_TO_SVG_PATH[normalized as keyof typeof BLOCK_TYPE_TO_SVG_PATH];
+      return this.changeSVGPath(
+        BLOCK_TYPE_TO_SVG_PATH[normalized as keyof typeof BLOCK_TYPE_TO_SVG_PATH],
+      );
     }
 
     // Fallback: use a generic placeholder if type not found
     console.warn(`Block type "${blockType}" not found in SVG mapping, using fallback`);
-    return 'assets/shapes/palette/Action/Action-NoOperation.svg';
+    return 'assets/shapes/canvas/Action/Action-NoOperation.svg';
   }
 
   private getSectionIdForModel(modelName: string): string {

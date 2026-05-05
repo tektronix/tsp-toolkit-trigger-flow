@@ -128,61 +128,57 @@ f-canvas {
   object-fit: contain;
   pointer-events: none;
 
-  // Default CSS custom properties
-  // --fill-color: #173727;
-  // --stroke-color: #95C5AD;
-  // --title-color: #95C5AD;
+  --fill-color: #173727;
+  --stroke-color: #95C5AD;
+  --title-color: #95C5AD;
 }
 
-// .node-svg::ng-deep svg {
+.node-svg::ng-deep svg {
+  .Fill {
+    fill: var(--fill-color) !important;
+  }
 
-//   // Target specific semantic classes
-//   .Fill {
-//     fill: var(--fill-color) !important;
-//   }
+  .Stroke {
+    fill: var(--stroke-color) !important;
+    stroke: var(--stroke-color) !important;
+  }
 
-//   .Stroke {
-//     fill: var(--stroke-color) !important;
-//     stroke: var(--stroke-color) !important;
-//   }
+  .Title {
+    fill: var(--title-color) !important;
+  }
 
-//   .Title {
-//     fill: var(--title-color) !important;
-//   }
+  .No {
+    fill: var(--stroke-color) !important;
+    stroke: var(--stroke-color) !important;
+  }
 
-//   .No {
-//     fill: var(--stroke-color) !important;
-//     stroke: var(--stroke-color) !important;
-//   }
+  .Yes {
+    fill: var(--stroke-color) !important;
+    stroke: var(--stroke-color) !important;
+  }
 
-//   .Yes {
-//     fill: var(--stroke-color) !important;
-//     stroke: var(--stroke-color) !important;
-//   }
+  .Arrow .Fill {
+    fill: var(--fill-color) !important;
+  }
 
-//   // Handle nested Arrow group
-//   .Arrow .Fill {
-//     fill: var(--fill-color) !important;
-//   }
+  .Arrow .Stroke {
+    fill: var(--stroke-color) !important;
+    stroke: var(--stroke-color) !important;
+  }
 
-//   .Arrow .Stroke {
-//     fill: var(--stroke-color) !important;
-//     stroke: var(--stroke-color) !important;
-//   }
+  .Event .Fill {
+    fill: var(--event-fill-color) !important;
+  }
 
-//   .Event .Fill {
-//     fill: var(--event-fill-color) !important;
-//   }
+  .Event .Stroke {
+    fill: var(--event-stroke-color) !important;
+    stroke: var(--event-stroke-color) !important;
+  }
 
-//   .Event .Stroke {
-//     fill: var(--event-stroke-color) !important;
-//     stroke: var(--event-stroke-color) !important;
-//   }
-
-//   .Event .Title {
-//     fill: var(--event-stroke-color) !important;
-//   }
-// }
+  .Event .Title {
+    fill: var(--event-stroke-color) !important;
+  }
+}
 
 .input-connector {
   position: absolute;
