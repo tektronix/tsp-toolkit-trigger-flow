@@ -4,7 +4,7 @@ import { Catalog, BlockDefinition, ActualParameter } from '../models/triggerBloc
 import { Websocket } from './websocket';
 import { TriggerFlowDataService } from './triggerFlowDataService';
 import { IIpcDataInterface } from '../models/interface';
-import { BlockErrorEntry, TriggerModel } from '../models/triggerFlowState';
+import { BlockErrorEntry, JsonValue, TriggerModel } from '../models/triggerFlowState';
 
 
 export interface CanvasBlock {
@@ -16,6 +16,7 @@ export interface CanvasBlock {
   outgoing: string | null;
   block_error: BlockErrorEntry[] | null;
   actual_parameters: ActualParameter[]; // To store actual values
+  raw_block_parameters?: Record<string, JsonValue>;
 }
 
 declare const acquireVsCodeApi: unknown;
@@ -51,11 +52,11 @@ export class CanvasBlocksService {
     this.triggerFlowDataService.canvas = this;
   }
 
-  private toParameterMap(params: ActualParameter[]): Record<string, unknown> {
+  private toParameterMap(params: ActualParameter[]): Record<string, JsonValue> {
     return params.reduce((acc, param) => {
-      acc[param.name] = param.value ?? param.default ?? null;
+      acc[param.name] = (param.value ?? param.default ?? null) as JsonValue;
       return acc;
-    }, {} as Record<string, unknown>);
+    }, {} as Record<string, JsonValue>);
   }
 
   /**
@@ -94,6 +95,7 @@ export class CanvasBlocksService {
               actual.value = item.block_parameters[param.name] ?? actual.value;
               return actual;
             }),
+            raw_block_parameters: item.block_parameters,
           };
 
           return canvasBlock;
@@ -185,6 +187,7 @@ export class CanvasBlocksService {
       outgoing: null,
       block_error: null,
       actual_parameters: actualParameters,
+      raw_block_parameters: this.toParameterMap(actualParameters),
     };
 
     this.models[modelName].blocks.push(canvasBlock);
@@ -349,9 +352,31 @@ export class CanvasBlocksService {
   getBlockById(blockId: string): CanvasBlock | null {
     for (const model of Object.values(this.models)) {
       const block = model.blocks.find((b) => b.block_id === blockId);
-      if (block) return block;
+      if (block) {
+        this.ensureBlockMetadata(block);
+        return block;
+      }
     }
     return null;
+  }
+
+  private ensureBlockMetadata(block: CanvasBlock): void {
+    if (block.actual_parameters.length > 0 && block.blockData.parameters.length > 0) {
+      return;
+    }
+
+    const blockData = this.findBlockInCatalog(block.type, this.triggerFlowDataService.getCatalog());
+    if (!blockData) {
+      return;
+    }
+
+    const rawValues = block.raw_block_parameters ?? {};
+    block.blockData = blockData;
+    block.actual_parameters = blockData.parameters.map((param) => {
+      const actual = new ActualParameter(param);
+      actual.value = rawValues[param.name] ?? actual.value;
+      return actual;
+    });
   }
 
   logIpcDataFormat(): void {

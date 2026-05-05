@@ -1,5 +1,6 @@
 import { Component, DestroyRef, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { combineLatest } from 'rxjs';
 import { AngularSvgIconModule } from 'angular-svg-icon';
 import { CanvasBlocksService } from '../../../services/canvas-blocks.service';
 import { findblockCategory } from '../../../models/blockParameterHelper';
@@ -31,10 +32,13 @@ export class BlockParameters {
   actualParameters: ActualParameter[] = [];
 
   constructor() {
-    // Reacts to both: new block added (auto-select) and existing block clicked.
-    this.canvasBlocksService.selectedBlock$
+    // React to both selection changes and backing block data updates.
+    combineLatest([
+      this.canvasBlocksService.selectedBlock$,
+      this.canvasBlocksService.canvasBlocks$,
+    ])
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((blockId) => {
+      .subscribe(([blockId]) => {
         this.selectedBlockId = blockId;
         this.updateBlockControls();
       });
@@ -51,8 +55,13 @@ export class BlockParameters {
         }
 
         this.actualParameters = canvasBlock.actual_parameters;
+        return;
       }
     }
+
+    this.blockName = '';
+    this.blockTypeSvgPath = '';
+    this.actualParameters = [];
   }
 
   isNumberType(type: ParamTypeName): boolean {

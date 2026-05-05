@@ -1,5 +1,6 @@
-import { Injectable, signal } from '@angular/core';
-import { InitialPayload, Catalog } from '../models/triggerBlock';
+import { Injectable, inject, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { InitialPayload, Catalog, ICatalog } from '../models/triggerBlock';
 import { SlotChannelList } from '../models/slotChannelModel';
 import { TriggerFlowStatePayload, TriggerModel } from '../models/triggerFlowState';
 import { CanvasBlocksService } from './canvas-blocks.service';
@@ -8,6 +9,8 @@ import { CanvasBlocksService } from './canvas-blocks.service';
   providedIn: 'root',
 })
 export class TriggerFlowDataService {
+  private http = inject(HttpClient);
+
   // Canonical reactive state used by UI/components
   private catalog = signal<Catalog | null>(null);
   readonly catalog$ = this.catalog.asReadonly();
@@ -23,6 +26,27 @@ export class TriggerFlowDataService {
   // Optional: raw snapshots for debugging/non-reactive inspection
   private initialPayloadSnapshot: InitialPayload | null = null;
   private statePayloadSnapshot: TriggerFlowStatePayload | null = null;
+
+  constructor() {
+    this.http.get<ICatalog>('assets/triggerBlocks.json').subscribe({
+      next: (catalogData) => {
+        if (this.catalog()) {
+          return;
+        }
+
+        const fallbackCatalog = new Catalog(catalogData);
+        this.catalog.set(fallbackCatalog);
+
+        if (this.statePayloadSnapshot) {
+          this.models.set(this.statePayloadSnapshot.models);
+          this._canvas?.setBlockData(this.statePayloadSnapshot.models);
+        }
+      },
+      error: (error) => {
+        console.warn('Failed to load fallback trigger block catalog', error);
+      },
+    });
+  }
 
   setInitialPayload(payload: InitialPayload): void {
     console.log('Initial Payload: ', payload);
