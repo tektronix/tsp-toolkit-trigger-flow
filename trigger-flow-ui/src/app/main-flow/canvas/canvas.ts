@@ -9,7 +9,9 @@ import {
   Output,
   EventEmitter,
   effect,
+  DestroyRef,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { AngularSvgIconModule } from 'angular-svg-icon';
@@ -89,6 +91,7 @@ export class Canvas implements AfterViewInit {
   private triggerFlowDataService = inject(TriggerFlowDataService);
   private paletteDataService = inject(PaletteDataService);
   private http = inject(HttpClient);
+  private destroyRef = inject(DestroyRef);
   protected readonly eMarkerType = EFMarkerType;
 
   // Cache of input-connector positions (as % of node bounds) keyed by svgPath.
@@ -151,6 +154,37 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
         this.sections.set(newSections);
       }
     });
+
+    // External requests (e.g. from BlockParameters) to add a connection.
+    this.canvasBlocksService.connectionRequest$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(({ sourceBlockId, targetBlockId }) => {
+        this.addConnectionByBlockIds(sourceBlockId, targetBlockId);
+      });
+  }
+
+  /**
+   * Adds a FlowConnection from `sourceBlockId`'s right output port to
+   * `targetBlockId`'s input port. No-ops if a matching connection already
+   * exists.
+   */
+  private addConnectionByBlockIds(sourceBlockId: string, targetBlockId: string): void {
+    if (!sourceBlockId || !targetBlockId) return;
+    const fOutputId = `${sourceBlockId}-out-right`;
+    const fInputId = `${targetBlockId}-in`;
+
+    const exists = this.connections().some(
+      (c) => c.fOutputId === fOutputId && c.fInputId === fInputId,
+    );
+    if (exists) return;
+
+    const newConnection: FlowConnection = {
+      id: `connection-${++this.connectionCounter}`,
+      fOutputId,
+      fInputId,
+    };
+    this.connections.update((current) => [...current, newConnection]);
+    console.log('Connection added (parameter-driven):', newConnection);
   }
 
   readonly modelErrorSummary = computed<Record<string, { hasError: boolean; tooltip: string }>>(

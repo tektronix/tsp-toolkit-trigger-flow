@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, Subject } from 'rxjs';
 import { Catalog, BlockDefinition, ActualParameter } from '../models/triggerBlock';
 import { Websocket } from './websocket';
 import { TriggerFlowDataService } from './triggerFlowDataService';
@@ -43,6 +43,19 @@ export class CanvasBlocksService {
   }> = {};
   private selectedBlockSubject = new BehaviorSubject<string | null>(null);
   public selectedBlock$ = this.selectedBlockSubject.asObservable();
+
+  private connectionRequestSubject = new Subject<{ sourceBlockId: string; targetBlockId: string }>();
+  public connectionRequest$ = this.connectionRequestSubject.asObservable();
+
+  /**
+   * Request that the canvas render a connection from `sourceBlockId`'s output
+   * to `targetBlockId`'s input. Listeners (e.g. canvas component) subscribe to
+   * `connectionRequest$` to add the FlowConnection to their signal.
+   */
+  requestConnection(sourceBlockId: string, targetBlockId: string): void {
+    if (!sourceBlockId || !targetBlockId) return;
+    this.connectionRequestSubject.next({ sourceBlockId, targetBlockId });
+  }
 
   private toParameterMap(params: ActualParameter[]): Record<string, unknown> {
     return params.reduce((acc, param) => {
@@ -115,7 +128,29 @@ export class CanvasBlocksService {
     for (const model of Object.values(this.models)) {
       const index = model.blocks.findIndex((b) => b.block_id === nodeId);
       if (index !== -1) {
+        // Capture the deleted block's `trigger_block_name` before removal so
+        // we can null out references to it on remaining blocks.
+        const deletedBlock = model.blocks[index];
+        const triggerNameParam = deletedBlock.actual_parameters.find(
+          (p) => p.name === 'trigger_block_name',
+        );
+        const removedBlockName =
+          triggerNameParam?.value != null ? String(triggerNameParam.value) : null;
+
         model.blocks.splice(index, 1);
+
+        // update parameters of remaining blocks to remove any connections to the deleted block
+        if (removedBlockName) {
+          for (const block of model.blocks) {
+            for (const param of block.actual_parameters) {
+              if (param.name === 'branch_to_block_name' || param.name === 'reference_block_name') {
+                if (param.value === removedBlockName) {
+                  param.value = null;
+                }
+              }
+            }
+          }
+        }
         this.updateAndPrint();
         break;
       }
@@ -256,6 +291,24 @@ export class CanvasBlocksService {
   getBlockById(blockId: string): CanvasBlock | null {
     for (const model of Object.values(this.models)) {
       const block = model.blocks.find((b) => b.block_id === blockId);
+      if (block) return block;
+    }
+    return null;
+  }
+
+  /**
+   * Finds a block whose `trigger_block_name` actual parameter value matches
+   * the given name. Searches across all models. Returns null when not found.
+   */
+  findBlockByName(name: string): CanvasBlock | null {
+    if (!name) return null;
+    for (const model of Object.values(this.models)) {
+      const block = model.blocks.find((b) => {
+        const param = b.actual_parameters.find(
+          (p) => p.name === 'trigger_block_name',
+        );
+        return param?.value != null && String(param.value) === name;
+      });
       if (block) return block;
     }
     return null;
