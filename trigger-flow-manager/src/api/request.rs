@@ -8,6 +8,9 @@ pub enum RequestType {
     EvaluateRequest {
         trigger_flow_state: crate::api::state::TriggerFlowState,
     },
+    RecallRequest {
+        trigger_flow_state: crate::api::state::TriggerFlowState,
+    },
 }
 
 //response types from backend to angular

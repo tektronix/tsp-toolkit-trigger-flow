@@ -13,6 +13,7 @@ use crate::{
 };
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TriggerFlowState {
+    pub catalog: Option<Catalog>,
     pub slot_channel_list: SlotChannelList,
     pub models: IndexMap<String, TriggerModelState>,
 }
@@ -34,6 +35,7 @@ impl TriggerFlowState {
         //if slot_channel_list does not exist for self, initialize
         //initialize the slot_channel_list with the new system_config
         //sent as initial_response
+        println!("###process_system_config called with system_config: {:?}", self.slot_channel_list);
         if self.slot_channel_list.slots.is_empty() && self.slot_channel_list.nodes.is_empty() {
             match SlotChannelList::new(system_config) {
                 Ok(list) => {
@@ -82,6 +84,11 @@ impl TriggerFlowState {
             }
             //return the response as json string
         } else {
+            // Recall-completion is detected when slot_channel_list is currently empty
+            // but models are already populated (from a prior RecallRequest). Only in
+            // that case do we want to attach the catalog to the outgoing payload.
+            // Normal in-session config updates should NOT include the catalog.
+            let is_recall_completion =!self.models.is_empty();
             match SlotChannelList::update_slot_channel_list(
                 &mut self.slot_channel_list,
                 SlotChannelListUpdate::SystemConfig(system_config.to_string()),
@@ -89,6 +96,19 @@ impl TriggerFlowState {
                 Ok(list) => {
                     self.slot_channel_list = list;
 
+                    if is_recall_completion {
+                        // Attach catalog so the recall payload sent to the UI is complete.
+                        self.catalog = Some(catalog.clone());
+                        println!(
+                            "###process_system_config returning evaluate_response with catalog (recall completion)"
+                        );
+                    } else {
+                        // In-session update: ensure no stale catalog is sent.
+                        self.catalog = None;
+                        println!(
+                            "###process_system_config returning evaluate_response without catalog (in-session update)"
+                        );
+                    }
                     let response = ResponseType::EvaluateResponse {
                         trigger_flow_state: self.clone(),
                     };

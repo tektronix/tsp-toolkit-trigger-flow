@@ -8,7 +8,7 @@ use std::{collections::HashMap, path::Path};
 /// The root structure representing all available trigger blocks
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Catalog {
-    #[serde(skip_serializing)]
+    #[serde(skip_serializing, default)]
     pub script_template: ScriptTemplate,
     pub blocks: HashMap<String, BlockDefinition>,
     pub trigger_events: HashMap<String, EventDefinition>,
@@ -23,7 +23,7 @@ pub struct Template {
     blocks: Vec<TriggerModelTemplateBlock>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 pub struct ScriptTemplate {
     pub preamble: String,
     pub postamble: String,

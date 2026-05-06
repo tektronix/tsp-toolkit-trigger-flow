@@ -34,10 +34,33 @@ export class TriggerFlowDataService {
 
   updateStatePayload(payload: TriggerFlowStatePayload): void {
     this.statePayloadSnapshot = payload;
+    console.log('###State payload updated:', payload);
+
+    // ORDER MATTERS: catalog must be set BEFORE models, otherwise any
+    // consumer that reacts to models$ (e.g. canvas block restoration) reads
+    // a stale/null catalog and cannot resolve block definitions.
+    if (payload.catalog) {
+      console.log('###updateStatePayload: setting catalog signal');
+      this.catalog.set(payload.catalog);
+
+      if (!this.initialPayloadSnapshot) {
+        this.initialPayloadSnapshot = new InitialPayload({
+          slot_channel_list: payload.slot_channel_list,
+          catalog: payload.catalog,
+        });
+      }
+    } else {
+      console.log(
+        '###updateStatePayload: payload.catalog is falsy; preserving existing catalog signal =',
+        !!this.catalog(),
+      );
+    }
 
     // Keep slot_channel_list fresh from runtime updates
     this.slotChannelList.set(payload.slot_channel_list);
 
+    // Set models LAST so any subscriber reacting to models change sees a
+    // fully populated catalog and slot_channel_list.
     this.models.set(payload.models);
   }
 

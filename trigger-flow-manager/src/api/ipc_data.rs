@@ -18,6 +18,7 @@ impl TryFrom<&IpcData> for RequestType {
     type Error = ErrorType;
 
     fn try_from(ipc_data: &IpcData) -> Result<Self, Self::Error> {
+        println!("###Parsing IpcData request_type: {}", ipc_data.request_type);
         match ipc_data.request_type.as_str() {
             "initial_request" => Ok(RequestType::InitialRequest),
             "evaluate_request" => {
@@ -32,6 +33,7 @@ impl TryFrom<&IpcData> for RequestType {
                     trigger_flow_state: current_state.clone(),
                 })
             }
+            //for recall
             "evaluate_response" => {
                 println!(
                     "Deserializing TriggerFlowState from IPC data: {}",
@@ -40,8 +42,8 @@ impl TryFrom<&IpcData> for RequestType {
                 let current_state: TriggerFlowState = serde_json::from_str(&ipc_data.json_value)
                     .map_err(|e| ErrorType::DeserializationError(e.to_string()))?;
                 println!("Deserialized TriggerFlowState: {:?}", current_state);
-                Ok(RequestType::EvaluateRequest {
-                    trigger_flow_state: current_state.clone(),
+                Ok(RequestType::RecallRequest { 
+                    trigger_flow_state: current_state.clone() 
                 })
             }
             _ => Err(ErrorType::InvalidRequestType(format!(
@@ -56,6 +58,7 @@ impl TryFrom<&ResponseType> for IpcData {
     type Error = ErrorType;
 
     fn try_from(response: &ResponseType) -> Result<Self, Self::Error> {
+        println!("###Converting ResponseType to IpcData: {:?}", response);
         match response {
             ResponseType::InitialResponse {
                 slot_channel_list,
@@ -70,8 +73,15 @@ impl TryFrom<&ResponseType> for IpcData {
                 })
             }
             ResponseType::EvaluateResponse { trigger_flow_state } => {
-                let json_value = serde_json::to_string(trigger_flow_state)
+                // Serialize the entire ResponseType to use #[serde(flatten)] properly
+                if trigger_flow_state.catalog.is_some() {
+                    println!("###Recall response being sent with catalog");
+                } else {
+                    println!("###Evaluate response being sent");
+                }
+                let json_value = serde_json::to_string(response)
                     .map_err(|e| ErrorType::DeserializationError(e.to_string()))?;
+                println!("###Serialized ResponseType JSON: {}", json_value);
                 Ok(IpcData {
                     request_type: "evaluate_response".to_string(),
                     additional_info: "".to_string(),

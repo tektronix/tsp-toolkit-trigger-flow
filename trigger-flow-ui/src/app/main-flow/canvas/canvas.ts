@@ -515,7 +515,7 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
    */
   private convertBlocksToNodes(blocks: any[], sectionId: string): FlowNode[] {
     return blocks.map((block, index) => {
-      console.log(`Converting block ${index + 1}:`, block);
+      console.log(`###Converting block ${index + 1}:`, block);
       const blockSVG= this.getSVGPath(block.type);
       return {
         blockId: block.block_id || `restored-block-${index + 1}`,

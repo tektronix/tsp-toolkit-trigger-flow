@@ -31,6 +31,7 @@
           @if (isNumberType(param.type)) {
             <app-input-numeric
               [label]="param.name"
+              automationID="{{ 'param-' + param.name }}"
               [(ngModel)]="param.value"
               (inputChange)="onParameterValueChange()"
             />
