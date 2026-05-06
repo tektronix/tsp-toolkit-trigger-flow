@@ -21,6 +21,7 @@ pub struct TriggerModelState {
     #[serde(rename = "trigger_model_name")]
     pub model_name: String,
     pub slot_index: SlotIndex,
+    pub node_id: String,
     pub blocks: Vec<TriggerModelBlock>,
 }
 

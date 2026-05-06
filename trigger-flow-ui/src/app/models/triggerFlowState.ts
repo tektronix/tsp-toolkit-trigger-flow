@@ -16,6 +16,7 @@ export interface ITriggerFlowStatePayload {
 export interface ITriggerModel {
   trigger_model_name: string;
   slot_index: number;
+  node_id: string;
   blocks: ITriggerModelBlock[];
 }
 
@@ -51,11 +52,13 @@ export class TriggerFlowStatePayload {
 export class TriggerModel {
   trigger_model_name: string;
   slot_index: number;
+  node_id: string;
   blocks: TriggerModelBlock[];
 
   constructor(data: ITriggerModel) {
     this.trigger_model_name = data.trigger_model_name;
     this.slot_index = data.slot_index;
+    this.node_id = data.node_id;
     this.blocks = data.blocks.map(
       (block: ITriggerModelBlock) => new TriggerModelBlock(block)
     );

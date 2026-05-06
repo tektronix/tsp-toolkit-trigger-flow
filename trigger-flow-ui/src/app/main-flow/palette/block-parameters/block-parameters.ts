@@ -4,10 +4,12 @@ import { AngularSvgIconModule } from 'angular-svg-icon';
 import { CanvasBlocksService } from '../../../services/canvas-blocks.service';
 import {
   findblockCategory,
+  getBlockParameterDisplayName,
   ParamControlType,
   resolveParamControlType,
+  shouldShowBlockParameter,
 } from '../../../models/blockParameterHelper';
-import { ActualParameter, ParamTypeName } from '../../../models/triggerBlock';
+import { ActualParameter } from '../../../models/triggerBlock';
 import { Textbox } from '../../../custom-controls/textbox/textbox';
 import { InputNumeric } from '../../../custom-controls/input-numeric/input-numeric';
 import { Dropdown } from '../../../custom-controls/dropdown/dropdown';
@@ -104,24 +106,24 @@ export class BlockParameters {
     }
   }
 
-  isNumberType(type: ParamTypeName): boolean {
-    // DelayTime is represented as a numeric value in catalog metadata.
-    return type === 'Number' || type === 'DelayTime';
-  }
+  // isNumberType(type: ParamTypeName): boolean {
+  //   // DelayTime is represented as a numeric value in catalog metadata.
+  //   return type === 'Number' || type === 'DelayTime';
+  // }
 
-  isStringType(type: ParamTypeName): boolean {
-    return type === 'String';
-  }
+  // isStringType(type: ParamTypeName): boolean {
+  //   return type === 'String';
+  // }
 
-  isMultiLineStringType(type: ParamTypeName): boolean {
-    return type === 'MultiString';
-  }
+  // isMultiLineStringType(type: ParamTypeName): boolean {
+  //   return type === 'MultiString';
+  // }
 
-  isToggleType(type: ParamTypeName): boolean {
-    return type === 'SourceState';
-  }
+  // isToggleType(type: ParamTypeName): boolean {
+  //   return type === 'SourceState';
+  // }
 
-  getControlType(param: ActualParameter): ParamControlType {    
+  getControlType(param: ActualParameter): ParamControlType {
     return resolveParamControlType({
       name: param.name,
       type: param.type,
@@ -188,7 +190,7 @@ export class BlockParameters {
         );
         // Update the block's actual_parameters with the new values
         // canvasBlock.actual_parameters = this.actualParameters;
-        
+
         // Values are updated via ngModel by reference. Trigger serialization so
         // backend preview/state stays synchronized while user edits parameters.
         this.canvasBlocksService.logIpcDataFormat();
@@ -213,8 +215,11 @@ export class BlockParameters {
   }
 
   shouldShowInUI(param: ActualParameter): boolean {
-    const hiddenParams = ['trigger_model_name', 'slot_index', 'list_config'];
-    return !hiddenParams.includes(param.name);
+    return shouldShowBlockParameter(param.name);
+  }
+
+  getParameterDisplayName(param: ActualParameter): string {
+    return getBlockParameterDisplayName(param.name);
   }
 
   hasDelayListConfig(): boolean {

@@ -35,9 +35,7 @@
               [selectionMode]="getEventSelectionMode(param)"
               (valueChange)="onParameterValueChange()"
             />
-          }
-
-          @else if (getControlType(param) === 'radio') {
+          } @else if (getControlType(param) === 'radio') {
             <app-radio-button
               [label]="param.name"
               [options]="getSelectOptions(param)"
@@ -55,30 +53,31 @@
           } @else if (getControlType(param) === 'number') {
             <!-- delay_time is shown in seconds and stays visible but disabled when List mode is enabled. -->
             <app-input-numeric
-              [label]="param.name"
+              [label]="getParameterDisplayName(param)"
               [unit]="param.name === 'delay_time' ? 's' : undefined"
               [floatAllowed]="param.name === 'delay_time'"
               [(ngModel)]="param.value"
               [disabled]="param.name === 'delay_time' && isDelayListEnabled()"
               (inputChange)="onParameterValueChange()"
             />
-          } @else if (isMultiLineStringType(param.type)) {
-            <app-multiline-textbox
-              [label]="param.name"
-              [(ngModel)]="param.value"
-              [maxLength]="52"
-              (inputChange)="onParameterValueChange()"
-            />
-          } @else if (isToggleType(param.type) && param.options) {
+          } @else if (getControlType(param) === 'toggle' && param.options) {
             <app-toggle
-              [label]="param.name"
+              [label]="getParameterDisplayName(param)"
               [options]="param.options"
               [(ngModel)]="param.value"
               (toggleOptionChange)="onParameterValueChange()"
             />
-          } @else {
+          } @else if (getControlType(param) === 'multiline') {
+            <app-multiline-textbox
+              [label]="getParameterDisplayName(param)"
+              [(ngModel)]="param.value"
+              [rows]="5"
+              [maxLength]="52"
+              (inputChange)="onParameterValueChange()"
+            />
+          } @else if (getControlType(param) === 'text') {
             <app-textbox
-              [label]="param.name"
+              [label]="getParameterDisplayName(param)"
               [(ngModel)]="param.value"
               (inputChange)="onParameterValueChange()"
             />
@@ -105,7 +104,7 @@
 
       <app-multiline-textbox
         label="Notes"
-        [rows]="4"
+        [rows]="5"
         [(ngModel)]="blockNotes"
         (inputChange)="onBlockNotesChange()"
       />

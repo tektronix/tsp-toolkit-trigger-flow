@@ -49,14 +49,10 @@ export class MainFlow {
 
   openScript(): void {
     console.log('Open Script clicked');
-    vscode.postMessage({ command: 'open_script'});
+    vscode.postMessage({ command: 'open_script' });
   }
 
-  onRequestModelModal(req: {
-    suggestedName: string;
-    suggestedSlot: number;
-    notes: string;
-  }): void {
+  onRequestModelModal(req: { suggestedName: string; suggestedSlot: number; notes: string }): void {
     this.loadSlotOptions();
 
     this.modelName = req.suggestedName;
@@ -93,7 +89,11 @@ export class MainFlow {
 
   // Copy modal data to clipboard when copy icon_ i_is clicked.
   async onModelModalCopy(): Promise<void> {
-    const text = [`Name: ${this.modelName}`, `Slot: ${this.modelSlot}`, `Notes: ${this.modelNotes}`].join('\n');
+    const text = [
+      `Name: ${this.modelName}`,
+      `Slot: ${this.modelSlot}`,
+      `Notes: ${this.modelNotes}`,
+    ].join('\n');
 
     try {
       await navigator.clipboard.writeText(text);
@@ -119,6 +119,7 @@ export class MainFlow {
         options.push({
           label: `localnode.slot[${slot.slotId}]`,
           slot: slot.slotId,
+          nodeId: 'localnode',
         });
       }
     }
@@ -137,6 +138,7 @@ export class MainFlow {
           options.push({
             label: `${nodeLabel}.slot[${slot.slotId}]`,
             slot: slot.slotId,
+            nodeId: node.nodeId,
           });
         }
       }

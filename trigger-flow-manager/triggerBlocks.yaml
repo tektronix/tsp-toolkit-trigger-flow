@@ -205,7 +205,7 @@ blocks:
         type: ChannelIndex
         required: true
       - name: config_list_name
-        type: MultiString
+        type: string
         required: true
     syntax: |
       -- NOTE: The configuration list must be defined before the trigger model uses this block.
@@ -215,7 +215,7 @@ blocks:
       the settings stored at the next index of a configuration list are
       recalled.
     shape: conditional
-  configlist prev:
+  config list prev:
     parameters:
       - name: slot_index
         type: SlotIndex
@@ -242,7 +242,7 @@ blocks:
       block, the settings at the previous index in the specified configuration
       list are restored.
     shape: conditional
-  configlist recall:
+  config list recall:
     parameters:
       - name: slot_index
         type: SlotIndex
@@ -264,6 +264,7 @@ blocks:
       - name: recall_index
         type: number
         required: false
+        default: 1
     syntax: |
       -- The configuration list must be defined before the trigger model uses this block.
       slot[{{slot_index}}].trigger.model.addblock.configlist.recall("{{trigger_model_name}}", "{{trigger_block_name}}", {{channel_index}}, "{{config_list_name}}"{{#if recall_index}}, {{recall_index}}{{/if}})
