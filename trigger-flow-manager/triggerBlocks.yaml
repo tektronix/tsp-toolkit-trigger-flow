@@ -202,7 +202,7 @@ blocks:
         required: true
         default: Config List NEXT
       - name: channel_index
-        type: ChannelIndex
+        type: ChannelItem
         required: true
       - name: config_list_name
         type: string
@@ -229,7 +229,7 @@ blocks:
         required: true
         default: Config List PREV
       - name: channel_index
-        type: ChannelIndex
+        type: ChannelItem
         required: true
       - name: config_list_name
         type: string
@@ -256,7 +256,7 @@ blocks:
         required: true
         default: Config List RECALL
       - name: channel_index
-        type: ChannelIndex
+        type: ChannelItem
         required: true
       - name: config_list_name
         type: string
@@ -518,7 +518,7 @@ blocks:
         required: true
         default: Source Action SKIP
       - name: channel_list
-        type: ChannelList
+        type: ChannelItem
         required: true
     syntax: >-
       slot[{{slot_index}}].trigger.model.addblock.source.action.skip("{{trigger_model_name}}",

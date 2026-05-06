@@ -34,6 +34,9 @@ export type ParamControlType =
   | 'toggle'
   | 'multiline'
   | 'custom'
+  | 'channel-list'
+  | 'channel-item'
+  | 'channel-index'
   | 'unknown';
 
 interface ControlRuleContext {
@@ -69,7 +72,8 @@ const PARAM_TYPE_TO_CONTROL: Record<string, ParamControlType> = {
   ChannelIndex: 'select',
   DelayList: 'select',
   EventID: 'select',
-  ChannelList: 'select',
+  ChannelList: 'channel-list',
+  ChannelItem: 'channel-item',
   LogEventType: 'radio',
   ClearType: 'radio',
   LogicType: 'radio',
@@ -106,6 +110,14 @@ export function resolveParamControlType(context: ControlRuleContext): ParamContr
 
   if (mapped === 'multiline') {
     return 'multiline';
+  }
+
+  if (mapped === 'channel-list') {
+    return 'channel-list';
+  }
+
+  if (mapped === 'channel-item') {
+    return 'channel-item';
   }
 
   if (mapped === 'select') {

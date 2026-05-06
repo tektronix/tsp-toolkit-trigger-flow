@@ -12,7 +12,6 @@
           [checked]="isChecked(option.value)"
           [disabled]="disabled || option.disabled"
           (change)="onCheckboxChange($event, option.value)"
-          (blur)="onBlur()"
         />
         <span class="checkbox-group-text">{{ option.label }}</span>
       </label>

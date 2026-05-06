@@ -50,6 +50,21 @@
               [(ngModel)]="param.value"
               (selectedChange)="onParameterValueChange()"
             />
+          } @else if (getControlType(param) === 'channel-list') {
+            <app-checkbox-group
+              [label]="getParameterDisplayName(param)"
+              [options]="channelListOptions"
+              [selectedValues]="getChannelListSelected(param)"
+              (selectionChange)="onChannelListChange(param, $event)"
+            />
+          } @else if (getControlType(param) === 'channel-item') {
+            <app-radio-group
+              [label]="getParameterDisplayName(param)"
+              [name]="getRadioGroupName(param)"
+              [options]="channelItemOptions"
+              [selectedValue]="getChannelItemSelected(param)"
+              (selectionChange)="onChannelItemChange(param, $event)"
+            />
           } @else if (getControlType(param) === 'number') {
             <app-input-numeric
               [label]="getParameterDisplayName(param)"

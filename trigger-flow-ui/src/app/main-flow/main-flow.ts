@@ -32,6 +32,7 @@ export class MainFlow {
   showModelModal = false;
   modelName = 'MyTriggerModel';
   modelSlot = 1;
+  modelNodeId = '';
   modelNotes = '';
 
   slotOptions: ModelSlotOption[] = [];
@@ -56,24 +57,21 @@ export class MainFlow {
     this.loadSlotOptions();
 
     this.modelName = req.suggestedName;
-    this.modelSlot = req.suggestedSlot;
     this.modelNotes = req.notes;
-
-    if (!this.slotOptions.some((o) => o.slot === this.modelSlot) && this.slotOptions.length > 0) {
-      this.modelSlot = this.slotOptions[0].slot;
-    }
 
     this.showModelModal = true;
   }
 
   // Kept for future dependent dropdown logic.
-  onModelModalSlotChanged(slot: number): void {
-    this.modelSlot = slot;
+  onModelModalSlotChanged(selectedSlot: ModelSlotOption): void {
+    this.modelSlot = selectedSlot.slot;
+    this.modelNodeId = selectedSlot.nodeId;
   }
 
   onModelModalClose(value: ModelModalValue): void {
     this.modelName = value.name;
     this.modelSlot = value.slot;
+    this.modelNodeId = value.nodeId;
     this.modelNotes = value.notes;
 
     this.canvas?.createModelAndContinue(value);
@@ -126,17 +124,17 @@ export class MainFlow {
 
     // child node slots (derive display index from nodeId)
     for (const node of slotChannelList.nodes ?? []) {
-      // Example: "node2" -> 2, "N3" -> 3, fallback to original nodeId label
-      const parsedNodeIndex = Number.parseInt(String(node.nodeId).replace(/\D/g, ''), 10);
-      const nodeLabel =
-        Number.isFinite(parsedNodeIndex) && parsedNodeIndex > 0
-          ? `node${parsedNodeIndex}`
-          : `node.${node.nodeId}`;
+      // // Example: "node2" -> 2, "N3" -> 3, fallback to original nodeId label
+      // const parsedNodeIndex = Number.parseInt(String(node.nodeId).replace(/\D/g, ''), 10);
+      // const nodeLabel =
+      //   Number.isFinite(parsedNodeIndex) && parsedNodeIndex > 0
+      //     ? `node${parsedNodeIndex}`
+      //     : `node.${node.nodeId}`;
 
       for (const slot of node.slots ?? []) {
         if (slot.module !== 'Empty') {
           options.push({
-            label: `${nodeLabel}.slot[${slot.slotId}]`,
+            label: `${node.nodeId}.slot[${slot.slotId}]`,
             slot: slot.slotId,
             nodeId: node.nodeId,
           });
@@ -146,8 +144,10 @@ export class MainFlow {
 
     this.slotOptions = options;
 
-    if (this.slotOptions.length > 0 && !this.slotOptions.some((o) => o.slot === this.modelSlot)) {
-      this.modelSlot = this.slotOptions[0].slot;
-    }
+    // Always pick the first available slot from slotOptions; suggestedSlot is
+    // just a number and has no direct relevance to slotChannelList.
+    const first = this.slotOptions[0];
+    this.modelSlot = first?.slot ?? 1;
+    this.modelNodeId = first?.nodeId ?? '';
   }
 }
