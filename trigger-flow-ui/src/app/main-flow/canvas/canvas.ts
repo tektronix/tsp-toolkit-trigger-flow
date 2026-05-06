@@ -288,7 +288,7 @@ export class Canvas implements AfterViewInit {
     const hasResetBranchCountParam = blockCatalog?.parameters.some(
       (param) => param.name === 'reset_branch_count_block_name'
     );
-    return hasBranchParam ? "right" : hasResetBranchCountParam ? "left": hasReferenceParam ? "left" : "right";
+    return hasBranchParam ? "right" : hasResetBranchCountParam ? "left" : hasReferenceParam ? "left" : "right";
   }
 
 
@@ -694,13 +694,7 @@ export class Canvas implements AfterViewInit {
   private shouldRestoreFromModels(models: Record<string, any>, currentSections: FlowSection[]): boolean {
     const canvasIsEmpty = currentSections.length === 0;
     const serviceHasModels = Object.keys(models).length > 0;
-<<<<<<< task/TSP-1556-Recall-Saved-TriggerFlow-Session
-    
-=======
 
-    console.log('Restoration check:', { canvasIsEmpty, serviceHasModels, modelCount: Object.keys(models).length });
-
->>>>>>> main
     return canvasIsEmpty && serviceHasModels;
   }
 
@@ -711,21 +705,12 @@ export class Canvas implements AfterViewInit {
   private convertModelsToSections(models: Record<string, any>): FlowSection[] {
     console.log('Converting models to sections:', models);
 
-<<<<<<< task/TSP-1556-Recall-Saved-TriggerFlow-Session
     const sections = Object.entries(models).map(([modelName, model], index) => {
       console.log(`Processing model ${index + 1}:`, modelName, model);
 
       const sectionId = `group-${index + 1}`;
       const resolvedModelName = model.trigger_model_name || modelName;
       const resolvedSlotIndex = model.slot_index || 0;
-=======
-    // Object.entries converts {key: value} to [[key, value], ...]
-    return Object.entries(models).map(([modelName, model], index) => {
-      console.log(`Processing model ${index + 1}:`, modelName, model);
-
-      // Each model becomes a canvas section
-      const sectionId = `group-${index + 1}`;
->>>>>>> main
 
       return {
         id: sectionId,
@@ -753,7 +738,6 @@ export class Canvas implements AfterViewInit {
     slotIndex: number,
   ): FlowNode[] {
     return blocks.map((block, index) => {
-<<<<<<< task/TSP-1556-Recall-Saved-TriggerFlow-Session
 
       const blockId: string = block.block_id || `restored-block-${index + 1}`;
       const blockType: string = block.type;
@@ -785,10 +769,6 @@ export class Canvas implements AfterViewInit {
       }
 
       const blockSVG = this.getSVGPath(blockType);
-=======
-      console.log(`Converting block ${index + 1}:`, block);
-      const blockSVG = this.getSVGPath(block.type);
->>>>>>> main
       return {
         blockId,
         sectionId,
@@ -802,49 +782,4 @@ export class Canvas implements AfterViewInit {
       };
     });
   }
-<<<<<<< task/TSP-1556-Recall-Saved-TriggerFlow-Session
-=======
-
-  /**
-   * Derives the catalog label (block name) from service block data
-   * This determines which catalog definition to use for the block
-  //  */
-  // private deriveCatalogLabel(block: any): string {
-  //   // Try to get block name from parameters first
-  //   if (block.block_parameters?.block_name) {
-  //     return block.block_parameters.block_name;
-  //   }
-
-  //   // Fallback to type-based naming
-  //   if (block.type) {
-  //     return `${block.type}Block`;
-  //   }
-
-  //   // Last resort fallback
-  //   return 'UnknownBlock';
-  // }
-
-  /**
-   * Derives the SVG path from service block data
-   * This determines which icon to show for the block
-   */
-  // private deriveSvgPath(block: any): string {
-  //   const blockType = block.type;
-
-  //   // Map block types to their SVG paths
-  //   // This should match your existing drag-and-drop logic
-  //   switch (blockType) {
-  //     case 'Action':
-  //       return 'assets/icons/action-block.svg'; // Adjust to your actual paths
-  //     case 'Branch':
-  //       return 'assets/icons/branch-block.svg';
-  //     case 'Notify':
-  //       return 'assets/icons/notify-block.svg';
-  //     case 'Timing':
-  //       return 'assets/icons/timing-block.svg';
-  //     default:
-  //       return 'assets/icons/default-block.svg';
-  //   }
-  // }
->>>>>>> main
 }
