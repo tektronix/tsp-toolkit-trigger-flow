@@ -300,10 +300,16 @@ blocks:
         label: List
         description: "When enabled, delay values are sourced from a Config List rather than a fixed delay time value. Opens a modal to configure per-step values."
     syntax: >
-      slot[{{slot_index}}].trigger.model.addblock.delay.constant("{{trigger_model_name}}",
+      slot[{{slot_index}}].trigger.model.addblock.delay.constant(
+      "{{trigger_model_name}}",
       "{{trigger_block_name}}",
-      {{delay_time}},
-      {{#if reference_block_name}}"{{reference_block_name}}"{{/if}})
+      {{#if list_config}}
+        {{list_config}}
+      {{else}}
+        {{delay_time}}
+      {{/if}}
+      {{#if reference_block_name}}, "{{reference_block_name}}"{{/if}}
+      )
     description: >-
       When trigger model execution reaches a delay block, it stops the trigger
       model operation for the time set by the delay.
@@ -626,11 +632,14 @@ blocks:
       slot[{{slot_index}}].trigger.model.addblock.wait(
       "{{trigger_model_name}}",
       "{{trigger_block_name}}",
-      {{#each events}}
-      {{this}}{{#unless @last}}, {{/unless}}
-      {{/each}}
+      {{#if events.[0]}}
+        {{events.[0]}}
+      {{/if}}
       {{#if clear}}, slot[{{slot_index}}].trigger.model.CLEAR_{{clear}}{{/if}}
       {{#if logic}}, slot[{{slot_index}}].trigger.model.WAIT_{{logic}}{{/if}}
+      {{#each events}}
+        {{#if @index}}, {{this}}{{/if}}
+      {{/each}}
       )
     description: >-
       The wait block causes the trigger model to stop and wait for an event or
