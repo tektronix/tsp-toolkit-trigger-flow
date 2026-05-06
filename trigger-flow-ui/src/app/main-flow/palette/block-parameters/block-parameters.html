@@ -50,6 +50,21 @@
               [(ngModel)]="param.value"
               (selectedChange)="onParameterValueChange()"
             />
+          } @else if (getControlType(param) === 'channel-list') {
+            <app-checkbox-group
+              [label]="getParameterDisplayName(param)"
+              [options]="channelListOptions"
+              [selectedValues]="getChannelListSelected(param)"
+              (selectionChange)="onChannelListChange(param, $event)"
+            />
+          } @else if (getControlType(param) === 'channel-item') {
+            <app-radio-group
+              [label]="getParameterDisplayName(param)"
+              [name]="getRadioGroupName(param)"
+              [options]="channelItemOptions"
+              [selectedValue]="getChannelItemSelected(param)"
+              (selectionChange)="onChannelItemChange(param, $event)"
+            />
           } @else if (getControlType(param) === 'number') {
             <!-- delay_time is shown in seconds and stays visible but disabled when List mode is enabled. -->
             <app-input-numeric

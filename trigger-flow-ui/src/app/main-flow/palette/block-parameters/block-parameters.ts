@@ -8,8 +8,7 @@ import {
   ParamControlType,
   resolveParamControlType,
   shouldShowBlockParameter,
-} from '../../../models/blockParameterHelper';
-import { ActualParameter } from '../../../models/triggerBlock';
+} from '../../../models/blockParameterHelper';import { ActualParameter } from '../../../models/triggerBlock';
 import { Textbox } from '../../../custom-controls/textbox/textbox';
 import { InputNumeric } from '../../../custom-controls/input-numeric/input-numeric';
 import { Dropdown } from '../../../custom-controls/dropdown/dropdown';
@@ -20,6 +19,12 @@ import { EventBlockComponent } from './event-block/event-block';
 import { TriggerFlowDataService } from '../../../services/triggerFlowDataService';
 import { EventDefinition } from '../../../models/triggerBlock';
 import { Toggle } from '../../../custom-controls/toggle/toggle';
+import {
+  CheckboxGroup,
+  CheckboxOption,
+} from '../../../custom-controls/checkbox-group/checkbox-group';
+import { RadioGroup, RadioOption } from '../../../custom-controls/radio-group/radio-group';
+import { ModelResourceAllocationService } from '../../../services/model-resource-allocation.service';
 import { Checkbox } from '../../../custom-controls/checkbox/checkbox';
 import { DelayListModal, DelayListModalValue } from './delay-list-modal/delay-list-modal';
 
@@ -46,6 +51,8 @@ const CATEGORY_ICON_PATHS: Record<string, string> = {
     MultilineTextbox,
     Toggle,
     Checkbox,
+    CheckboxGroup,
+    RadioGroup,
     FormsModule,
     EventBlockComponent,
     DelayListModal,
@@ -56,6 +63,7 @@ const CATEGORY_ICON_PATHS: Record<string, string> = {
 export class BlockParameters {
   private canvasBlocksService = inject(CanvasBlocksService);
   private triggerFlowDataService = inject(TriggerFlowDataService);
+  private modelResourceService = inject(ModelResourceAllocationService);
   private destroyRef = inject(DestroyRef);
 
   selectedBlockId: string | null = null;
@@ -64,6 +72,8 @@ export class BlockParameters {
   actualParameters: ActualParameter[] = [];
   blockNotes = '';
   triggerEvents: Record<string, EventDefinition> = {};
+  channelListOptions: CheckboxOption[] = [];
+  channelItemOptions: RadioOption[] = [];
   showDelayListModal = false;
   delayListModalPoints = 1;
   delayListModalSweepValues: number[] = [1];
@@ -102,6 +112,8 @@ export class BlockParameters {
         // Notes are per-block, so refresh the textarea each time selection changes.
         this.blockNotes = canvasBlock.notes ?? '';
         this.ensureParameterDefaults(this.actualParameters);
+        this.refreshChannelListOptions();
+        this.refreshChannelItemOptions();
       }
     }
   }
@@ -216,6 +228,42 @@ export class BlockParameters {
 
   shouldShowInUI(param: ActualParameter): boolean {
     return shouldShowBlockParameter(param.name);
+  }
+
+  getChannelListOptions(): CheckboxOption[] {
+    return this.channelListOptions;
+  }
+
+  private refreshChannelListOptions(): void {
+    this.channelListOptions = this.selectedBlockId
+      ? this.modelResourceService.getChannelOptionsForBlock(this.selectedBlockId)
+      : [];
+  }
+
+  private refreshChannelItemOptions(): void {
+    // ChannelItem shares the same option source as ChannelList; reuse it directly
+    // since RadioOption and CheckboxOption are structurally identical.
+    this.channelItemOptions = this.selectedBlockId
+      ? this.modelResourceService.getChannelOptionsForBlock(this.selectedBlockId)
+      : [];
+  }
+
+  getChannelListSelected(param: ActualParameter): string[] {
+    return Array.isArray(param.value) ? param.value.map((v) => `${v}`) : [];
+  }
+
+  getChannelItemSelected(param: ActualParameter): string {
+    return param.value === null || param.value === undefined ? '' : `${param.value}`;
+  }
+
+  onChannelListChange(param: ActualParameter, selected: string[]): void {
+    param.value = selected.map((v) => Number(v));
+    this.onParameterValueChange();
+  }
+
+  onChannelItemChange(param: ActualParameter, selected: string): void {
+    param.value = selected === '' ? null : Number(selected);
+    this.onParameterValueChange();
   }
 
   getParameterDisplayName(param: ActualParameter): string {

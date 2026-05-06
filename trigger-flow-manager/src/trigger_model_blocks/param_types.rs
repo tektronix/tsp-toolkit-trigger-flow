@@ -14,6 +14,7 @@ pub enum ParamTypeName {
     #[serde(alias = "LogEvent")]
     LogEventType,
     ChannelList,
+    ChannelItem,
     SourceState,
     ClearType,
     LogicType,

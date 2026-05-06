@@ -58,6 +58,7 @@ export type ParamTypeName =
   | 'DelayTime'
   | 'LogEventType'
   | 'ChannelList'
+  | 'ChannelItem'
   | 'SourceState'
   | 'ClearType'
   | 'LogicType'
@@ -200,6 +201,9 @@ export class ActualParameter {
       this.value = []; // correct initialization
     } else if (this.type === 'EventItem') {
       this.value = null;
+    } else if (this.type === 'ChannelList') {
+      // Channel list is a multi-select; start empty so no channel is preselected.
+      this.value = [];
     } else {
       this.value = parameter.default ?? null;
     }
@@ -231,6 +235,7 @@ export type ParameterValue =
   | number
   | boolean
   | null
+  | number[]
   | EventListItem
   | EventListItem[]
   | DelayListConfigValue;

@@ -74,12 +74,9 @@ export class CheckboxGroup implements ControlValueAccessor {
     if (this.onChange) {
       this.onChange(this.selectedValues);
     }
-    this.selectionChange.emit(this.selectedValues);
-  }
-
-  onBlur(): void {
     if (this.onTouched) {
       this.onTouched();
     }
+    this.selectionChange.emit(this.selectedValues);
   }
 }

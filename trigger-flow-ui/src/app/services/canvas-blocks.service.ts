@@ -144,6 +144,10 @@ export class CanvasBlocksService {
     });
   }
 
+  getModels() {
+    return this.models;
+  }
+
   // updateBlockParameters(nodeId: string, parameters: Record<string, any>): void {
   //   for (const model of Object.values(this.models)) {
   //     const block = model.blocks.find((b) => b.block_id === nodeId);
