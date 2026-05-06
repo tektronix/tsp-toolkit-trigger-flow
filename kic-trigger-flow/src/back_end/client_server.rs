@@ -158,7 +158,10 @@ async fn ws_index(
                                 Ok(request) => {
                                     // Capture state from the original request for backend persistence
                                     // BEFORE handing the request off to the (consuming) processor.
-                                    let request_state_for_persist: Option<(TriggerFlowState, bool)> = match &request {
+                                    let request_state_for_persist: Option<(
+                                        TriggerFlowState,
+                                        bool,
+                                    )> = match &request {
                                         RequestType::EvaluateRequest { trigger_flow_state } => {
                                             Some((trigger_flow_state.clone(), false))
                                         }
@@ -194,7 +197,9 @@ async fn ws_index(
                                     );
                                     if should_trigger_script {
                                         let mut state_persisted = false;
-                                        if let Some((incoming_state, is_recall)) = request_state_for_persist {
+                                        if let Some((incoming_state, is_recall)) =
+                                            request_state_for_persist
+                                        {
                                             let mut state_lock =
                                                 app_state.trigger_flow_state.lock().await;
                                             // Recall arrives BEFORE Systems: the recall payload
@@ -558,15 +563,16 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                             Ok(request) => {
                                 // Capture state from the original request for backend persistence
                                 // BEFORE handing the request off to the (consuming) processor.
-                                let request_state_for_persist: Option<(TriggerFlowState, bool)> = match &request {
-                                    RequestType::EvaluateRequest { trigger_flow_state } => {
-                                        Some((trigger_flow_state.clone(), false))
-                                    }
-                                    RequestType::RecallRequest { trigger_flow_state } => {
-                                        Some((trigger_flow_state.clone(), true))
-                                    }
-                                    RequestType::InitialRequest => None,
-                                };
+                                let request_state_for_persist: Option<(TriggerFlowState, bool)> =
+                                    match &request {
+                                        RequestType::EvaluateRequest { trigger_flow_state } => {
+                                            Some((trigger_flow_state.clone(), false))
+                                        }
+                                        RequestType::RecallRequest { trigger_flow_state } => {
+                                            Some((trigger_flow_state.clone(), true))
+                                        }
+                                        RequestType::InitialRequest => None,
+                                    };
 
                                 // Keep processor scoped so it is dropped before any await below.
                                 let response = {
@@ -597,7 +603,9 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                                 );
                                 if should_trigger_script {
                                     let mut state_persisted = false;
-                                    if let Some((incoming_state, is_recall)) = request_state_for_persist {
+                                    if let Some((incoming_state, is_recall)) =
+                                        request_state_for_persist
+                                    {
                                         let mut state_lock =
                                             app_state_clone.trigger_flow_state.lock().await;
                                         // Recall arrives BEFORE Systems: the recall payload

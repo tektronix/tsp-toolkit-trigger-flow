@@ -35,7 +35,10 @@ impl TriggerFlowState {
         //if slot_channel_list does not exist for self, initialize
         //initialize the slot_channel_list with the new system_config
         //sent as initial_response
-        println!("###process_system_config called with system_config: {:?}", self.slot_channel_list);
+        println!(
+            "###process_system_config called with system_config: {:?}",
+            self.slot_channel_list
+        );
         if self.slot_channel_list.slots.is_empty() && self.slot_channel_list.nodes.is_empty() {
             match SlotChannelList::new(system_config) {
                 Ok(list) => {
@@ -88,7 +91,7 @@ impl TriggerFlowState {
             // but models are already populated (from a prior RecallRequest). Only in
             // that case do we want to attach the catalog to the outgoing payload.
             // Normal in-session config updates should NOT include the catalog.
-            let is_recall_completion =!self.models.is_empty();
+            let is_recall_completion = !self.models.is_empty();
             match SlotChannelList::update_slot_channel_list(
                 &mut self.slot_channel_list,
                 SlotChannelListUpdate::SystemConfig(system_config.to_string()),

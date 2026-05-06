@@ -22,10 +22,16 @@ impl RequestProcessor {
             .add_validator(Box::new(CatalogValidator::new(catalog)))
             .add_validator(Box::new(InstrumentValidator::new())); //pass initial empty slot_channel_list, will be updated with each request
 
-        Self { validation_chain, catalog }
+        Self {
+            validation_chain,
+            catalog,
+        }
     }
     pub fn process_request(&self, request: RequestType) -> Result<Option<String>> {
-        println!("###RequestProcessor::process_request called with: {:?}", request);
+        println!(
+            "###RequestProcessor::process_request called with: {:?}",
+            request
+        );
         match request {
             RequestType::InitialRequest => {
                 println!("instrument data requested");
@@ -44,8 +50,13 @@ impl RequestProcessor {
                 // Return response without persisting state (stateless)
                 Ok(Some(response))
             }
-            RequestType::RecallRequest { trigger_flow_state: request_state } => {
-                println!("Processing RecallRequest with TriggerFlowState: {:?}", request_state);
+            RequestType::RecallRequest {
+                trigger_flow_state: request_state,
+            } => {
+                println!(
+                    "Processing RecallRequest with TriggerFlowState: {:?}",
+                    request_state
+                );
                 let mut working_state = request_state;
                 let response = self.handle_recall_request(&mut working_state)?;
                 Ok(Some(response))
@@ -55,7 +66,7 @@ impl RequestProcessor {
 
     pub fn handle_evaluate_request(
         &self,
-        trigger_flow_state: &mut TriggerFlowState
+        trigger_flow_state: &mut TriggerFlowState,
     ) -> Result<String> {
         println!("###handle_evaluate_request called");
         //call process_system_config with update type triggerflowstate
@@ -71,15 +82,15 @@ impl RequestProcessor {
         //evaluate models in state
         //validation chain validates the models first, then hashmap
         self.validation_chain.validate(trigger_flow_state)?;
-        
+
         println!("###Creating ResponseType::EvaluateResponse with catalog");
-        let response = ResponseType::EvaluateResponse { // Regular evaluates don't need catalog
+        let response = ResponseType::EvaluateResponse {
+            // Regular evaluates don't need catalog
             trigger_flow_state: trigger_flow_state.clone(),
         };
 
         println!("###About to convert ResponseType to IpcData");
-    
-        
+
         match IpcData::try_from(&response) {
             Result::Ok(ipc_response) => {
                 let serialized_response = serde_json::to_string(&ipc_response)?;
@@ -95,7 +106,7 @@ impl RequestProcessor {
 
     pub fn handle_recall_request(
         &self,
-        trigger_flow_state: &mut TriggerFlowState
+        trigger_flow_state: &mut TriggerFlowState,
     ) -> Result<String> {
         //call process_system_config with update type triggerflowstate
 
