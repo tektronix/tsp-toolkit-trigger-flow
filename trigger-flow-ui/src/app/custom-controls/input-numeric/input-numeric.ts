@@ -54,9 +54,11 @@ export class InputNumeric implements ControlValueAccessor, OnInit {
   }
 
   writeValue(value: number): void {
-    // Accept all valid numbers including 0
+    // Accept all valid numbers including 0, and clear for undefined/null
     if (value !== undefined && value !== null && !isNaN(value)) {
       this._value = value;
+    } else {
+      this._value = undefined;
     }
   }
 

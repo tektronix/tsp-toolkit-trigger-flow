@@ -56,6 +56,8 @@ export class Textbox implements ControlValueAccessor, OnInit {
   writeValue(value: string | undefined): void {
     if (value !== undefined && value !== null) {
       this._value = value;
+    } else {
+      this._value = '';
     }
   }
 
