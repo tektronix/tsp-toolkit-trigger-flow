@@ -206,6 +206,19 @@ f-canvas {
   transform: translate(var(--tx), var(--ty)) scale(1.2);
 }
 
+/* When the input port is positioned over the SVG's <g class="Connector">
+   element, the SVG itself is the visual. The div only acts as the foblex
+   hit-target / port anchor, so render it transparent (no extra dot). */
+.input-connector--svg,
+.input-connector--svg:hover {
+  background: transparent;
+  border: 0;
+  width: 24px;
+  height: 24px;
+  transform: translate(-50%, -50%);
+  box-shadow: none;
+}
+
 .output-connector {
   position: absolute;
   left: 50%;
@@ -255,6 +268,43 @@ f-canvas {
 /* Hide the connection drag handle circles at endpoints */
 ::ng-deep .f-connection-drag-handle {
   display: none;
+}
+
+/* Theme-aware connection line + arrow marker.
+   Uses VS Code theme tokens with fallbacks so the arrow stays visible in
+   light, dark, and high-contrast themes. `currentColor` on the marker path
+   inherits this color. */
+::ng-deep f-connection {
+  color: var(--vscode-editor-foreground, var(--vscode-foreground, #95c5ad));
+
+  // The visible connection line is rendered as <path class="f-connection-path">.
+  // @foblex/flow binds [attr.stroke] to a gradient URL on this path, so we must
+  // force the stroke (and stroke fallback) here to make the line follow the theme.
+  path.f-connection-path,
+  .f-connection-path {
+    stroke: currentColor !important;
+    fill: none !important;
+  }
+}
+
+::ng-deep .connection-arrow-marker {
+  overflow: visible;
+
+  path {
+    fill: var(--vscode-editor-foreground, var(--vscode-foreground, #95c5ad)) !important;
+    stroke: var(--vscode-editor-foreground, var(--vscode-foreground, #95c5ad));
+    stroke-width: 1;
+  }
+}
+
+/* High-contrast theme: force a stronger contrast color */
+@media (forced-colors: active) {
+  ::ng-deep f-connection {
+    color: CanvasText;
+  }
+  ::ng-deep .connection-arrow-marker path {
+    fill: CanvasText;
+  }
 }
 
 /* .f-node-input:hover,

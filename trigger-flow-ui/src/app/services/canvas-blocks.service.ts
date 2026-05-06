@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, Subject } from 'rxjs';
 import { Catalog, BlockDefinition, ActualParameter } from '../models/triggerBlock';
 import { JsonValue } from '../models/triggerFlowState';
 import { Websocket } from './websocket';
@@ -49,6 +49,27 @@ export class CanvasBlocksService {
   > = {};
   private selectedBlockSubject = new BehaviorSubject<string | null>(null);
   public selectedBlock$ = this.selectedBlockSubject.asObservable();
+
+  private connectionRequestSubject = new Subject<{ sourceBlockId: string; targetBlockId: string }>();
+  public connectionRequest$ = this.connectionRequestSubject.asObservable();
+
+  /**
+   * Request that the canvas render a connection from `sourceBlockId`'s output
+   * to `targetBlockId`'s input. Listeners (e.g. canvas component) subscribe to
+   * `connectionRequest$` to add the FlowConnection to their signal.
+   */
+  requestConnection(sourceBlockId: string, targetBlockId: string): void {
+    if (!sourceBlockId || !targetBlockId) return;
+    this.connectionRequestSubject.next({ sourceBlockId, targetBlockId });
+  }
+
+  private toParameterMap(params: ActualParameter[]): Record<string, unknown> {
+    return params.reduce((acc, param) => {
+      acc[param.name] = param.value ?? param.default ?? null;
+      return acc;
+    }, {} as Record<string, unknown>);
+  }
+
 
   addBlock(
     blockId: string,
@@ -116,7 +137,29 @@ export class CanvasBlocksService {
     for (const model of Object.values(this.models)) {
       const index = model.blocks.findIndex((b) => b.block_id === nodeId);
       if (index !== -1) {
+        // Capture the deleted block's `trigger_block_name` before removal so
+        // we can null out references to it on remaining blocks.
+        const deletedBlock = model.blocks[index];
+        const triggerNameParam = deletedBlock.actual_parameters.find(
+          (p) => p.name === 'trigger_block_name',
+        );
+        const removedBlockName =
+          triggerNameParam?.value != null ? String(triggerNameParam.value) : null;
+
         model.blocks.splice(index, 1);
+
+        // update parameters of remaining blocks to remove any connections to the deleted block
+        if (removedBlockName) {
+          for (const block of model.blocks) {
+            for (const param of block.actual_parameters) {
+              if (param.name === 'branch_to_block_name' || param.name === 'reference_block_name' || param.name === 'reset_branch_count_block_name') {
+                if (param.value === removedBlockName) {
+                  param.value = null;
+                }
+              }
+            }
+          }
+        }
         this.updateAndPrint();
         break;
       }
@@ -196,7 +239,7 @@ export class CanvasBlocksService {
     };
   }
 
-  private updateAndPrint(): void {
+   updateAndPrint(): void {
     const data = this.getCanvasData();
     this.canvasBlocksSubject.next(data);
 
@@ -215,6 +258,47 @@ export class CanvasBlocksService {
     }
   }
 
+  // private extractDefaultParams(params: any[] | undefined): Record<string, any> {
+  //   if (!Array.isArray(params)) return {};
+
+  //   return params.reduce((acc: Record<string, any>, p: any) => {
+  //     const name = p?.name ?? p?.parameter_name ?? p?.parameterName ?? p?.key;
+  //     if (!name) return acc;
+
+  //     // Prefer default fields first, then fallback to value
+  //     acc[name] = p?.default ?? p?.default_value ?? p?.value ?? null;
+  //     return acc;
+  //   }, {});
+  // }
+
+  // private getBlockDefaultParameters(blockName: string): Record<string, any> {
+  //   const catalog = this.triggerFlowDataService.getCatalog();
+  //   if (!catalog) return {};
+
+  //   const normalizedName = blockName.toLowerCase().replace(/\s+/g, ' ').trim();
+
+  //   // Search in blocks
+  //   if (catalog.blocks) {
+  //     for (const [key, block] of Object.entries(catalog.blocks)) {
+  //       if (key.toLowerCase().replace(/\s+/g, ' ').trim() === normalizedName) {
+  //         return this.extractDefaultParams((block as any)?.parameters);
+  //       }
+  //     }
+  //   }
+
+  //   // Search in trigger_events
+  //   if (catalog.trigger_events) {
+  //     for (const [key, event] of Object.entries(catalog.trigger_events)) {
+  //       if (key.toLowerCase().replace(/\s+/g, ' ').trim() === normalizedName) {
+  //         return this.extractDefaultParams((event as any)?.parameters);
+  //       }
+  //     }
+  //   }
+
+  //   return {};
+  // }
+
+
   private toBlockParameters(actualParameters: ActualParameter[]): Record<string, JsonValue> {
     return actualParameters.reduce((acc: Record<string, JsonValue>, param) => {
       const value = param.value ?? param.default ?? null;
@@ -230,6 +314,42 @@ export class CanvasBlocksService {
       if (block) return block;
     }
     return null;
+  }
+
+  /**
+   * Finds a block whose `trigger_block_name` actual parameter value matches
+   * the given name. Searches across all models. Returns null when not found.
+   */
+  findBlockByName(name: string): CanvasBlock | null {
+    if (!name) return null;
+    for (const model of Object.values(this.models)) {
+      const block = model.blocks.find((b) => {
+        const param = b.actual_parameters.find(
+          (p) => p.name === 'trigger_block_name',
+        );
+        return param?.value != null && String(param.value) === name;
+      });
+      if (block) return block;
+    }
+    return null;
+  }
+
+  /**
+   * Updates the `value` of an actual parameter on a block. Returns true if a
+   * matching parameter was found and updated.
+   */
+  updateBlockParameterValue(
+    blockId: string,
+    parameterName: string,
+    value: string | number | null,
+  ): boolean {
+    const block = this.getBlockById(blockId);
+    if (!block) return false;
+    const param = block.actual_parameters.find((p) => p.name === parameterName);
+    if (!param) return false;
+    param.value = value;
+    this.updateAndPrint();
+    return true;
   }
 
   logIpcDataFormat(): void {
