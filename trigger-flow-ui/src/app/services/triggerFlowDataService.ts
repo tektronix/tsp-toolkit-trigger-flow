@@ -40,7 +40,6 @@ export class TriggerFlowDataService {
     // consumer that reacts to models$ (e.g. canvas block restoration) reads
     // a stale/null catalog and cannot resolve block definitions.
     if (payload.catalog) {
-      console.log('###updateStatePayload: setting catalog signal');
       this.catalog.set(payload.catalog);
 
       if (!this.initialPayloadSnapshot) {

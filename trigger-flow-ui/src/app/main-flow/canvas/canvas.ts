@@ -283,7 +283,6 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
     return svgPath.replace('palette/', 'canvas/');
   }
   private getSVGPath(blockType: string): string {
-    console.log('################Getting SVG path for block type:', blockType);
     const svgPath = this.paletteDataService.getSVGPathByCatalogLabel(blockType);
     return this.changeSVGPath(svgPath || '');
   }
@@ -478,11 +477,8 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
    * 3. It's not a user-initiated change (session restore scenario)
    */
   private shouldRestoreFromModels(models: Record<string, any>, currentSections: FlowSection[]): boolean {
-    // Canvas is empty but service has models = session restoration needed
     const canvasIsEmpty = currentSections.length === 0;
     const serviceHasModels = Object.keys(models).length > 0;
-    
-    console.log('Restoration check:', { canvasIsEmpty, serviceHasModels, modelCount: Object.keys(models).length });
     
     return canvasIsEmpty && serviceHasModels;
   }
@@ -493,86 +489,82 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
    */
   private convertModelsToSections(models: Record<string, any>): FlowSection[] {
     console.log('Converting models to sections:', models);
-    
-    // Object.entries converts {key: value} to [[key, value], ...]
-    return Object.entries(models).map(([modelName, model], index) => {
+
+    const sections = Object.entries(models).map(([modelName, model], index) => {
       console.log(`Processing model ${index + 1}:`, modelName, model);
-      
-      // Each model becomes a canvas section
+
       const sectionId = `group-${index + 1}`;
-      
+      const resolvedModelName = model.trigger_model_name || modelName;
+      const resolvedSlotIndex = model.slot_index || 0;
+
       return {
         id: sectionId,
-        modelName: model.trigger_model_name || modelName,
-        slotIndex: model.slot_index || 0,
-        nodes: this.convertBlocksToNodes(model.blocks || [], sectionId)
+        modelName: resolvedModelName,
+        slotIndex: resolvedSlotIndex,
+        nodes: this.convertBlocksToNodes(
+          model.blocks || [],
+          sectionId,
+          resolvedModelName,
+          resolvedSlotIndex,
+        ),
       };
     });
+
+    return sections;
   }
 
   /**
    * Converts an array of service blocks to canvas FlowNodes
    */
-  private convertBlocksToNodes(blocks: any[], sectionId: string): FlowNode[] {
+  private convertBlocksToNodes(
+    blocks: any[],
+    sectionId: string,
+    modelName: string,
+    slotIndex: number,
+  ): FlowNode[] {
     return blocks.map((block, index) => {
-      console.log(`###Converting block ${index + 1}:`, block);
-      const blockSVG= this.getSVGPath(block.type);
+
+      const blockId: string = block.block_id || `restored-block-${index + 1}`;
+      const blockType: string = block.type;
+      const position = {
+        x: block.block_position?.x ?? (100 + index * 150),
+        y: block.block_position?.y ?? 100,
+      };
+
+      this.canvasBlocksService.addBlock(
+        blockId,
+        blockType,
+        position,
+        modelName,
+        slotIndex,
+      );
+
+      // Overlay saved parameter values onto the ActualParameters.
+      const savedParams: Record<string, unknown> | undefined = block.block_parameters;
+      if (savedParams) {
+        const canvasBlock = this.canvasBlocksService.getBlockById(blockId);
+        if (canvasBlock) {
+          for (const ap of canvasBlock.actual_parameters) {
+            if (Object.prototype.hasOwnProperty.call(savedParams, ap.name)) {
+              const v = savedParams[ap.name];
+              ap.value = (v === null || v === undefined) ? null : (v as string | number);
+            }
+          }
+        }
+      }
+
+      const blockSVG = this.getSVGPath(blockType);
       return {
-        blockId: block.block_id || `restored-block-${index + 1}`,
-        sectionId: sectionId,
-        position: {
-          x: block.block_position?.x || (100 + index * 150), // Fallback positioning
-          y: block.block_position?.y || 100
-        },
-        blockType: block.type,
-        catalogLabel: 'UnknownBlock', // Placeholder since deriveCatalogLabel is commented out
-        svgPath: blockSVG, // Placeholder since deriveSvgPath is commented out
-        input: `input-${block.block_id || index}`,
-        outputs: [`output-${block.block_id || index}`],
-        color: '#FFFFFF'
+        blockId,
+        sectionId,
+        position,
+        blockType,
+        catalogLabel: blockType, // use saved type as catalog label (matches drop path)
+        svgPath: blockSVG,
+        input: `input-${blockId}`,
+        outputs: [`output-${blockId}`],
+        color: '#FFFFFF',
       };
     });
   }
-
-  /**
-   * Derives the catalog label (block name) from service block data
-   * This determines which catalog definition to use for the block
-  //  */
-  // private deriveCatalogLabel(block: any): string {
-  //   // Try to get block name from parameters first
-  //   if (block.block_parameters?.block_name) {
-  //     return block.block_parameters.block_name;
-  //   }
-    
-  //   // Fallback to type-based naming
-  //   if (block.type) {
-  //     return `${block.type}Block`;
-  //   }
-    
-  //   // Last resort fallback
-  //   return 'UnknownBlock';
-  // }
-
-  /**
-   * Derives the SVG path from service block data
-   * This determines which icon to show for the block
-   */
-  // private deriveSvgPath(block: any): string {
-  //   const blockType = block.type;
-    
-  //   // Map block types to their SVG paths
-  //   // This should match your existing drag-and-drop logic
-  //   switch (blockType) {
-  //     case 'Action':
-  //       return 'assets/icons/action-block.svg'; // Adjust to your actual paths
-  //     case 'Branch':
-  //       return 'assets/icons/branch-block.svg';
-  //     case 'Notify':
-  //       return 'assets/icons/notify-block.svg';
-  //     case 'Timing':
-  //       return 'assets/icons/timing-block.svg';
-  //     default:
-  //       return 'assets/icons/default-block.svg';
-  //   }
-  // }
 }
