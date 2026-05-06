@@ -64,17 +64,38 @@ export class BlockParameters {
   }
 
   onParameterValueChange(): void {
-    if (this.selectedBlockId) {
-      const canvasBlock = this.canvasBlocksService.getBlockById(this.selectedBlockId);
-      if (canvasBlock) {
-        console.log(
-          'Updating block parameters for block ID:',
-          this.selectedBlockId,
-          'with values:',
-          this.actualParameters,
+    if (!this.selectedBlockId) return;
+
+    const canvasBlock = this.canvasBlocksService.getBlockById(this.selectedBlockId);
+    if (!canvasBlock) return;
+
+    console.log(
+      'Updating block parameters for block ID:',
+      this.selectedBlockId,
+      'with values:',
+      this.actualParameters,
+    );
+    canvasBlock.actual_parameters = this.actualParameters;
+    this.canvasBlocksService.updateAndPrint();
+    // check if its required to create connection between blocks based on parameter changes
+    const sourceParam = canvasBlock.actual_parameters.find(
+      (p) => p.name === 'branch_to_block_name' || p.name === 'reference_block_name' || p.name === 'reset_branch_count_block_name',
+    );
+    const sourceValue = sourceParam?.value ? String(sourceParam.value) : '';
+
+    if (sourceValue) {
+      // search for block with name same as sourceValue to connect with
+      const targetBlock = this.canvasBlocksService.findBlockByName(sourceValue);
+      if (targetBlock) {
+        console.log('Found target block to connect:', targetBlock);
+        // The block whose `trigger_block_name` matches is the source (output);
+        // the currently selected block is the target (input).
+        this.canvasBlocksService.requestConnection(
+          targetBlock.block_id,
+          canvasBlock.block_id,
         );
-        // Update the block's actual_parameters with the new values
-        // canvasBlock.actual_parameters = this.actualParameters;
+      } else {
+        console.warn(`No block found with name "${sourceValue}"`);
       }
     }
   }
