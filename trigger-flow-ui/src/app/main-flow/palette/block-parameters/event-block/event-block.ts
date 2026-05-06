@@ -52,6 +52,11 @@ const FALLBACK_EVENT_DEFINITIONS: Record<string, { parameters: EventParamView[] 
 export class EventBlockComponent implements OnChanges {
   private triggerFlowDataService = inject(TriggerFlowDataService);
 
+  // User must keep at least 1 event selected
+  // User can select at most 4 events
+  private readonly MIN_EVENTS = 1;
+  private readonly MAX_EVENTS = 4;
+
   @Input() param!: ActualParameter;
   @Input() triggerEvents!: Record<string, EventDefinition>;
   @Input() selectionMode: 'single' | 'multi' = 'multi';
@@ -86,6 +91,20 @@ export class EventBlockComponent implements OnChanges {
       this.param.value = [this.selectedEvents[0]];
       this.valueChange.emit();
     }
+
+    // Enforce max 4 in multi mode. (not only in click handlers),
+    // so incoming/preloaded values cannot violate the limit.
+    if (!this.isSingleSelection && this.selectedEvents.length > this.MAX_EVENTS) {
+      this.param.value = this.selectedEvents.slice(0, this.MAX_EVENTS);
+      this.valueChange.emit();
+    }
+
+    // Enforce min 1 in multi mode.
+    // If nothing is selected, auto-select first available event type to keep valid state.
+    if (!this.isSingleSelection && this.selectedEvents.length < this.MIN_EVENTS && this.eventTypes.length > 0) {
+      this.param.value = [{ type: this.eventTypes[0], params: {} }];
+      this.valueChange.emit();
+    }
   }
 
   get isSingleSelection(): boolean {
@@ -111,6 +130,25 @@ export class EventBlockComponent implements OnChanges {
     return this.selectedEvents.some((e) => e.type === type);
   }
 
+  // Disabled state logic for event type checkboxes:
+  // - disable unchecked when 4 already selected
+  // - disable last checked item to keep minimum 1
+  isEventTypeDisabled(type: string): boolean {
+    const selected = this.isSelected(type);
+
+    // Disable unchecked boxes when 4 are already selected (prevents selecting a 5th).
+    if (!selected && this.selectedEvents.length >= this.MAX_EVENTS) {
+      return true;
+    }
+
+    // Disable the only remaining checked box to preserve minimum selection = 1.
+    if (selected && this.selectedEvents.length <= this.MIN_EVENTS) {
+      return true;
+    }
+
+    return false;
+  }
+
   toggleEvent(type: string) {
     if (this.isSingleSelection) {
       this.selectSingleEvent(type);
@@ -120,9 +158,11 @@ export class EventBlockComponent implements OnChanges {
     const existing = this.selectedEvents.find((e) => e.type === type);
 
     if (existing) {
+      // Guard in handler as well (UI disable alone is not sufficient).
+      if (this.selectedEvents.length <= this.MIN_EVENTS) return;
       this.param.value = this.selectedEvents.filter((e) => e.type !== type);
     } else {
-      if (this.selectedEvents.length >= 4) return;
+      if (this.selectedEvents.length >= this.MAX_EVENTS) return;
 
       const newItem: EventListItem = {
         type,
@@ -174,11 +214,12 @@ export class EventBlockComponent implements OnChanges {
   updateParam(type: string, paramName: string, value: string | number) {
     const alreadySelected = this.selectedEvents.some((e) => e.type === type);
     if (!alreadySelected) {
-      // Editing a parameter implicitly selects that event type.
+      // Editing a field implies intent to use that event; auto-select it.
+      // Respect max=4 while auto-selecting.
       if (this.isSingleSelection) {
         this.selectSingleEvent(type);
       } else {
-        if (this.selectedEvents.length >= 4) {
+        if (this.selectedEvents.length >= this.MAX_EVENTS) {
           return;
         }
 

@@ -30,6 +30,7 @@
             <input
               type="checkbox"
               [checked]="isSelected(type)"
+              [disabled]="isEventTypeDisabled(type)"
               (change)="toggleEvent(type)"
             />
             {{ type }}
