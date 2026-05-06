@@ -1,10 +1,10 @@
 @if (!selectedBlockId) {
-  <div class="empty-state">
+  <div class="empty-state" [attr.aria-label]="'empty-block-parameter-editing-panel'">
     <h3>No block added or selected</h3>
     <p>Add a new block onto the canvas or select an existing block to edit the block parameters.</p>
   </div>
 } @else {
-  <section class="params-shell">
+  <section class="params-shell" [attr.aria-label]="'block-parameter-editing-panel'">
     <header class="params-header">
       <div class="params-header-left">
         @if (blockTypeSvgPath) {
@@ -15,7 +15,7 @@
 
       <svg-icon
         src="assets/shapes/Icons/X.svg"
-        aria-label="Close block parameters panel"
+        [attr.aria-label]="'Close-block-parameters-panel'"
         title="Close"
         role="button"
         tabindex="0"
@@ -34,12 +34,14 @@
               automationID="{{ 'param-' + param.name }}"
               [(ngModel)]="param.value"
               (inputChange)="onParameterValueChange()"
+              automationID="input-{{ param.name }}"
             />
           } @else {
             <app-textbox
               [label]="param.name"
               [(ngModel)]="param.value"
               (inputChange)="onParameterValueChange()"
+              automationID="input-{{ param.name }}"
             />
           }
         }

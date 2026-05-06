@@ -7,6 +7,7 @@
   (fCreateNode)="onCreateNode($event)"
   (fMoveNodes)="onMoveNodes($event)"
   (fCreateConnection)="onCreateConnection($event)"
+  [attr.aria-label]="'Trigger flow canvas'"
 >
 <!-- <f-line-alignment [fAlignThreshold]="100"></f-line-alignment> -->
   <f-canvas  fZoom>
@@ -17,6 +18,7 @@
         [fGroupId]="section.id"
         [fGroupPosition]="section.position"
         [fGroupSize]="section.size"
+        [aria-label]="'Section-' + section.modelName"
       >
         <div class="section-title">
           <div class="title-left">
@@ -26,7 +28,7 @@
             <button
               type="button"
               class="title-btn"
-              aria-label="Model Settings"
+              [attr.aria-label]="'Model-Settings-' + section.modelName"
               title="Model Settings"
             >
               <svg-icon src="assets/shapes/Icons/Pencil.svg" class="title-btn-icon"></svg-icon>
@@ -36,7 +38,7 @@
             <button
               type="button"
               class="title-btn"
-              aria-label="Model Errors"
+              [attr.aria-label]="'Model-Errors-' + section.modelName"
               [title]="getSectionErrorTooltip(section.modelName)"
             >
               <svg-icon
@@ -68,6 +70,7 @@
         tabindex="0"
         [aria-label]="node.sectionId + '_' + node.catalogLabel"
         (keydown.enter)="onNodeClick(node.blockId)"
+        [aria-label]="node.sectionId + '-' + node.catalogLabel"
       >
         <div class="node-content">
           <svg-icon [src]="node.svgPath" class="node-svg" fDragHandle>
