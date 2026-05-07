@@ -355,13 +355,13 @@ export class CanvasBlocksService {
   logIpcDataFormat(): void {
     const slot_channel_list = this.triggerFlowDataService.getSlotChannelList() || { slots: [] };
     // Build models object, omitting syntax, description, and shape from blocks
-    const filteredModels: Record<string, { trigger_model_name: string; slot_index: number; blocks: Record<string, unknown>[] }> = {};
+    const filteredModels: Record<string, { trigger_model_name: string; slot_index: number; node_id: string; blocks: Record<string, unknown>[] }> = {};
 
     for (const [modelName, model] of Object.entries(this.models)) {
       filteredModels[modelName] = {
         trigger_model_name: model.trigger_model_name,
         slot_index: model.slot_index,
-        // node_id: model.node_id,
+        node_id: model.node_id,
         blocks: model.blocks.map((block) => {
           return {
             type: block.type,
