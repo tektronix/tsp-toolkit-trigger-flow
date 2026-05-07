@@ -1,0 +1,991 @@
+{
+    "script_template": {
+        "initial": [
+            "{{> script_comments_start}}",
+            "",
+            "{{> generated_begin_sentinel}}",
+            "{{> generated_script_contents}}",
+            "{{> generated_end_sentinel}}",
+            "",
+            "{{> script_comments_end}}"
+        ],
+        "generated_begin_sentinel": "-- BEGIN GENERATED TRIGGER MODEL --",
+        "generated_end_sentinel": "-- END GENERATED TRIGGER MODEL --",
+        "generated_script_contents": [
+            "-- do not remove the line above",
+            "{{#each trigger_models}}",
+            "",
+            "-- {{this.model_name}} --",
+            "slot[{{this.slot_index}}].trigger.model.create({{this.model_name}})",
+            "{{#each this.blocks}}",
+            "{{> (lookup . 'block_type') this.parameters}}",
+            "",
+            "{{/each}}",
+            "-- IMPORTANT: Don't forget to start your trigger model by ",
+            "-- uncommenting the following line (after you complete the setup)",
+            "-- slot[{{this.slot_index}}].trigger.model.initialize({{this.model_name}})",
+            "{{/each}}",
+            "",
+            "-- do not remove the line below"
+        ],
+        "script_comments_start": [
+        "-- Set up the instrument before running this script.",
+        "-- Define aliases here",
+        "-- e.g. local smu = slot[SLOT_INDEX].smu[CHANNEL_INDEX]",
+        "",
+        "-- If your trigger model requires TSP-Linked instruments, be sure to initialize TSP-Link here",
+        "-- tsplink.initialize()",
+        "",
+        "-- Initialize and configure any reading buffers into which you wish to put your readings",
+        "-- e.g. local rb = slot[SLOT_INDEX].smu[CHANNEL_INDEX].makebuffer(1000000)"
+        ],
+        "script_comments_end": [
+            "-- Process and/or print your data as needed after this point.",
+            "-- e.g. printbuffer(startIndex, endIndex, buffername)"
+        ]
+    },
+    "blocks": {
+        "always": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Always"
+                },
+                {
+                    "name": "branch_to_block_name",
+                    "type": "string"
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.branch.always({{trigger_model_name}}, {{trigger_block_name}}, {{branch_to_block_name}})",
+            "description": "When the trigger model reaches a branch-always block, it always proceeds to the block that you specified.",
+            "shape": "conditional"
+        },
+        "counter": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Counter"
+                },
+                {
+                    "name": "branch_to_block_name",
+                    "type": "string"
+                },
+                {
+                    "name": "target_count",
+                    "type": "number"
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.branch.counter({{trigger_model_name}}, {{trigger_block_name}}, {{branch_to_block_name}}, {{target_count}})",
+            "description": "When trigger model execution reaches a loop counter block, it goes to a specified block until the count value is reached.",
+            "shape": "conditional"
+        },
+        "reset counter": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Reset Counter"
+                },
+                {
+                    "name": "reset_branch_count_block_name",
+                    "type": "string"
+                },
+                {
+                    "name": "reset_count",
+                    "type": "number",
+                    "default": 0
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.reset.branch.counter({{trigger_model_name}}, {{trigger_block_name}}, {{reset_branch_count_block_name}})",
+            "description": "When this block is encountered in the trigger model, the specified branch counter resets to 0.",
+            "shape": "conditional"
+        },
+        "event": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Event"
+                },
+                {
+                    "name": "branch_to_block_name",
+                    "type": "string"
+                },
+                {
+                    "name": "event_id",
+                    "type": "triggerEventType"
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.branch.event({{trigger_model_name}}, {{trigger_block_name}}, {{branch_to_block_name}}, {{event_id}})",
+            "description": "The branch-on-event block branches to a specified block when a specified trigger event occurs",
+            "shape": "conditional"
+        },
+        "once": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Once"
+                },
+                {
+                    "name": "branch_to_block_name",
+                    "type": "string"
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.branch.once({{trigger_model_name}}, {{trigger_block_name}}, {{branch_to_block_name}})",
+            "description": "When the trigger model reaches a branch-once block, it goes to a specified block the first time it is encountered in the trigger model.",
+            "shape": "conditional"
+        },
+        "onceexcluded": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Once Excluded"
+                },
+                {
+                    "name": "branch_to_block_name",
+                    "type": "string"
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.branch.onceexcluded({{trigger_model_name}}, {{trigger_block_name}}, {{branch_to_block_name}})",
+            "description": "The branch-once-excluded block branches to a specified trigger model block every time it is encountered in the trigger model except for the first time.",
+            "shape": "conditional"
+        },
+        "configlist next": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Config List NEXT"
+                },
+                {
+                    "name": "channel_index",
+                    "type": "ChannelIndex"
+                },
+                {
+                    "name": "config_list_name",
+                    "type": "string"
+                }
+            ],
+            "syntax": "-- The configuration list must be defined before the trigger model uses this block.\nslot[{{slot_index}}].trigger.model.addblock.configlist.next({{trigger_model_name}}, {{trigger_block_name}}, {{channel_index}}, {{config_list_name}})",
+            "description": "When trigger model execution reaches a configuration recall next block, the settings stored at the next index of a configuration list are recalled.",
+            "shape": "conditional"
+        },
+        "configlist prev": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Config List PREV"
+                },
+                {
+                    "name": "channel_index",
+                    "type": "ChannelIndex"
+                },
+                {
+                    "name": "config_list_name",
+                    "type": "string"
+                }
+            ],
+            "syntax": "-- The configuration list must be defined before the trigger model uses this block.\nslot[{{slot_index}}].trigger.model.addblock.configlist.prev({{trigger_model_name}}, {{trigger_block_name}}, {{channel_index}}, {{config_list_name}})",
+            "description": "When trigger model execution reaches a configuration recall previous block, the settings at the previous index in the specified configuration list are restored.",
+            "shape": "conditional"
+        },
+        "configlist recall": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Config List RECALL"
+                },
+                {
+                    "name": "channel_index",
+                    "type": "ChannelIndex"
+                },
+                {
+                    "name": "config_list_name",
+                    "type": "string"
+                },
+                {
+                    "name": "recall_index",
+                    "type": "number"
+                }
+            ],
+            "syntax": "-- The configuration list must be defined before the trigger model uses this block.\nslot[{{slot_index}}].trigger.model.addblock.configlist.recall({{trigger_model_name}}, {{trigger_block_name}}, {{channel_index}}, {{config_list_name}}, {{recall_index}})",
+            "description": "When the trigger model reaches a configuration recall block, the settings in the specified configuration list are recalled.",
+            "shape": "conditional"
+        },
+        "delay constant": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Delay"
+                },
+                {
+                    "name": "delay_time",
+                    "type": "DelayTime",
+                    "range": {
+                        "min": "0.000001",
+                        "max": "1000000"
+                    }
+                },
+                {
+                    "name": "reference_block_name",
+                    "type": "string"
+                },
+                {
+                    "name": "delay_list",
+                    "type": "DelayList"
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.delay.constant({{trigger_model_name}}, {{trigger_block_name}}, {{delay_time}}, {{reference_block_name}}, {{delay_list}})",
+            "description": "When trigger model execution reaches a delay block, it stops the trigger model operation for the time set by the delay.",
+            "shape": "conditional"
+        },
+        "log_event": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Log Event"
+                },
+                {
+                    "name": "event_type",
+                    "type": "LogEvent",
+                    "options": [
+                        {
+                            "label": "Information",
+                            "value": "slot[{{slot_index}}].trigger.model.LOG_INFO{{event_number}}"
+                        },
+                        {
+                            "label": "Warning",
+                            "value": "slot[{{slot_index}}].trigger.model.LOG_WARN{{event_number}}"
+                        },
+                        {
+                            "label": "Error",
+                            "value": "slot[{{slot_index}}].trigger.model.LOG_ERROR{{event_number}}"
+                        },
+                        {
+                            "label": "Abort",
+                            "value": "slot[{{slot_index}}].trigger.model.LOG_WARN_ABORT"
+                        }
+                    ]
+                },
+                {
+                    "name": "event_number",
+                    "type": "number",
+                    "options": [
+                        {
+                            "label": "1",
+                            "value": "1"
+                        },
+                        {
+                            "label": "2",
+                            "value": "2"
+                        },
+                        {
+                            "label": "3",
+                            "value": "3"
+                        },
+                        {
+                            "label": "4",
+                            "value": "4"
+                        }
+                    ]
+                },
+                {
+                    "name": "event_message",
+                    "type": "string"
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.logevent({{trigger_model_name}}, {{trigger_block_name}}, {{event_type}}, {{event_message}})",
+            "description": "The log event block allows you to log an event in the event log when trigger model execution reaches this block.",
+            "shape": "conditional"
+        },
+        "measure": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Measure"
+                },
+                {
+                    "name": "channel_index",
+                    "type": "ChannelIndex"
+                },
+                {
+                    "name": "measure_count",
+                    "type": "number"
+                },
+                {
+                    "name": "channel_list",
+                    "type": "ChannelList"
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.measure({{trigger_model_name}}, {{trigger_block_name}}, {{#if channel_list}}{ {{#each channel_list}}{{this}}{{#unless @last}}, {{/unless}}{{/each}} }{{else}}{{channel_index}}{{/if}}, {{#if measure_count}}{{measure_count}}{{/if}})",
+            "description": "The measure block triggers measurements based on the measurement function that is selected when the trigger model is initiated.",
+            "shape": "conditional"
+        },
+        "measure overlapped": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Measure Overlapped"
+                },
+                {
+                    "name": "channel_index",
+                    "type": "ChannelIndex"
+                },
+                {
+                    "name": "measure_count",
+                    "type": "number"
+                },
+                {
+                    "name": "channel_list",
+                    "type": "ChannelList"
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.measureoverlapped({{trigger_model_name}}, {{trigger_block_name}}, {{channel_index}}, {{channel_list}}, {{measure_count}})",
+            "description": "The measure overlapped block starts a measurement in an overlap state (in the background), allowing the trigger model to continue execution without waiting for the measurement to complete.",
+            "shape": "conditional"
+        },
+        "no operation": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "NOP"
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.nop({{trigger_model_name}}, {{trigger_block_name}})",
+            "description": "The no operation block acts as a placeholder in a trigger model. No action is taken when this block is executed.",
+            "shape": "conditional"
+        },
+        "notify": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Notify"
+                },
+                {
+                    "name": "event_id",
+                    "type": "notifyType"
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.notify({{trigger_model_name}}, {{trigger_block_name}}, {{event_id}})",
+            "description": "The notify block generates a trigger event in the system.",
+            "shape": "conditional"
+        },
+        "source action bias": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Source Action BIAS"
+                },
+                {
+                    "name": "channel_index",
+                    "type": "ChannelIndex"
+                },
+                {
+                    "name": "channel_list",
+                    "type": "ChannelList"
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.source.action.bias({{trigger_model_name}}, {{trigger_block_name}}, {{channel_index}}, {{channel_list}})",
+            "description": "The source action bias block sets the source output level to the bias level set before the start of the trigger model.",
+            "shape": "conditional"
+        },
+        "source action set": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Source Action SET"
+                },
+                {
+                    "name": "channel_index",
+                    "type": "ChannelIndex"
+                },
+                {
+                    "name": "channel_list",
+                    "type": "ChannelList"
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.source.action.set({{trigger_model_name}}, {{trigger_block_name}}, {{channel_index}}, {{channel_list}})",
+            "description": "The source action set block sets the source output level to the value at the present index in the list of sweep values without advancing the index.",
+            "shape": "conditional"
+        },
+        "source action skip": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Source Action SKIP"
+                },
+                {
+                    "name": "channel_index",
+                    "type": "ChannelIndex"
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.source.action.skip({{trigger_model_name}}, {{trigger_block_name}}, {{channel_index}})",
+            "description": "The source action skip block advances the index in the list of sweep values with no change to the source level.",
+            "shape": "conditional"
+        },
+        "source action step": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Source Action STEP"
+                },
+                {
+                    "name": "channel_index",
+                    "type": "ChannelIndex"
+                },
+                {
+                    "name": "channel_list",
+                    "type": "ChannelList"
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.source.action.step({{trigger_model_name}}, {{trigger_block_name}}, {{channel_index}}, {{channel_list}})",
+            "description": "The source action step block advances the index in the list of sweep values for the specified channel and then sets the source value to the value at that index.",
+            "shape": "conditional"
+        },
+        "source output": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Source OUTPUT"
+                },
+                {
+                    "name": "channel_index",
+                    "type": "ChannelIndex"
+                },
+                {
+                    "name": "channel_list",
+                    "type": "ChannelList"
+                },
+                {
+                    "name": "state",
+                    "type": "SourceState",
+                    "options": [
+                        {
+                            "label": "ON",
+                            "value": "ON"
+                        },
+                        {
+                            "label": "OFF",
+                            "value": "OFF"
+                        }
+                    ]
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.source.output({{trigger_model_name}}, {{trigger_block_name}}, {{channel_list}}, {{state}})",
+            "description": "The source output block turns the output of the source on or off.",
+            "shape": "conditional"
+        },
+        "wait": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "trigger_model_name",
+                    "type": "string",
+                    "default": "myTM1"
+                },
+                {
+                    "name": "trigger_block_name",
+                    "type": "string",
+                    "default": "Wait"
+                },
+                {
+                    "name": "event",
+                    "type": "triggerEventType"
+                },
+                {
+                    "name": "clear",
+                    "type": "ClearType",
+                    "options": [
+                        {
+                            "label": "Enter",
+                            "value": "slot[{{slot_index}}].trigger.model.CLEAR_ENTER"
+                        },
+                        {
+                            "label": "Never",
+                            "value": "slot[{{slot_index}}].trigger.model.CLEAR_NEVER"
+                        }
+                    ]
+                },
+                {
+                    "name": "logic",
+                    "type": "LogicType",
+                    "options": [
+                        {
+                            "label": "AND",
+                            "value": "slot[{{slot_index}}].trigger.model.WAIT_AND"
+                        },
+                        {
+                            "label": "OR",
+                            "value": "slot[{{slot_index}}].trigger.model.WAIT_OR"
+                        }
+                    ]
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.addblock.wait({{trigger_model_name}}, {{trigger_block_name}}, {{event}}, {{clear}}, {{logic}}, {{event}})",
+            "description": "The wait block causes the trigger model to stop and wait for an event or set of events to occur before continuing.",
+            "shape": "conditional"
+        }
+    },
+    "trigger_events": {
+        "event_notify_in": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "notify_event_number",
+                    "type": "notifyEventNumber",
+                    "default": "1",
+                    "constraints": {
+                        "SMU": {
+                            "options": [
+                                { "label": "1", "value": "1" },
+                                { "label": "2", "value": "2" },
+                                { "label": "3", "value": "3" },
+                                { "label": "4", "value": "4" },
+                                { "label": "5", "value": "5" },
+                                { "label": "6", "value": "6" },
+                                { "label": "7", "value": "7" },
+                                { "label": "8", "value": "8" }
+                            ]
+                        },
+                        "PSU": {
+                            "options": [
+                                { "label": "1", "value": "1" },
+                                { "label": "2", "value": "2" },
+                                { "label": "3", "value": "3" },
+                                { "label": "4", "value": "4" },
+                                { "label": "5", "value": "5" },
+                                { "label": "6", "value": "6" },
+                                { "label": "7", "value": "7" },
+                                { "label": "8", "value": "8" },
+                                { "label": "9", "value": "9" },
+                                { "label": "10", "value": "10" },
+                                { "label": "11", "value": "11" },
+                                { "label": "12", "value": "12" },
+                                { "label": "13", "value": "13" },
+                                { "label": "14", "value": "14" },
+                                { "label": "15", "value": "15" },
+                                { "label": "16", "value": "16" }
+                            ]
+                        }
+                    }
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].trigger.model.EVENT_NOTIFY{{notify_event_number}}",
+            "shape": "circle"
+        },
+        "event_digio": {
+            "parameters": [
+                {
+                    "name": "digio_trigger_line",
+                    "type": "digioTriggerLine",
+                    "default": "1",
+                    "options": [
+                        {
+                            "label": "1",
+                            "value": "1"
+                        },
+                        {
+                            "label": "2",
+                            "value": "2"
+                        },
+                        {
+                            "label": "3",
+                            "value": "3"
+                        },
+                        {
+                            "label": "4",
+                            "value": "4"
+                        },
+                        {
+                            "label": "5",
+                            "value": "5"
+                        },
+                        {
+                            "label": "6",
+                            "value": "6"
+                        },
+                        {
+                            "label": "7",
+                            "value": "7"
+                        },
+                        {
+                            "label": "8",
+                            "value": "8"
+                        },
+                        {
+                            "label": "9",
+                            "value": "9"
+                        },
+                        {
+                            "label": "10",
+                            "value": "10"
+                        },
+                        {
+                            "label": "11",
+                            "value": "11"
+                        },
+                        {
+                            "label": "12",
+                            "value": "12"
+                        },
+                        {
+                            "label": "13",
+                            "value": "13"
+                        },
+                        {
+                            "label": "14",
+                            "value": "14"
+                        },
+                        {
+                            "label": "15",
+                            "value": "15"
+                        },
+                        {
+                            "label": "16",
+                            "value": "16"
+                        },
+                        {
+                            "label": "17",
+                            "value": "17"
+                        },
+                        {
+                            "label": "18",
+                            "value": "18"
+                        }
+                    ]
+                }
+            ],
+            "syntax": "digio.trigger[{{digio_trigger_line}}].EVENT_ID",
+            "shape": "undefined"
+        },
+        "event_at_limit": {
+            "parameters": [
+                {
+                    "name": "slot_index",
+                    "type": "SlotIndex"
+                },
+                {
+                    "name": "channel_index",
+                    "type": "ChannelIndex"
+                }
+            ],
+            "syntax": "slot[{{slot_index}}].smu[{{channel_index}}].trigger.EVENT_AT_LIMIT",
+            "shape": "undefined"
+        },
+        "event_generator": {
+            "parameters": [
+                {
+                    "name": "generator_number",
+                    "type": "generatorNumber",
+                    "options": [
+                        {
+                            "label": "1",
+                            "value": "1"
+                        },
+                        {
+                            "label": "2",
+                            "value": "2"
+                        },
+                        {
+                            "label": "3",
+                            "value": "3"
+                        },
+                        {
+                            "label": "4",
+                            "value": "4"
+                        },
+                        {
+                            "label": "5",
+                            "value": "5"
+                        },
+                        {
+                            "label": "6",
+                            "value": "6"
+                        },
+                        {
+                            "label": "7",
+                            "value": "7"
+                        },
+                        {
+                            "label": "8",
+                            "value": "8"
+                        }
+                    ]
+                }
+            ],
+            "syntax": "trigger.generator[{{generator_number}}].EVENT_ID",
+            "shape": "undefined"
+        },
+        "event_timer": {
+            "parameters": [
+                {
+                    "name": "trigger_timer_number",
+                    "type": "triggerTimerNumber",
+                    "options": [
+                        {
+                            "label": "1",
+                            "value": "1"
+                        },
+                        {
+                            "label": "2",
+                            "value": "2"
+                        },
+                        {
+                            "label": "3",
+                            "value": "3"
+                        },
+                        {
+                            "label": "4",
+                            "value": "4"
+                        },
+                        {
+                            "label": "5",
+                            "value": "5"
+                        },
+                        {
+                            "label": "6",
+                            "value": "6"
+                        },
+                        {
+                            "label": "7",
+                            "value": "7"
+                        },
+                        {
+                            "label": "8",
+                            "value": "8"
+                        }
+                    ]
+                }
+            ],
+            "syntax": "trigger.timer[{{trigger_timer_number}}].EVENT_ID",
+            "shape": "undefined"
+        },
+        "event_tsplink": {
+            "parameters": [
+                {
+                    "name": "trigger_line",
+                    "type": "triggerLine",
+                    "options": [
+                        {
+                            "label": "1",
+                            "value": "1"
+                        },
+                        {
+                            "label": "2",
+                            "value": "2"
+                        },
+                        {
+                            "label": "3",
+                            "value": "3"
+                        }
+                    ]
+                }
+            ],
+            "syntax": "tsplink.trigger[{{trigger_line}}].EVENT_ID",
+            "shape": "circle"
+        }
+    }
+}
