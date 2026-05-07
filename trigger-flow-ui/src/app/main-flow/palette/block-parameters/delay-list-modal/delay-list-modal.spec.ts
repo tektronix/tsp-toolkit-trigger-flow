@@ -40,18 +40,18 @@ describe('DelayListModal', () => {
       emitted = value;
     });
 
-    component.localPoints = 3;
-    component.localSweepValues = [1.5, 2.5, 3.5];
+    component.localDelayCount = 3;
+    component.localDelayDurations = [1.5, 2.5, 3.5];
 
     component.onApply();
 
     expect(emitted).toEqual({
-      points: 3,
-      sweepValues: [1.5, 2.5, 3.5],
+      delayCount: 3,
+      delayDurations: [1.5, 2.5, 3.5],
     });
   });
 
-  it('should clamp sweep values to min/max range on apply', () => {
+  it('should clamp delay values to min/max range on apply', () => {
     let emitted: DelayListModalValue | undefined;
 
     component.applyList.subscribe((value) => {
@@ -60,31 +60,31 @@ describe('DelayListModal', () => {
 
     component.minValue = 0.000001;
     component.maxValue = 1000000;
-    component.localPoints = 3;
-    component.localSweepValues = [0.0000001, 500, 2000000];
+    component.localDelayCount = 3;
+    component.localDelayDurations = [0.0000001, 500, 2000000];
 
     component.onApply();
 
-    expect(emitted?.sweepValues).toEqual([
+    expect(emitted?.delayDurations).toEqual([
       0.000001, // clamped to min
       500, // within range
       1000000, // clamped to max
     ]);
   });
 
-  it('should normalize points to floor integer', () => {
+  it('should normalize delayCount to floor integer', () => {
     let emitted: DelayListModalValue | undefined;
 
     component.applyList.subscribe((value) => {
       emitted = value;
     });
 
-    component.localPoints = 3.7;
-    component.localSweepValues = [1, 2, 3, 4];
+    component.localDelayCount = 3.7;
+    component.localDelayDurations = [1, 2, 3, 4];
 
     component.onApply();
 
-    expect(emitted?.points).toBe(3);
+    expect(emitted?.delayCount).toBe(3);
   });
 
   it('should render modal only when open=true', () => {
@@ -97,30 +97,30 @@ describe('DelayListModal', () => {
     expect(fixture.debugElement.query(By.css('.tf-modal'))).not.toBeNull();
   });
 
-  it('should display correct number of sweep rows', () => {
+  it('should display correct number of delay rows', () => {
     component.open = true;
-    component.localPoints = 3;
-    component.localSweepValues = [1, 2, 3];
+    component.localDelayCount = 3;
+    component.localDelayDurations = [1, 2, 3];
     fixture.detectChanges();
 
     const rows = fixture.debugElement.queryAll(By.css('tbody tr'));
     expect(rows.length).toBe(3);
   });
 
-  it('should update sweep value on input change', () => {
-    component.localSweepValues = [1, 2, 3];
+  it('should update delay value on input change', () => {
+    component.localDelayDurations = [1, 2, 3];
 
-    component.updateSweepValue(1, '5.5');
+    component.updateDelayDuration(1, '5.5');
 
-    expect(component.localSweepValues[1]).toBe(5.5);
+    expect(component.localDelayDurations[1]).toBe(5.5);
   });
 
-  it('should adjust sweep rows when points change', () => {
-    component.localPoints = 2;
-    component.localSweepValues = [1, 2, 3, 4];
+  it('should adjust delay rows when delayCount changes', () => {
+    component.localDelayCount = 2;
+    component.localDelayDurations = [1, 2, 3, 4];
 
-    component.onPointsChange('3');
+    component.onDelayCountChange('3');
 
-    expect(component.localSweepValues.length).toBe(3);
+    expect(component.localDelayDurations.length).toBe(3);
   });
 });

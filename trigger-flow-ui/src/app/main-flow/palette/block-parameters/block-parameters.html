@@ -128,8 +128,8 @@
 
       <app-delay-list-modal
         [open]="showDelayListModal"
-        [points]="delayListModalPoints"
-        [sweepValues]="delayListModalSweepValues"
+        [delayCount]="delayListModalDelayCount"
+        [delayDurations]="delayListModalDelayDurations"
         (cancelled)="onDelayListCancel()"
         (applyList)="onDelayListApply($event)"
       />

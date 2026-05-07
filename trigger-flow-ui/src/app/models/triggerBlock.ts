@@ -226,8 +226,8 @@ export interface EventListItem {
 }
 
 export interface DelayListConfigValue {
-  points: number;
-  sweep_values: number[];
+  delay_count: number;
+  delay_durations: number[];
 }
 
 export type ParameterValue =

@@ -8,7 +8,8 @@ import {
   ParamControlType,
   resolveParamControlType,
   shouldShowBlockParameter,
-} from '../../../models/blockParameterHelper';import { ActualParameter } from '../../../models/triggerBlock';
+} from '../../../models/blockParameterHelper';
+import { ActualParameter } from '../../../models/triggerBlock';
 import { Textbox } from '../../../custom-controls/textbox/textbox';
 import { InputNumeric } from '../../../custom-controls/input-numeric/input-numeric';
 import { Dropdown } from '../../../custom-controls/dropdown/dropdown';
@@ -29,8 +30,8 @@ import { Checkbox } from '../../../custom-controls/checkbox/checkbox';
 import { DelayListModal, DelayListModalValue } from './delay-list-modal/delay-list-modal';
 
 interface DelayListConfigValue {
-  points: number;
-  sweep_values: number[];
+  delay_count: number;
+  delay_durations: number[];
 }
 
 const CATEGORY_ICON_PATHS: Record<string, string> = {
@@ -75,8 +76,8 @@ export class BlockParameters {
   channelListOptions: CheckboxOption[] = [];
   channelItemOptions: RadioOption[] = [];
   showDelayListModal = false;
-  delayListModalPoints = 1;
-  delayListModalSweepValues: number[] = [1];
+  delayListModalDelayCount = 1;
+  delayListModalDelayDurations: number[] = [1];
   private previousDelayListConfig: DelayListConfigValue | null = null;
 
   constructor() {
@@ -299,8 +300,8 @@ export class BlockParameters {
   openDelayListModal(): void {
     this.previousDelayListConfig = this.cloneDelayListConfig(this.getDelayListConfigValue());
     const config = this.getDelayListConfigValue() ?? this.seedDelayListConfig();
-    this.delayListModalPoints = config.points;
-    this.delayListModalSweepValues = [...config.sweep_values];
+    this.delayListModalDelayCount = config.delay_count;
+    this.delayListModalDelayDurations = [...config.delay_durations];
     this.showDelayListModal = true;
   }
 
@@ -320,8 +321,8 @@ export class BlockParameters {
 
     const seeded = this.seedDelayListConfig();
     listConfigParam.value = seeded;
-    this.delayListModalPoints = seeded.points;
-    this.delayListModalSweepValues = [...seeded.sweep_values];
+    this.delayListModalDelayCount = seeded.delay_count;
+    this.delayListModalDelayDurations = [...seeded.delay_durations];
     this.onParameterValueChange();
   }
 
@@ -336,16 +337,21 @@ export class BlockParameters {
     this.onParameterValueChange();
   }
 
-  onDelayListApply(value: DelayListModalValue): void {
-    const listConfigParam = this.findParameter('list_config');
-    if (!listConfigParam) {
-      return;
-    }
+  onDelayListApply(event: DelayListModalValue): void {
+    // Update local UI state (so reopening shows latest values).
+    this.delayListModalDelayCount = event.delayCount;
+    this.delayListModalDelayDurations = [...event.delayDurations];
 
-    listConfigParam.value = {
-      points: value.points,
-      sweep_values: [...value.sweepValues],
-    };
+    // Persist to the block's list_config parameter using the same naming
+    // convention as the backend contract (delay_count / delay_durations).
+    const listConfigParam = this.findParameter('list_config');
+    if (listConfigParam) {
+      const updatedConfig: DelayListConfigValue = {
+        delay_count: event.delayCount,
+        delay_durations: [...event.delayDurations],
+      };
+      listConfigParam.value = updatedConfig;
+    }
 
     this.showDelayListModal = false;
     this.previousDelayListConfig = null;
@@ -362,9 +368,9 @@ export class BlockParameters {
     const fallback = Number.isFinite(delayTime) ? delayTime : 1;
 
     return {
-      points: 1,
-      sweep_values: [fallback],
-      // sweep_values: [1], // default to 1s if no existing delay_time value, or if it's invalid    
+      delay_count: 1,
+      delay_durations: [fallback],
+      // delay_durations: [1], // default to 1s if no existing delay_time value, or if it's invalid    
     };
   }
 
@@ -375,22 +381,22 @@ export class BlockParameters {
     }
 
     const candidate = raw as Partial<DelayListConfigValue>;
-    const points = Number(candidate.points);
-    const sweepValues = Array.isArray(candidate.sweep_values)
-      ? candidate.sweep_values.map((value) => Number(value)).filter((value) => Number.isFinite(value))
+    const delayCount = Number(candidate.delay_count);
+    const delayDurations = Array.isArray(candidate.delay_durations)
+      ? candidate.delay_durations.map((value) => Number(value)).filter((value) => Number.isFinite(value))
       : [];
 
-    if (!Number.isFinite(points) || points < 1) {
+    if (!Number.isFinite(delayCount) || delayCount < 1) {
       return null;
     }
 
-    if (sweepValues.length === 0) {
+    if (delayDurations.length === 0) {
       return null;
     }
 
     return {
-      points: Math.floor(points),
-      sweep_values: sweepValues,
+      delay_count: Math.floor(delayCount),
+      delay_durations: delayDurations,
     };
   }
 
@@ -400,8 +406,8 @@ export class BlockParameters {
     }
 
     return {
-      points: value.points,
-      sweep_values: [...value.sweep_values],
+      delay_count: value.delay_count,
+      delay_durations: [...value.delay_durations],
     };
   }
 

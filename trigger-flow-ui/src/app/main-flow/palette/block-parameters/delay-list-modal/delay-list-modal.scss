@@ -61,23 +61,33 @@
   width: 100%;
 }
 
-.sweep-cell {
+// .sweep-cell {
+//   width: 96px;
+// }
+
+.delay-cell {
   width: 96px;
 }
 
-:host ::ng-deep app-textbox.sweep-input .textbox {
+:host ::ng-deep app-textbox.delay-input .textbox {
   width: 84px;
 }
 
-:host ::ng-deep app-textbox.sweep-input .textbox label {
+:host ::ng-deep app-textbox.delay-input .textbox label {
   display: none;
 }
 
-:host ::ng-deep app-textbox.sweep-input .textbox input {
+:host ::ng-deep app-textbox.delay-input .textbox input {
   width: 84px;
   padding: 3px 6px;
   font-size: 12px;
 }
+
+// .delay-input {
+//   width: 84px;
+//   padding: 3px 6px;
+//   font-size: 12px;
+// }
 
 .table-wrap {
   border: 1px solid var(--vscode-editorWidget-border);

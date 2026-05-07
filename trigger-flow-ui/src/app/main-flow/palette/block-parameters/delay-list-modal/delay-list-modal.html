@@ -12,31 +12,31 @@
         <div class="tf-modal__divider tf-modal__divider--header"></div>
 
         <app-textbox
-          label="Points / Steps"
-          [ngModel]="getLocalPointsAsText()"
-          (inputChange)="onPointsChange($event)"
-          automationID ="Input-List-Points"
+          label="Number of Delays"
+          [ngModel]="getLocalDelayCountAsText()"
+          (inputChange)="onDelayCountChange($event)"
+          automationID="Input-Number-Of-Delays"
         />
 
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Point #</th>
-                <th>Sweep column</th>
+                <th>Index #</th>
+                <th>Delay Duration</th>
               </tr>
             </thead>
             <tbody>
-              @for (value of localSweepValues; track $index; let rowIndex = $index) {
+              @for (value of localDelayDurations; track $index; let rowIndex = $index) {
                 <tr>
                   <td>{{ rowIndex + 1 }}</td>
-                  <td class="sweep-cell">
+                  <td class="delay-cell">
                     <app-textbox
-                      class="sweep-input"
+                      class="delay-input"
                       [label]="''"
                       [unit]="'s'"
-                      [ngModel]="getSweepValueAsText(rowIndex)"
-                      (inputChange)="updateSweepValue(rowIndex, $event)"
+                      [ngModel]="getDelayDurationAsText(rowIndex)"
+                      (inputChange)="updateDelayDuration(rowIndex, $event)"
                     />
                   </td>
                 </tr>
