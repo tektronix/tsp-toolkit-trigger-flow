@@ -1,9 +1,9 @@
 import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { Catalog, BlockDefinition, ActualParameter } from '../models/triggerBlock';
+import { JsonValue } from '../models/triggerFlowState';
 import { Websocket } from './websocket';
 import { TriggerFlowDataService } from './triggerFlowDataService';
-
 
 export interface CanvasBlock {
   block_id: string;
@@ -14,14 +14,16 @@ export interface CanvasBlock {
   outgoing: string | null;
   block_error: string | null;
   actual_parameters: ActualParameter[]; // To store actual values
+  notes: string;
 }
 
 declare const acquireVsCodeApi: unknown;
 // eslint-disable-next-line @typescript-eslint/no-empty-function
-export const vscode = typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : { postMessage: () => { } };
+export const vscode =
+  typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : { postMessage: () => {} };
 
 export interface CanvasBlocksData {
-  blocks: Record<string, { trigger_model_name: string; slot_index: number; blocks: CanvasBlock[]; }>;
+  blocks: Record<string, { trigger_model_name: string; slot_index: number; blocks: CanvasBlock[] }>;
   timestamp: string;
 }
 
@@ -36,11 +38,15 @@ export class CanvasBlocksService {
   public canvasBlocks$ = this.canvasBlocksSubject.asObservable();
 
   // Support multiple models per canvas
-  private models: Record<string, {
-    trigger_model_name: string;
-    slot_index: number;
-    blocks: CanvasBlock[];
-  }> = {};
+  private models: Record<
+    string,
+    {
+      trigger_model_name: string;
+      slot_index: number;
+      node_id: string;
+      blocks: CanvasBlock[];
+    }
+  > = {};
   private selectedBlockSubject = new BehaviorSubject<string | null>(null);
   public selectedBlock$ = this.selectedBlockSubject.asObservable();
 
@@ -71,6 +77,7 @@ export class CanvasBlocksService {
     position: { x: number; y: number },
     modelName: string,
     slotIndex: number,
+    nodeId: string,
   ): void {
     const catalogData = this.triggerFlowDataService.getCatalog();
     if (!catalogData) {
@@ -97,13 +104,14 @@ export class CanvasBlocksService {
       this.models[modelName] = {
         trigger_model_name: modelName,
         slot_index: slotIndex,
+        node_id: nodeId,
         blocks: [],
       };
     }
 
     // Initialize ActualParameter[] from blockData.parameters
     const actualParameters: ActualParameter[] = blockData.parameters.map(
-      (param) => new ActualParameter(param)
+      (param) => new ActualParameter(param),
     );
 
     const canvasBlock: CanvasBlock = {
@@ -115,6 +123,7 @@ export class CanvasBlocksService {
       outgoing: null,
       block_error: null,
       actual_parameters: actualParameters,
+      notes: '',
     };
 
     this.models[modelName].blocks.push(canvasBlock);
@@ -169,15 +178,17 @@ export class CanvasBlocksService {
     }
   }
 
-  private sortBlocksByVerticalPosition(model: {
-    blocks: CanvasBlock[];
-  }): void {
+  private sortBlocksByVerticalPosition(model: { blocks: CanvasBlock[] }): void {
     model.blocks.sort((a, b) => {
       const dy = a.block_position.y - b.block_position.y;
       if (dy !== 0) return dy;
       // tie-breaker: left-to-right when y is equal
       return a.block_position.x - b.block_position.x;
     });
+  }
+
+  getModels() {
+    return this.models;
   }
 
   // updateBlockParameters(nodeId: string, parameters: Record<string, any>): void {
@@ -224,7 +235,7 @@ export class CanvasBlocksService {
   private getCanvasData(): CanvasBlocksData {
     return {
       blocks: this.models,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 
@@ -238,7 +249,7 @@ export class CanvasBlocksService {
     this.logIpcDataFormat();
   }
 
-  private sendIpcDataToServer(ipcData: any): void {
+  private sendIpcDataToServer(ipcData: { request_type: string; additional_info: string; json_value: string }): void {
     try {
       this.websocketService.send(JSON.stringify(ipcData));
       console.log('=======IpcData sent to server successfully=======');
@@ -247,44 +258,53 @@ export class CanvasBlocksService {
     }
   }
 
-  private extractDefaultParams(params: any[] | undefined): Record<string, any> {
-    if (!Array.isArray(params)) return {};
+  // private extractDefaultParams(params: any[] | undefined): Record<string, any> {
+  //   if (!Array.isArray(params)) return {};
 
-    return params.reduce((acc: Record<string, any>, p: any) => {
-      const name = p?.name ?? p?.parameter_name ?? p?.parameterName ?? p?.key;
-      if (!name) return acc;
+  //   return params.reduce((acc: Record<string, any>, p: any) => {
+  //     const name = p?.name ?? p?.parameter_name ?? p?.parameterName ?? p?.key;
+  //     if (!name) return acc;
 
-      // Prefer default fields first, then fallback to value
-      acc[name] = p?.default ?? p?.default_value ?? p?.value ?? null;
+  //     // Prefer default fields first, then fallback to value
+  //     acc[name] = p?.default ?? p?.default_value ?? p?.value ?? null;
+  //     return acc;
+  //   }, {});
+  // }
+
+  // private getBlockDefaultParameters(blockName: string): Record<string, any> {
+  //   const catalog = this.triggerFlowDataService.getCatalog();
+  //   if (!catalog) return {};
+
+  //   const normalizedName = blockName.toLowerCase().replace(/\s+/g, ' ').trim();
+
+  //   // Search in blocks
+  //   if (catalog.blocks) {
+  //     for (const [key, block] of Object.entries(catalog.blocks)) {
+  //       if (key.toLowerCase().replace(/\s+/g, ' ').trim() === normalizedName) {
+  //         return this.extractDefaultParams((block as any)?.parameters);
+  //       }
+  //     }
+  //   }
+
+  //   // Search in trigger_events
+  //   if (catalog.trigger_events) {
+  //     for (const [key, event] of Object.entries(catalog.trigger_events)) {
+  //       if (key.toLowerCase().replace(/\s+/g, ' ').trim() === normalizedName) {
+  //         return this.extractDefaultParams((event as any)?.parameters);
+  //       }
+  //     }
+  //   }
+
+  //   return {};
+  // }
+
+
+  private toBlockParameters(actualParameters: ActualParameter[]): Record<string, JsonValue> {
+    return actualParameters.reduce((acc: Record<string, JsonValue>, param) => {
+      const value = param.value ?? param.default ?? null;
+      acc[param.name] = value as JsonValue;
       return acc;
     }, {});
-  }
-
-  private getBlockDefaultParameters(blockName: string): Record<string, any> {
-    const catalog = this.triggerFlowDataService.getCatalog();
-    if (!catalog) return {};
-
-    const normalizedName = blockName.toLowerCase().replace(/\s+/g, ' ').trim();
-
-    // Search in blocks
-    if (catalog.blocks) {
-      for (const [key, block] of Object.entries(catalog.blocks)) {
-        if (key.toLowerCase().replace(/\s+/g, ' ').trim() === normalizedName) {
-          return this.extractDefaultParams((block as any)?.parameters);
-        }
-      }
-    }
-
-    // Search in trigger_events
-    if (catalog.trigger_events) {
-      for (const [key, event] of Object.entries(catalog.trigger_events)) {
-        if (key.toLowerCase().replace(/\s+/g, ' ').trim() === normalizedName) {
-          return this.extractDefaultParams((event as any)?.parameters);
-        }
-      }
-    }
-
-    return {};
   }
 
   // BlockParameters uses this
@@ -335,18 +355,18 @@ export class CanvasBlocksService {
   logIpcDataFormat(): void {
     const slot_channel_list = this.triggerFlowDataService.getSlotChannelList() || { slots: [] };
     // Build models object, omitting syntax, description, and shape from blocks
-    const filteredModels: any = {};
+    const filteredModels: Record<string, { trigger_model_name: string; slot_index: number; node_id: string; blocks: Record<string, unknown>[] }> = {};
 
     for (const [modelName, model] of Object.entries(this.models)) {
       filteredModels[modelName] = {
         trigger_model_name: model.trigger_model_name,
         slot_index: model.slot_index,
+        node_id: model.node_id,
         blocks: model.blocks.map((block) => {
-
           return {
             type: block.type,
             block_id: block.block_id,
-            block_parameters: this.toParameterMap(block.actual_parameters),
+            block_parameters: this.toBlockParameters(block.actual_parameters),
             block_position: block.block_position,
             incoming: block.incoming,
             outgoing: block.outgoing,

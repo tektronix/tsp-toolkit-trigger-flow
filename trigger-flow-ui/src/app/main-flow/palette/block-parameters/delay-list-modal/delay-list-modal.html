@@ -1,0 +1,55 @@
+@if (open) {
+  <div class="tf-modal-backdrop">
+    <section class="tf-modal tf-delay-list-modal" role="dialog" aria-modal="true" aria-label="Delay List">
+      <header class="tf-modal__header">
+        <h2>Delay List</h2>
+        <button type="button" class="icon-btn" (click)="onCancel()" aria-label="Close">
+          <img class="icon-img" src="assets/shapes/Icons/X.svg" alt="Close" />
+        </button>
+      </header>
+
+      <div class="tf-modal__body">
+        <div class="tf-modal__divider tf-modal__divider--header"></div>
+
+        <app-textbox
+          label="Number of Delays"
+          [ngModel]="getLocalDelayCountAsText()"
+          (inputChange)="onDelayCountChange($event)"
+          automationID="Input-Number-Of-Delays"
+        />
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Index #</th>
+                <th>Delay Duration</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (value of localDelayDurations; track $index; let rowIndex = $index) {
+                <tr>
+                  <td>{{ rowIndex + 1 }}</td>
+                  <td class="delay-cell">
+                    <app-textbox
+                      class="delay-input"
+                      [label]="''"
+                      [unit]="'s'"
+                      [ngModel]="getDelayDurationAsText(rowIndex)"
+                      (inputChange)="updateDelayDuration(rowIndex, $event)"
+                    />
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <div class="tf-modal__actions">
+          <button type="button" class="btn ghost" (click)="onCancel()">Cancel</button>
+          <button type="button" class="btn primary" (click)="onApply()">Apply</button>
+        </div>
+      </div>
+    </section>
+  </div>
+}

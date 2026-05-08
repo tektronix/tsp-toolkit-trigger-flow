@@ -23,13 +23,13 @@ interface SubgroupDefinition {
 export class PaletteDataService {
   private readonly shapes: ShapeDefinition[] = [
     // Action blocks
-    { type: 'Action', svgPath: 'assets/shapes/palette/Action/Action-ConfigListNext.svg', catalogLabel: 'configlist next' },
-    { type: 'Action', svgPath: 'assets/shapes/palette/Action/Action-ConfigListPrev.svg', catalogLabel: 'configlist prev' },
-    { type: 'Action', svgPath: 'assets/shapes/palette/Action/Action-ConfigListRecall.svg', catalogLabel: 'configlist recall' },
+    { type: 'Action', svgPath: 'assets/shapes/palette/Action/Action-ConfigListNext.svg', catalogLabel: 'config list next' },
+    { type: 'Action', svgPath: 'assets/shapes/palette/Action/Action-ConfigListPrev.svg', catalogLabel: 'config list prev' },
+    { type: 'Action', svgPath: 'assets/shapes/palette/Action/Action-ConfigListRecall.svg', catalogLabel: 'config list recall' },
     { type: 'Action', svgPath: 'assets/shapes/palette/Action/Action-Measure.svg', catalogLabel: 'measure' },
     { type: 'Action', svgPath: 'assets/shapes/palette/Action/Action-MeasureOverlapped.svg', catalogLabel: 'measure overlapped' },
     { type: 'Action', svgPath: 'assets/shapes/palette/Action/Action-NoOperation.svg', catalogLabel: 'no operation' },
-    { type: 'Action', svgPath: 'assets/shapes/palette/Action/Action-ResetBranchCounter.svg', catalogLabel: 'reset counter' },
+    { type: 'Action', svgPath: 'assets/shapes/palette/Action/Action-ResetBranchCounter.svg', catalogLabel: 'reset branch counter' },
     { type: 'Action', svgPath: 'assets/shapes/palette/Action/Action-SourceActionBias.svg', catalogLabel: 'source action bias' },
     { type: 'Action', svgPath: 'assets/shapes/palette/Action/Action-SourceActionSkip.svg', catalogLabel: 'source action skip' },
     { type: 'Action', svgPath: 'assets/shapes/palette/Action/Action-SourceActionStep.svg', catalogLabel: 'source action step' },
