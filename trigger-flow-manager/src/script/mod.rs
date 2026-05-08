@@ -152,6 +152,7 @@ pub(crate) mod script_tests {
                             param_type: ParamTypeName::SlotIndex,
                             required: true,
                             options: None,
+                            constraints: None,
                             default: Some(1.into()),
                             range: Some(ParameterRange {
                                 min: Some(1.into()),
@@ -163,6 +164,7 @@ pub(crate) mod script_tests {
                             param_type: ParamTypeName::String,
                             required: true,
                             options: None,
+                            constraints: None,
                             default: Some("model_name".into()),
                             range: None,
                         },
@@ -171,6 +173,7 @@ pub(crate) mod script_tests {
                             param_type: ParamTypeName::String,
                             required: true,
                             options: None,
+                            constraints: None,
                             default: None,
                             range: None,
                         },
@@ -179,6 +182,7 @@ pub(crate) mod script_tests {
                             param_type: ParamTypeName::String,
                             required: true,
                             options: None,
+                            constraints: None,
                             default: None,
                             range: None,
                         },
@@ -201,6 +205,7 @@ pub(crate) mod script_tests {
                             param_type: ParamTypeName::SlotIndex,
                             required: true,
                             options: None,
+                            constraints: None,
                             default: Some(1.into()),
                             range: Some(ParameterRange {
                                 min: Some(1.into()),
@@ -212,6 +217,7 @@ pub(crate) mod script_tests {
                             param_type: ParamTypeName::String,
                             required: true,
                             options: None,
+                            constraints: None,
                             default: Some("model_name".into()),
                             range: None,
                         },
@@ -220,6 +226,7 @@ pub(crate) mod script_tests {
                             param_type: ParamTypeName::String,
                             required: true,
                             options: None,
+                            constraints: None,
                             default: None,
                             range: None,
                         },
@@ -228,6 +235,7 @@ pub(crate) mod script_tests {
                             param_type: ParamTypeName::ChannelList,
                             required: true,
                             options: None,
+                            constraints: None,
                             default: None,
                             range: None,
                         },
@@ -236,6 +244,7 @@ pub(crate) mod script_tests {
                             param_type: ParamTypeName::Number,
                             required: false,
                             options: None,
+                            constraints: None,
                             default: None,
                             range: None,
                         },
@@ -353,6 +362,7 @@ slot[{{this.slot_index}}].trigger.model.create("{{this.trigger_model_name}}")
                 TriggerModelState {
                     model_name: "tm1".to_string(),
                     slot_index: SlotIndex(1),
+                    node_id: "node[1]".to_string(),
                     blocks: vec![TriggerModelBlock {
                         block_type: "always".to_string(),
                         block_parameters: HashMap::from([
@@ -410,6 +420,7 @@ slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_blo
                 TriggerModelState {
                     model_name: "tm1".to_string(),
                     slot_index: SlotIndex(1),
+                    node_id: "node[1]".to_string(),
                     blocks: vec![
                         TriggerModelBlock {
                             block_type: "always".to_string(),
@@ -481,6 +492,7 @@ slot[1].trigger.model.addblock.measure("tm1", "tm1_measure_001", { 1 }, 5)
                     TriggerModelState {
                         model_name: "tm1".to_string(),
                         slot_index: SlotIndex(1),
+                        node_id: "node[1]".to_string(),
                         blocks: vec![TriggerModelBlock {
                             block_type: "always".to_string(),
                             block_parameters: HashMap::from([
@@ -502,6 +514,7 @@ slot[1].trigger.model.addblock.measure("tm1", "tm1_measure_001", { 1 }, 5)
                     TriggerModelState {
                         model_name: "tm2".to_string(),
                         slot_index: SlotIndex(2),
+                        node_id: "node[2]".to_string(),
                         blocks: vec![TriggerModelBlock {
                             block_type: "measure".to_string(),
                             block_parameters: HashMap::from([
@@ -561,6 +574,7 @@ slot[2].trigger.model.addblock.measure("tm2", "tm2_measure_001", { 1 }, 5)
                     TriggerModelState {
                         model_name: "tm1".to_string(),
                         slot_index: SlotIndex(1),
+                        node_id: "node[1]".to_string(),
                         blocks: vec![
                             TriggerModelBlock {
                                 block_type: "always".to_string(),
@@ -599,6 +613,7 @@ slot[2].trigger.model.addblock.measure("tm2", "tm2_measure_001", { 1 }, 5)
                     TriggerModelState {
                         model_name: "tm2".to_string(),
                         slot_index: SlotIndex(2),
+                        node_id: "node[2]".to_string(),
                         blocks: vec![
                             TriggerModelBlock {
                                 block_type: "always".to_string(),
@@ -683,6 +698,7 @@ slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_blo
                 TriggerModelState {
                     model_name: "tm2".to_string(),
                     slot_index: SlotIndex(2),
+                    node_id: "node[2]".to_string(),
                     blocks: vec![TriggerModelBlock {
                         block_type: "always".to_string(),
                         block_parameters: HashMap::from([
@@ -739,6 +755,7 @@ slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_blo
                 TriggerModelState {
                     model_name: "tm2".to_string(),
                     slot_index: SlotIndex(2),
+                    node_id: "node[2]".to_string(),
                     blocks: vec![TriggerModelBlock {
                         block_type: "always".to_string(),
                         block_parameters: HashMap::from([

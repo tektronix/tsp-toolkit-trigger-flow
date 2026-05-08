@@ -1,5 +1,5 @@
 import { Injectable, signal } from '@angular/core';
-import { InitialPayload, Catalog } from '../models/triggerBlock';
+import { InitialPayload, Catalog, EventDefinition } from '../models/triggerBlock';
 import { SlotChannelList } from '../models/slotChannelModel';
 import { TriggerFlowStatePayload, TriggerModel } from '../models/triggerFlowState';
 
@@ -44,6 +44,10 @@ export class TriggerFlowDataService {
   // Optional synchronous getters
   getCatalog(): Catalog | null {
     return this.catalog();
+  }
+
+  getTriggerEvents(): Record<string, EventDefinition> {
+    return this.catalog()?.trigger_events || {};
   }
 
   getSlotChannelList(): SlotChannelList | null {

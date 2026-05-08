@@ -22,8 +22,15 @@ export interface IParameter {
   type: ParamTypeName;
   required: boolean;
   options?: IParameterOptions[] | null;
+  // Optional conditional option sets keyed by catalog-specific selectors such as
+  // instrument family. These are forwarded unchanged from the backend catalog.
+  constraints?: Record<string, IParameterConstraint> | null;
   default?: string | number | null;
   range?: IParameterRange | null;
+}
+
+export interface IParameterConstraint {
+  options?: IParameterOptions[] | null;
 }
 
 export interface IParameterOptions {
@@ -47,15 +54,20 @@ export type ParamTypeName =
   | 'EventID'
   | 'ChannelIndex'
   | 'DelayList'
+  | 'DelayListConfig'
   | 'DelayTime'
   | 'LogEventType'
   | 'ChannelList'
+  | 'ChannelItem'
   | 'SourceState'
   | 'ClearType'
   | 'LogicType'
   | 'TriggerEventType'
   | 'Number'
-  | 'notifyType';
+  | 'notifyType'
+  | 'MultiString'
+  | 'EventItem'
+  | 'EventList';
 
 export class InitialPayload {
   slot_channel_list: SlotChannelList;
@@ -103,6 +115,9 @@ export class Parameter {
   type: ParamTypeName;
   required: boolean;
   options: ParameterOptions[] | null;
+  // Stored as typed objects so UI helpers can treat catalog options and constrained
+  // options the same way once the right constraint branch is selected.
+  constraints: Record<string, ParameterConstraint> | null;
   default: string | number | null;
   range: ParameterRange | null;
 
@@ -112,6 +127,14 @@ export class Parameter {
     this.required = data.required;
     this.options = data.options
       ? data.options.map((option) => new ParameterOptions(option))
+      : null;
+    this.constraints = data.constraints
+      ? Object.fromEntries(
+          Object.entries(data.constraints).map(([key, constraint]) => [
+            key,
+            new ParameterConstraint(constraint),
+          ]),
+        )
       : null;
     this.default = data.default ?? null;
     this.range = data.range ? new ParameterRange(data.range) : null;
@@ -125,6 +148,16 @@ export class ParameterOptions {
   constructor(data: IParameterOptions) {
     this.label = data.label;
     this.value = data.value;
+  }
+}
+
+export class ParameterConstraint {
+  options: ParameterOptions[] | null;
+
+  constructor(data: IParameterConstraint) {
+    this.options = data.options
+      ? data.options.map((option) => new ParameterOptions(option))
+      : null;
   }
 }
 
@@ -154,7 +187,7 @@ export class ActualParameter {
   options: ParameterOptions[] | null;
   default: string | number | null;
   range: ParameterRange | null;
-  value: string | number | null;  // User-edited or default-initialized value
+  value: ParameterValue;  // User-edited or default-initialized value
 
   constructor(parameter: Parameter) {
     this.name = parameter.name;
@@ -163,7 +196,17 @@ export class ActualParameter {
     this.default = parameter.default;
     this.range = parameter.range;
     // Initialize value from default when block is added
-    this.value = parameter.default;
+    // this.value = parameter.default;
+    if (this.type === 'EventList') {
+      this.value = []; // correct initialization
+    } else if (this.type === 'EventItem') {
+      this.value = null;
+    } else if (this.type === 'ChannelList') {
+      // Channel list is a multi-select; start empty so no channel is preselected.
+      this.value = [];
+    } else {
+      this.value = parameter.default ?? null;
+    }
   }
 
   // // Update value from user input (from control)
@@ -176,3 +219,23 @@ export class ActualParameter {
   //   return this.value !== null ? this.value : this.default;
   // }
 }
+
+export interface EventListItem {
+  type: string;
+  params: Record<string, string | number>;
+}
+
+export interface DelayListConfigValue {
+  delay_count: number;
+  delay_durations: number[];
+}
+
+export type ParameterValue =
+  | string
+  | number
+  | boolean
+  | null
+  | number[]
+  | EventListItem
+  | EventListItem[]
+  | DelayListConfigValue;

@@ -23,7 +23,7 @@ describe('ModelModal', () => {
 
   it('should emit closeWithValue on close', () => {
     let emitted:
-      | { name: string; slot: number; node: number; notes: string }
+      | { name: string; slot: number; notes: string }
       | undefined;
 
     component.closeWithValue.subscribe((value) => {
@@ -32,7 +32,6 @@ describe('ModelModal', () => {
 
     component.name = 'MyTriggerModel';
     component.slot = 1;
-    component.node = 1;
     component.notes = 'notes';
 
     component.onClose();
@@ -40,7 +39,6 @@ describe('ModelModal', () => {
     expect(emitted).toEqual({
       name: 'MyTriggerModel',
       slot: 1,
-      node: 1,
       notes: 'notes',
     });
   });

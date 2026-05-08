@@ -21,6 +21,7 @@ import { TriggerFlowDataService } from '../../services/triggerFlowDataService';
 import { PaletteDataService } from '../../services/palette-data.service';
 import { BlockErrorEntry } from '../../models/triggerFlowState';
 import { EFMarkerType, FFlowModule, FSelectionChangeEvent } from '@foblex/flow';
+import { ModelModalValue } from '../model-modal/model-modal';
 
 interface FlowNode {
   blockId: string;
@@ -57,6 +58,7 @@ interface FlowSection {
   id: string;
   modelName: string;
   slotIndex: number;
+  nodeId: string;
   nodes: FlowNode[];
 }
 
@@ -68,13 +70,6 @@ interface LaidOutSection extends FlowSection {
 interface ModelModalRequest {
   suggestedName: string;
   suggestedSlot: number;
-  notes: string;
-}
-
-//User entered data from Model Modal form
-interface ModelModalResult {
-  name: string;
-  slot: number;
   notes: string;
 }
 
@@ -240,7 +235,7 @@ export class Canvas implements AfterViewInit {
     this.createNodeInSection(event);
   }
 
-  createModelAndContinue(result: ModelModalResult): void {
+  createModelAndContinue(result: ModelModalValue): void {
     const sectionId = `group-${this.sections().length + 1}`;
     const modelName = result.name.trim() || `Model${this.sections().length + 1}`;
 
@@ -249,6 +244,7 @@ export class Canvas implements AfterViewInit {
       id: sectionId,
       modelName,
       slotIndex: result.slot,
+      nodeId: result.nodeId,
       nodes: [],
     };
 
@@ -410,6 +406,7 @@ export class Canvas implements AfterViewInit {
       newNode.position,
       section.modelName,
       section.slotIndex,
+      section.nodeId,
     );
 
     this.canvasBlocksService.selectBlock(newNode.blockId);
@@ -462,9 +459,10 @@ export class Canvas implements AfterViewInit {
           (p) => p.name === 'trigger_block_name',
         )?.value;
 
+        // Ensure sourceValue is string | number | null only
         const sourceValue =
           triggerBlockName !== undefined && triggerBlockName !== null
-            ? triggerBlockName
+            ? String(triggerBlockName)
             : outputBlock.block_id;
 
         const inputHasBranch = inputBlock.actual_parameters.some(
@@ -720,6 +718,7 @@ export class Canvas implements AfterViewInit {
         id: sectionId,
         modelName: model.trigger_model_name || modelName,
         slotIndex: model.slot_index || 0,
+        nodeId: model.node_id,
         nodes: this.convertBlocksToNodes(model.blocks || [], sectionId)
       };
     });
