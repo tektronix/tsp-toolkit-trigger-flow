@@ -9,7 +9,7 @@ import {
   resolveParamControlType,
   shouldShowBlockParameter,
 } from '../../../models/blockParameterHelper';
-import { ActualParameter } from '../../../models/triggerBlock';
+import { ActualParameter, EventDefinition, DelayListConfig } from '../../../models/triggerBlock';
 import { Textbox } from '../../../custom-controls/textbox/textbox';
 import { InputNumeric } from '../../../custom-controls/input-numeric/input-numeric';
 import { Dropdown } from '../../../custom-controls/dropdown/dropdown';
@@ -18,7 +18,7 @@ import { MultilineTextbox } from '../../../custom-controls/multiline-textbox/mul
 import { FormsModule } from '@angular/forms';
 import { EventBlockComponent } from './event-block/event-block';
 import { TriggerFlowDataService } from '../../../services/triggerFlowDataService';
-import { EventDefinition } from '../../../models/triggerBlock';
+// import { EventDefinition } from '../../../models/triggerBlock';
 import { Toggle } from '../../../custom-controls/toggle/toggle';
 import {
   CheckboxGroup,
@@ -29,10 +29,10 @@ import { ModelResourceAllocationService } from '../../../services/model-resource
 import { Checkbox } from '../../../custom-controls/checkbox/checkbox';
 import { DelayListModal, DelayListModalValue } from './delay-list-modal/delay-list-modal';
 
-interface DelayListConfigValue {
-  delay_count: number;
-  delay_durations: number[];
-}
+// interface DelayListConfigValue {
+//   delay_count: number;
+//   delay_durations: number[];
+// }
 
 const CATEGORY_ICON_PATHS: Record<string, string> = {
   actions: 'assets/shapes/icons/TinyAction.svg',
@@ -78,7 +78,7 @@ export class BlockParameters {
   showDelayListModal = false;
   delayListModalDelayCount = 1;
   delayListModalDelayDurations: number[] = [1];
-  private previousDelayListConfig: DelayListConfigValue | null = null;
+  private previousDelayListConfig: DelayListConfig | null = null;
 
   constructor() {
     // Reacts to both: new block added (auto-select) and existing block clicked.
@@ -346,7 +346,7 @@ export class BlockParameters {
     // convention as the backend contract (delay_count / delay_durations).
     const listConfigParam = this.findParameter('list_config');
     if (listConfigParam) {
-      const updatedConfig: DelayListConfigValue = {
+      const updatedConfig: DelayListConfig = {
         delay_count: event.delayCount,
         delay_durations: [...event.delayDurations],
       };
@@ -358,7 +358,7 @@ export class BlockParameters {
     this.onParameterValueChange();
   }
 
-  private seedDelayListConfig(): DelayListConfigValue {
+  private seedDelayListConfig(): DelayListConfig {
     const existing = this.getDelayListConfigValue();
     if (existing) {
       return existing;
@@ -374,13 +374,13 @@ export class BlockParameters {
     };
   }
 
-  private getDelayListConfigValue(): DelayListConfigValue | null {
+  private getDelayListConfigValue(): DelayListConfig | null {
     const raw = this.findParameter('list_config')?.value;
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
       return null;
     }
 
-    const candidate = raw as Partial<DelayListConfigValue>;
+    const candidate = raw as Partial<DelayListConfig>;
     const delayCount = Number(candidate.delay_count);
     const delayDurations = Array.isArray(candidate.delay_durations)
       ? candidate.delay_durations.map((value) => Number(value)).filter((value) => Number.isFinite(value))
@@ -400,7 +400,7 @@ export class BlockParameters {
     };
   }
 
-  private cloneDelayListConfig(value: DelayListConfigValue | null): DelayListConfigValue | null {
+  private cloneDelayListConfig(value: DelayListConfig | null): DelayListConfig | null {
     if (!value) {
       return null;
     }
