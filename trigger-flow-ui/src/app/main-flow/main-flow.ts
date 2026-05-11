@@ -8,6 +8,10 @@ import { BlockParameters } from './palette/block-parameters/block-parameters';
 import { ModelModal, ModelModalValue, ModelSlotOption } from './model-modal/model-modal';
 import { TriggerFlowDataService } from '../services/triggerFlowDataService';
 import { vscode } from '../services/canvas-blocks.service';
+import {
+  ModelSettingsModal,
+  ModelSettingsItem,
+} from './model-settings-modal/model-settings-modal';
 
 @Component({
   selector: 'app-main-flow',
@@ -20,6 +24,7 @@ import { vscode } from '../services/canvas-blocks.service';
     SidePanelAccordion,
     BlockParameters,
     ModelModal,
+    ModelSettingsModal,
   ],
   templateUrl: './main-flow.html',
   styleUrl: './main-flow.scss',
@@ -34,6 +39,10 @@ export class MainFlow {
   modelSlot = 1;
   modelNodeId = '';
   modelNotes = '';
+
+  showModelSettingsModal = false;
+
+  modelSettingsList: ModelSettingsItem[] = [];
 
   slotOptions: ModelSlotOption[] = [];
 
@@ -150,4 +159,50 @@ export class MainFlow {
     this.modelSlot = first?.slot ?? 1;
     this.modelNodeId = first?.nodeId ?? '';
   }
+
+  openModelSettings(): void {
+    const sections = this.canvas?.getSections() ?? [];
+
+    this.modelSettingsList = sections.map((section) => ({
+      id: section.id,
+      modelName: section.modelName,
+      nodeId: section.nodeId,
+      slotIndex: section.slotIndex,
+    }));
+
+    this.showModelSettingsModal = true;
+  }
+
+  closeModelSettings(): void {
+    this.showModelSettingsModal = false;
+  }
+
+  onAddModelFromSettings(): void {
+    this.showModelSettingsModal = false;
+
+    this.addNewTriggerModel();
+  }
+
+  async onCopyModel(item: ModelSettingsItem): Promise<void> {
+    const text = [
+      `Model: ${item.modelName}`,
+      `Node: ${item.nodeId}`,
+      `Slot: ${item.slotIndex}`,
+    ].join('\n');
+
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      console.warn('Copy failed');
+    }
+  }
+
+  onDeleteModel(item: ModelSettingsItem): void {
+    console.log('Delete model:', item);
+  }
+
+  onEditModel(item: ModelSettingsItem): void {
+    console.log('Edit model:', item);
+  }
+  
 }
