@@ -55,7 +55,7 @@ blocks:
       When the trigger model reaches a branch-always block, it always proceeds
       to the block that you specified.
     shape: conditional
-  counter:
+  "< loop counter":
     parameters:
       - name: trigger_block_name
         type: string
@@ -129,7 +129,7 @@ blocks:
       When the trigger model reaches a branch-once block, it goes to a specified
       block the first time it is encountered in the trigger model.
     shape: conditional
-  onceexcluded:
+  once excluded:
     parameters:
       - name: trigger_block_name
         type: string
@@ -151,7 +151,7 @@ blocks:
       - name: trigger_block_name
         type: string
         required: true
-        default: Config List NEXT
+        default: Config List Next
       - name: channel_index
         type: ChannelItem
         required: true
@@ -171,7 +171,7 @@ blocks:
       - name: trigger_block_name
         type: string
         required: true
-        default: Config List PREV
+        default: Config List Prev
       - name: channel_index
         type: ChannelItem
         required: true
@@ -191,7 +191,7 @@ blocks:
       - name: trigger_block_name
         type: string
         required: true
-        default: Config List RECALL
+        default: Config List Recall
       - name: channel_index
         type: ChannelItem
         required: true
@@ -209,7 +209,7 @@ blocks:
       When the trigger model reaches a configuration recall block, the settings
       in the specified configuration list are recalled.
     shape: conditional
-  delay constant:
+  constant delay:
     parameters:
       - name: trigger_block_name
         type: string
@@ -244,7 +244,7 @@ blocks:
       When trigger model execution reaches a delay block, it stops the trigger
       model operation for the time set by the delay.
     shape: conditional
-  log_event:
+  log event:
     parameters:
       - name: trigger_block_name
         type: string
@@ -464,7 +464,7 @@ blocks:
         default: Wait
       - name: event
         type: EventList
-        required: true      
+        required: true
       - name: clear
         type: ClearType
         required: false

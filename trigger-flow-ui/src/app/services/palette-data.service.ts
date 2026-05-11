@@ -35,21 +35,21 @@ export class PaletteDataService {
     { type: 'Action', svgPath: 'assets/shapes/palette/Action/Action-SourceActionStep.svg', catalogLabel: 'source action step' },
     { type: 'Action', svgPath: 'assets/shapes/palette/Action/Action-SourceActionSet.svg', catalogLabel: 'source action set' },
     { type: 'Action', svgPath: 'assets/shapes/palette/Action/Action-SourceOutput.svg', catalogLabel: 'source output' },
-    
+
     // Branch blocks
     { type: 'Branch', svgPath: 'assets/shapes/palette/Branch/BranchBlock-Always.svg', catalogLabel: 'always' },
-    { type: 'Branch', svgPath: 'assets/shapes/palette/Branch/BranchBlock-OnceExcluded.svg', catalogLabel: 'onceexcluded' },
+    { type: 'Branch', svgPath: 'assets/shapes/palette/Branch/BranchBlock-OnceExcluded.svg', catalogLabel: 'once excluded' },
     { type: 'Branch', svgPath: 'assets/shapes/palette/Branch/BranchBlock-Once.svg', catalogLabel: 'once' },
-    { type: 'Branch', svgPath: 'assets/shapes/palette/Branch/BranchBlock-LoopCounter.svg', catalogLabel: 'counter' },
+    { type: 'Branch', svgPath: 'assets/shapes/palette/Branch/BranchBlock-LoopCounter.svg', catalogLabel: '< loop counter' },
     { type: 'Branch', svgPath: 'assets/shapes/palette/Branch/BranchBlock-OnEvent.svg', catalogLabel: 'event' },
-    
+
     // Notify blocks
-    { type: 'Notify', svgPath: 'assets/shapes/palette/Notify/NotifyBlock-LogEvent.svg', catalogLabel: 'log_event' },
+    { type: 'Notify', svgPath: 'assets/shapes/palette/Notify/NotifyBlock-LogEvent.svg', catalogLabel: 'log event' },
     { type: 'Notify', svgPath: 'assets/shapes/palette/Notify/NotifyBlock-Notify.svg', catalogLabel: 'notify' },
-    
+
     // Timing blocks
-    { type: 'Timing', svgPath: 'assets/shapes/palette/Timing/Timing-ConstantDelay.svg', catalogLabel: 'delay constant' },
-    { type: 'Timing', svgPath: 'assets/shapes/palette/Timing/Timing-WaitOnEvent.svg', catalogLabel: 'wait' },
+    { type: 'Timing', svgPath: 'assets/shapes/palette/Timing/Timing-ConstantDelay.svg', catalogLabel: 'constant delay' },
+    { type: 'Timing', svgPath: 'assets/shapes/palette/Timing/Timing-WaitOnEvent.svg', catalogLabel: 'wait on event' },
   ];
 
   // TODO: Add actual template and event data when available
@@ -108,10 +108,10 @@ export class PaletteDataService {
    */
   getGroupsStructure(): GroupDefinition[] {
     const shapesByType = this.getShapesByType();
-    
+
     return [
-      { 
-        label: 'Templates', 
+      {
+        label: 'Templates',
         type: 'single'
         // TODO: Add subgroups when template data is available
       },
@@ -124,7 +124,7 @@ export class PaletteDataService {
             shapes: shapesByType['Action'] || []
           },
           {
-            label: 'Branches', 
+            label: 'Branches',
             shapes: shapesByType['Branch'] || []
           },
           {
