@@ -117,7 +117,11 @@ impl Script {
 
 impl Display for Script {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}{}{}", self.preamble, self.contents, self.postamble)
+        write!(
+            f,
+            "{}\n{}\n{}",
+            self.preamble, self.contents, self.postamble
+        )
     }
 }
 
@@ -329,6 +333,7 @@ slot[{{this.slot_index}}].trigger.model.create("{{this.trigger_model_name}}")
         let slot_channel_list = slot_channel_list();
 
         let input = TriggerFlowState {
+            catalog: None,
             slot_channel_list,
             models: IndexMap::new(),
         };
@@ -357,6 +362,7 @@ slot[{{this.slot_index}}].trigger.model.create("{{this.trigger_model_name}}")
 
         let input = TriggerFlowState {
             slot_channel_list,
+            catalog: None,
             models: IndexMap::from([(
                 "tm1".to_string(),
                 TriggerModelState {
@@ -415,6 +421,7 @@ slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_blo
 
         let input = TriggerFlowState {
             slot_channel_list,
+            catalog: None,
             models: IndexMap::from([(
                 "tm1".to_string(),
                 TriggerModelState {
@@ -485,6 +492,7 @@ slot[1].trigger.model.addblock.measure("tm1", "tm1_measure_001", { 1 }, 5)
         let slot_channel_list = slot_channel_list();
 
         let input = TriggerFlowState {
+            catalog: None,
             slot_channel_list,
             models: IndexMap::from([
                 (
@@ -567,6 +575,7 @@ slot[2].trigger.model.addblock.measure("tm2", "tm2_measure_001", { 1 }, 5)
         let slot_channel_list = slot_channel_list();
 
         let input = TriggerFlowState {
+            catalog: None,
             slot_channel_list,
             models: IndexMap::from([
                 (
@@ -692,6 +701,7 @@ slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_blo
 -- Postamble Text
 "#;
         let input = TriggerFlowState {
+            catalog: None,
             slot_channel_list,
             models: IndexMap::from([(
                 "tm2".to_string(),
@@ -749,6 +759,7 @@ slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_blo
 -- Postamble Text
 "#;
         let input = TriggerFlowState {
+            catalog: None,
             slot_channel_list,
             models: IndexMap::from([(
                 "tm2".to_string(),
