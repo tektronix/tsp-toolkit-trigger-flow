@@ -8,22 +8,19 @@ import {
   AfterViewInit,
   Output,
   EventEmitter,
-  effect,
   DestroyRef,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { AngularSvgIconModule } from 'angular-svg-icon';
-import { SvgManagerService } from '../../services/svg-manager.service';
 import { CanvasBlocksService } from '../../services/canvas-blocks.service';
 import { TriggerFlowDataService } from '../../services/triggerFlowDataService';
-import { PaletteDataService } from '../../services/palette-data.service';
 import { BlockErrorEntry } from '../../models/triggerFlowState';
 import { EFMarkerType, FFlowModule, FSelectionChangeEvent } from '@foblex/flow';
 import { ModelModalValue } from '../model-modal/model-modal';
 
-interface FlowNode {
+export interface FlowNode {
   blockId: string;
   sectionId: string;
   position: { x: number; y: number };
@@ -34,7 +31,7 @@ interface FlowNode {
   outputs: string[];
   color?: string;
 }
-interface FlowConnection {
+export interface FlowConnection {
   id: string;
   fOutputId: string;
   fInputId: string;
@@ -54,7 +51,7 @@ interface FlowCanvasEvent {
   fNodes?: ({ id: string; position: { x: number; y: number } } | string)[];
 }
 
-interface FlowSection {
+export interface FlowSection {
   id: string;
   modelName: string;
   slotIndex: number;
@@ -81,10 +78,8 @@ interface ModelModalRequest {
 })
 export class Canvas implements AfterViewInit {
   private hostRef = inject(ElementRef<HTMLElement>);
-  private svgManager = inject(SvgManagerService);
   private canvasBlocksService = inject(CanvasBlocksService);
   private triggerFlowDataService = inject(TriggerFlowDataService);
-  private paletteDataService = inject(PaletteDataService);
   private http = inject(HttpClient);
   private destroyRef = inject(DestroyRef);
   protected readonly eMarkerType = EFMarkerType;
@@ -98,7 +93,6 @@ export class Canvas implements AfterViewInit {
   private nodeCounter = 0;
 
   canvasSize = signal(this.getCanvasSize());
-  connections = signal<FlowConnection[]>([]);
   selectedNodeIds = signal<string[]>([]);
   canvasMoveTrigger = (event: MouseEvent | TouchEvent | WheelEvent): boolean => {
     return event instanceof MouseEvent && event.button === 1; // middle mouse pan
@@ -111,8 +105,8 @@ export class Canvas implements AfterViewInit {
   // Stores the first dropped-node event temporarily until modal closes.
   private pendingCreateNodeEvent: FlowCanvasEvent | null = null;
 
-  // Start empty -> first block drop triggers model modal
-  sections = signal<FlowSection[]>([]);
+  get sections() { return this.canvasBlocksService.sections; }
+  get connections() { return this.canvasBlocksService.connections; }
 
   sectionLayouts = computed<LaidOutSection[]>(() => {
     const size = this.canvasSize();
@@ -135,21 +129,6 @@ export class Canvas implements AfterViewInit {
   sectionNodes = computed<FlowNode[]>(() => this.sections().flatMap((section) => section.nodes));
 
   constructor() {
-    // Session restoration effect - runs whenever models$() signal changes
-    effect(() => {
-      const models = this.triggerFlowDataService.models$();
-      const currentSections = this.sections();
-
-      console.log('Models changed, checking for restoration...', models);
-
-      // Detection logic: restore if canvas is empty but models have data
-      if (this.shouldRestoreFromModels(models, currentSections)) {
-        console.log('Session restoration triggered - converting models to canvas sections');
-        const newSections = this.convertModelsToSections(models);
-        this.sections.set(newSections);
-      }
-    });
-
     // External requests (e.g. from BlockParameters) to add a connection.
     this.canvasBlocksService.connectionRequest$
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -248,7 +227,7 @@ export class Canvas implements AfterViewInit {
       nodes: [],
     };
 
-    this.sections.update((current) => [...current, newSection]);
+    this.canvasBlocksService.sections.update((current) => [...current, newSection]);
 
     // Resume deferred first-drop node creation into this new section.
     if (this.pendingCreateNodeEvent) {
@@ -415,10 +394,7 @@ export class Canvas implements AfterViewInit {
   private changeSVGPath(svgPath: string): string {
     return svgPath.replace('palette/', 'canvas/');
   }
-  private getSVGPath(blockType: string): string {
-    const svgPath = this.paletteDataService.getSVGPathByCatalogLabel(blockType);
-    return this.changeSVGPath(svgPath || '');
-  }
+ 
   private createUniqueNodeId(): string {
     const existingIds = new Set(this.sectionNodes().map((node) => node.blockId));
     let candidate = '';
@@ -680,102 +656,5 @@ export class Canvas implements AfterViewInit {
 
   private hasBlockErrorItems(blockError: BlockErrorEntry[] | null | undefined): boolean {
     return Array.isArray(blockError) && blockError.length > 0;
-  }
-
-  /**
-   * Determines if we should restore the canvas from service models
-   * This happens when:
-   * 1. Canvas is empty (no sections) 
-   * 2. Service has model data
-   * 3. It's not a user-initiated change (session restore scenario)
-   */
-  private shouldRestoreFromModels(models: Record<string, any>, currentSections: FlowSection[]): boolean {
-    const canvasIsEmpty = currentSections.length === 0;
-    const serviceHasModels = Object.keys(models).length > 0;
-
-    return canvasIsEmpty && serviceHasModels;
-  }
-
-  /**
-   * Converts service models to canvas sections
-   * This is the core transformation: backend data → visual canvas elements
-   */
-  private convertModelsToSections(models: Record<string, any>): FlowSection[] {
-    console.log('Converting models to sections:', models);
-
-    const sections = Object.entries(models).map(([modelName, model], index) => {
-      console.log(`Processing model ${index + 1}:`, modelName, model);
-
-      const sectionId = `group-${index + 1}`;
-      const resolvedModelName = model.trigger_model_name || modelName;
-      const resolvedSlotIndex = model.slot_index || 0;
-
-      return {
-        id: sectionId,
-        modelName: model.trigger_model_name || modelName,
-        slotIndex: model.slot_index || 0,
-        nodeId: model.node_id,
-        nodes: this.convertBlocksToNodes(model.blocks || [], sectionId, resolvedModelName, resolvedSlotIndex, model.node_id)
-      };
-    });
-
-    return sections;
-  }
-
-  /**
-   * Converts an array of service blocks to canvas FlowNodes
-   */
-  private convertBlocksToNodes(
-    blocks: any[],
-    sectionId: string,
-    modelName: string,
-    slotIndex: number,
-    node_id: string,
-  ): FlowNode[] {
-    return blocks.map((block, index) => {
-
-      const blockId: string = block.block_id || `restored-block-${index + 1}`;
-      const blockType: string = block.type;
-      const position = {
-        x: block.block_position?.x ?? (100 + index * 150),
-        y: block.block_position?.y ?? 100,
-      };
-
-      this.canvasBlocksService.addBlock(
-        blockId,
-        blockType,
-        position,
-        modelName,
-        slotIndex,
-        node_id
-      );
-
-      // Overlay saved parameter values onto the ActualParameters.
-      const savedParams: Record<string, unknown> | undefined = block.block_parameters;
-      if (savedParams) {
-        const canvasBlock = this.canvasBlocksService.getBlockById(blockId);
-        if (canvasBlock) {
-          for (const ap of canvasBlock.actual_parameters) {
-            if (Object.prototype.hasOwnProperty.call(savedParams, ap.name)) {
-              const v = savedParams[ap.name];
-              ap.value = (v === null || v === undefined) ? null : (v as string | number);
-            }
-          }
-        }
-      }
-
-      const blockSVG = this.getSVGPath(blockType);
-      return {
-        blockId,
-        sectionId,
-        position,
-        blockType,
-        catalogLabel: blockType, // use saved type as catalog label (matches drop path)
-        svgPath: blockSVG,
-        input: `input-${blockId}`,
-        outputs: [`output-${blockId}`],
-        color: '#FFFFFF',
-      };
-    });
   }
 }

@@ -1,9 +1,11 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { Catalog, BlockDefinition, ActualParameter } from '../models/triggerBlock';
-import { JsonValue } from '../models/triggerFlowState';
+import { BlockErrorEntry, JsonValue, TriggerModel } from '../models/triggerFlowState';
 import { Websocket } from './websocket';
 import { TriggerFlowDataService } from './triggerFlowDataService';
+import { FlowNode, FlowSection, FlowConnection } from '../main-flow/canvas/canvas';
+import { PaletteDataService } from './palette-data.service';
 
 export interface CanvasBlock {
   block_id: string;
@@ -12,7 +14,7 @@ export interface CanvasBlock {
   block_position: { x: number; y: number };
   incoming: string | null;
   outgoing: string | null;
-  block_error: string | null;
+  block_error: BlockErrorEntry[] | null;
   actual_parameters: ActualParameter[]; // To store actual values
   notes: string;
 }
@@ -20,7 +22,7 @@ export interface CanvasBlock {
 declare const acquireVsCodeApi: unknown;
 // eslint-disable-next-line @typescript-eslint/no-empty-function
 export const vscode =
-  typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : { postMessage: () => {} };
+  typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : { postMessage: () => { } };
 
 export interface CanvasBlocksData {
   blocks: Record<string, { trigger_model_name: string; slot_index: number; blocks: CanvasBlock[] }>;
@@ -33,6 +35,11 @@ export interface CanvasBlocksData {
 export class CanvasBlocksService {
   private triggerFlowDataService = inject(TriggerFlowDataService);
   private websocketService = inject(Websocket);
+  private paletteDataService = inject(PaletteDataService);
+  // public, readable signal
+  readonly sections = signal<FlowSection[]>([]);
+   // public, readable signal
+  readonly connections = signal<FlowConnection[]>([]);
 
   private canvasBlocksSubject = new BehaviorSubject<CanvasBlocksData>(this.getCanvasData());
   public canvasBlocks$ = this.canvasBlocksSubject.asObservable();
@@ -68,6 +75,179 @@ export class CanvasBlocksService {
       acc[param.name] = param.value ?? param.default ?? null;
       return acc;
     }, {} as Record<string, unknown>);
+  }
+
+  loadSessionData(models: Record<string, TriggerModel>): void {
+    // Wipe previous session visual state so recall doesn't duplicate.
+    this.sections.set([]);
+    this.connections.set([]);
+
+    // `setBlockData` is the single source of truth for `this.models` —
+    // it builds full CanvasBlock objects (with parameter values overlaid)
+    // and falls back to an empty block definition when the catalog is
+    // missing, so restoration never silently drops blocks.
+    this.setBlockData(models);
+
+    // Build sections from the now-populated `this.models` so we don't
+    // depend on `addBlock` (which bails out on catalog misses).
+    this.sections.set(this.buildSectionsFromModels());
+
+    this.restoreConnections();
+  }
+
+  /**
+   * Derives FlowSection[] from the current `this.models` map. Each model
+   * becomes a section with one FlowNode per CanvasBlock.
+   */
+  private buildSectionsFromModels(): FlowSection[] {
+    return Object.entries(this.models).map(([modelName, model], index) => {
+      const sectionId = `group-${index + 1}`;
+      return {
+        id: sectionId,
+        modelName: model.trigger_model_name || modelName,
+        slotIndex: model.slot_index ?? 0,
+        nodeId: model.node_id,
+        nodes: model.blocks.map((block, blockIdx) => {
+          const blockType = block.type;
+          return {
+            blockId: block.block_id,
+            sectionId,
+            position: block.block_position ?? { x: 100 + blockIdx * 150, y: 100 },
+            blockType,
+            catalogLabel: blockType,
+            svgPath: this.getSVGPath(blockType),
+            input: `input-${block.block_id}`,
+            outputs: [`output-${block.block_id}`],
+            color: '#FFFFFF',
+          } as FlowNode;
+        }),
+      };
+    });
+  }
+
+   private createFallbackBlockDefinition(): BlockDefinition {
+    return {
+      parameters: [],
+      syntax: '',
+      description: '',
+      shape: '',
+    } as BlockDefinition;
+  }
+
+   private update(data: CanvasBlocksData): void {
+      this.canvasBlocksSubject.next(data);
+    }
+
+  /**
+     * Set the data for the trigger model of this canvas
+     * @param models The list of models to set the local model to.
+     */
+    setBlockData(models: Record<string, TriggerModel>): void {
+      console.log('setBlockData:', models);
+
+      // Reset so recall replaces (not merges with) any previous session.
+      this.models = {};
+
+      const nextModels: Record<
+        string,
+        {
+          trigger_model_name: string;
+          node_id: string;
+          slot_index: number;
+          blocks: CanvasBlock[];
+        }
+      > = {};
+
+      for (const [name, model] of Object.entries(models)) {
+        const blocks = model.blocks
+          .map((item) => {
+            const blockData =
+              this.findBlockInCatalog(item.type, this.triggerFlowDataService.getCatalog()) ??
+              this.createFallbackBlockDefinition();
+
+            const canvasBlock: CanvasBlock = {
+              block_id: item.block_id,
+              type: item.type,
+              blockData,
+              block_position: item.block_position,
+              incoming: item.incoming,
+              outgoing: item.outgoing,
+              block_error: item.block_error,
+              actual_parameters: blockData.parameters.map((param) => {
+                const actual = new ActualParameter(param);
+                const paramValue = item.block_parameters[param.name];
+                if (paramValue !== null && paramValue !== undefined) {
+                  actual.value = paramValue as any;
+                }
+                return actual;
+              }),
+              notes: '',
+            };
+            return canvasBlock;
+          })
+          .filter((item): item is CanvasBlock => item !== null);
+
+        nextModels[name] = {
+          trigger_model_name: model.trigger_model_name,
+          slot_index: model.slot_index,
+          node_id: model.node_id,
+          blocks,
+        };
+      }
+
+      this.models = nextModels;
+      this.update(this.getCanvasData());
+    }
+  
+
+  restoreConnections(): void {
+    // Walk every restored block and rebuild FlowConnections from the
+    // *_block_name parameters that reference another block's
+    // `trigger_block_name`.
+    const linkParamNames = [
+      'branch_to_block_name',
+      'reference_block_name',
+      'reset_branch_count_block_name',
+    ];
+
+    const restored: FlowConnection[] = [];
+    const seen = new Set<string>();
+    let counter = 0;
+
+    for (const model of Object.values(this.models)) {
+      for (const targetBlock of model.blocks) {
+        for (const param of targetBlock.actual_parameters) {
+          if (!linkParamNames.includes(param.name)) continue;
+          if (param.value == null || param.value === '') continue;
+
+          const sourceName = String(param.value);
+          const sourceBlock = this.findBlockByName(sourceName);
+          if (!sourceBlock) continue;
+
+          const fOutputId = `${sourceBlock.block_id}-out-right`;
+          const fInputId = `${targetBlock.block_id}-in`;
+          const dedupeKey = `${fOutputId}->${fInputId}`;
+          if (seen.has(dedupeKey)) continue;
+          seen.add(dedupeKey);
+
+          restored.push({
+            id: `connection-restored-${++counter}`,
+            fOutputId,
+            fInputId,
+          });
+        }
+      }
+    }
+
+    this.connections.set(restored);
+  }
+
+  private getSVGPath(blockType: string): string {
+    const svgPath = this.paletteDataService.getSVGPathByCatalogLabel(blockType);
+    return this.changeSVGPath(svgPath || '');
+  }
+  changeSVGPath(svgPath: string): string {
+    return svgPath.replace('palette/', 'canvas/');
   }
 
 
@@ -239,9 +419,9 @@ export class CanvasBlocksService {
     };
   }
 
-   updateAndPrint(): void {
+  updateAndPrint(): void {
     const data = this.getCanvasData();
-    this.canvasBlocksSubject.next(data);
+    this.update(data);
 
     console.log('=== Canvas Blocks JSON ===');
     console.log(JSON.stringify(data, null, 2));
