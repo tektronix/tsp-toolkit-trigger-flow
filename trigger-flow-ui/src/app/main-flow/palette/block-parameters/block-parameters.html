@@ -38,6 +38,7 @@
           } @else if (getControlType(param) === 'radio') {
             <app-radio-button
               [label]="param.name"
+              automationID="{{ 'param-' + param.name }}"
               [options]="getSelectOptions(param)"
               [name]="getRadioGroupName(param)"
               [(ngModel)]="param.value"

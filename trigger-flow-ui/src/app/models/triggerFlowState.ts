@@ -1,4 +1,6 @@
+import { Optional } from "@angular/core";
 import { ISlotChannelList, SlotChannelList } from "./slotChannelModel";
+import { Catalog, ICatalog } from "./triggerBlock";
 
 export type JsonValue =
   | string
@@ -9,6 +11,7 @@ export type JsonValue =
   | { [key: string]: JsonValue };
 
 export interface ITriggerFlowStatePayload {
+  catalog?: Catalog;
   slot_channel_list: ISlotChannelList;
   models: Record<string, ITriggerModel>;
 }
@@ -40,9 +43,17 @@ export type BlockErrorEntry = [boolean, string];
 export class TriggerFlowStatePayload {
   slot_channel_list: SlotChannelList;
   models: Record<string, TriggerModel> = {};
+  catalog?: Catalog| null;
 
   constructor(data: ITriggerFlowStatePayload) {
     this.slot_channel_list = new SlotChannelList(data.slot_channel_list);
+    try {
+      this.catalog = data.catalog ? new Catalog(data.catalog) : null;
+      console.log('###TriggerFlowStatePayload: catalog constructed =', !!this.catalog);
+    } catch (e) {
+      console.error('###TriggerFlowStatePayload: Catalog construction FAILED', e, 'raw=', data.catalog);
+      this.catalog = null;
+    }
     for (const modelName of Object.keys(data.models)) {
       this.models[modelName] = new TriggerModel(data.models[modelName]);
     }
