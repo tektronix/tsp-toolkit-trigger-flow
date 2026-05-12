@@ -11,11 +11,17 @@ pub enum StdinLine {
     Systems(Systems),
     SessionPath(ScriptPath),
     SessionData(IpcData),
+    ResetSession(Reset),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Shutdown {
     pub shutdown: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Reset {
+    pub reset: bool,
 }
 
 impl TryFrom<&str> for StdinLine {

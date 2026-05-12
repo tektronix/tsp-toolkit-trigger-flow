@@ -45,15 +45,15 @@ impl TriggerFlowState {
                 Ok(list) => {
                     self.slot_channel_list = list;
                     if self.slot_channel_list.is_valid_config() {
-                        let response = ResponseType::InitialResponse {
-                            slot_channel_list: self.slot_channel_list.clone(),
-                            catalog: catalog.clone(),
+                        self.catalog = Some(catalog.clone());
+                        let response = ResponseType::EvaluateResponse {
+                            trigger_flow_state: self.clone(),
                         };
 
                         match serde_json::to_string(&response) {
                             Ok(response_json) => {
                                 let ipc_response = IpcData {
-                                    request_type: "initial_response".to_string(),
+                                    request_type: "evaluate_response".to_string(),
                                     additional_info: "".to_string(),
                                     json_value: response_json,
                                 };
@@ -151,5 +151,10 @@ impl TriggerFlowState {
             }
         }
         false
+    }
+    pub fn reset(&mut self) {
+        self.catalog = None;
+        self.slot_channel_list = SlotChannelList::default();
+        self.models.clear();
     }
 }

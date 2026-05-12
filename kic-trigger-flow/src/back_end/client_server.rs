@@ -682,6 +682,26 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                         let _ = value.send(());
                         break;
                     }
+                    StdinLine::ResetSession(_reset) => {
+                        let mut triggerflow_state: tokio::sync::MutexGuard<'_, TriggerFlowState> =
+                            app_state.trigger_flow_state.lock().await;
+
+                        // Pass the entire Systems structure to process_system_config
+                        triggerflow_state.reset();
+
+                        let response = IpcData {
+                            request_type: "Reset_session".to_string(),
+                            additional_info: "".to_string(),
+                            json_value: "{}".to_string(),
+                        };
+                        let mut session = app_state.session.lock().await;
+                        if let Some(session) = session.as_mut() {
+                            session
+                                .text(serde_json::to_string(&response).unwrap())
+                                .await
+                                .unwrap();
+                        }
+                    }
                 }
             } else {
                 eprintln!(
