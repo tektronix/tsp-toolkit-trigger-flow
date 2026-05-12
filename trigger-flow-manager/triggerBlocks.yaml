@@ -60,7 +60,7 @@ blocks:
       - name: trigger_block_name
         type: string
         required: true
-        default: Counter
+        default: Loop Counter
       - name: branch_to_block_name
         type: blockReference
         required: true
@@ -94,12 +94,12 @@ blocks:
       When this block is encountered in the trigger model, the specified branch
       counter resets to 0.
     shape: conditional
-  event:
+  on event:
     parameters:
       - name: trigger_block_name
         type: string
         required: true
-        default: Event
+        default: On Event
       - name: branch_to_block_name
         type: string
         required: true
@@ -111,7 +111,7 @@ blocks:
       "{{trigger_block_name}}", "{{branch_to_block_name}}", {{event_id}})
     description: >-
       The branch-on-event block branches to a specified block when a specified
-      trigger event occurs
+      trigger event occurs.
     shape: conditional
   once:
     parameters:
@@ -214,7 +214,7 @@ blocks:
       - name: trigger_block_name
         type: string
         required: true
-        default: Delay
+        default: Constant Delay
       - name: delay_time
         type: double
         required: true
@@ -340,7 +340,7 @@ blocks:
       - name: trigger_block_name
         type: string
         required: true
-        default: NOP
+        default: No Operation
     syntax: >-
       slot[{{slot_index}}].trigger.model.addblock.nop("{{trigger_model_name}}",
       "{{trigger_block_name}}")
@@ -367,7 +367,7 @@ blocks:
       - name: trigger_block_name
         type: string
         required: true
-        default: Source Action BIAS
+        default: Source Action Bias
       - name: channel_list
         type: ChannelList
         required: true
@@ -384,7 +384,7 @@ blocks:
       - name: trigger_block_name
         type: string
         required: true
-        default: Source Action SET
+        default: Source Action Set
       - name: channel_list
         type: ChannelList
         required: true
@@ -401,7 +401,7 @@ blocks:
       - name: trigger_block_name
         type: string
         required: true
-        default: Source Action SKIP
+        default: Source Action Skip
       - name: channel_list
         type: ChannelItem
         required: true
@@ -418,7 +418,7 @@ blocks:
       - name: trigger_block_name
         type: string
         required: true
-        default: Source Action STEP
+        default: Source Action Step
       - name: channel_list
         type: ChannelList
         required: true
@@ -436,7 +436,7 @@ blocks:
       - name: trigger_block_name
         type: string
         required: true
-        default: Source OUTPUT
+        default: Source Output
       - name: channel_list
         type: ChannelList
         required: true
@@ -456,12 +456,12 @@ blocks:
       {{state}})
     description: The source output block turns the output of the source on or off.
     shape: conditional
-  wait:
+  wait on event:
     parameters:
       - name: trigger_block_name
         type: string
         required: true
-        default: Wait
+        default: Wait on Event
       - name: event
         type: EventList
         required: true

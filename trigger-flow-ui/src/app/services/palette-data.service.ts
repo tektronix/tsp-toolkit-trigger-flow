@@ -41,7 +41,7 @@ export class PaletteDataService {
     { type: 'Branch', svgPath: 'assets/shapes/palette/Branch/BranchBlock-OnceExcluded.svg', catalogLabel: 'once excluded' },
     { type: 'Branch', svgPath: 'assets/shapes/palette/Branch/BranchBlock-Once.svg', catalogLabel: 'once' },
     { type: 'Branch', svgPath: 'assets/shapes/palette/Branch/BranchBlock-LoopCounter.svg', catalogLabel: '< loop counter' },
-    { type: 'Branch', svgPath: 'assets/shapes/palette/Branch/BranchBlock-OnEvent.svg', catalogLabel: 'event' },
+    { type: 'Branch', svgPath: 'assets/shapes/palette/Branch/BranchBlock-OnEvent.svg', catalogLabel: 'on event' },
 
     // Notify blocks
     { type: 'Notify', svgPath: 'assets/shapes/palette/Notify/NotifyBlock-LogEvent.svg', catalogLabel: 'log event' },
