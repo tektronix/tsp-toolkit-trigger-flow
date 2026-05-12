@@ -47,16 +47,6 @@ export class App implements OnInit, OnDestroy {
 
       // Hndle based on the request_type
       switch (ipcData.request_type) {
-        case 'initial_response': {
-          const data = JSON.parse(ipcData.json_value);
-          if (data.slot_channel_list && data.catalog) {
-            const initialPayload = new InitialPayload(data);
-            this.triggerFlowDataService.setInitialPayload(initialPayload);
-            console.log(initialPayload);
-            vscode.postMessage({ command: 'create_new_session' , payload: message});
-          }
-          break;
-        }
         case 'evaluate_response': {
           const data = JSON.parse(ipcData.json_value);
           if (data.slot_channel_list && data.models) {
@@ -67,6 +57,10 @@ export class App implements OnInit, OnDestroy {
           }
           break;
         }
+        case 'Reset_session':
+          this.triggerFlowDataService.resetState();
+          vscode.postMessage({ command: 'get_initial_configuration' });
+          break;
         // Handle other request types as needed
         case 'empty_system_config_error':
           console.log('Received empty system config');

@@ -71,6 +71,15 @@ export class TriggerFlowDataService {
     }
   }
 
+  resetState(): void {
+    this.canvasBlocksService.resetCanvas();
+    this.catalog.set(null);
+    this.slotChannelList.set(null);
+    this.models.set({});
+    this.initialPayloadSnapshot = null;
+    this.statePayloadSnapshot = null;
+  }
+
   // Optional synchronous getters
   getCatalog(): Catalog | null {
     return this.catalog();
