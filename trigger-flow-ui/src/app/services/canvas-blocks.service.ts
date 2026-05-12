@@ -20,7 +20,7 @@ export interface CanvasBlock {
 }
 
 declare const acquireVsCodeApi: unknown;
-// eslint-disable-next-line @typescript-eslint/no-empty-function
+ 
 export const vscode =
   typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : { postMessage: () => { } };
 
@@ -493,6 +493,23 @@ export class CanvasBlocksService {
       const block = model.blocks.find((b) => b.block_id === blockId);
       if (block) return block;
     }
+    return null;
+  }
+
+  getModelForBlock(blockId: string): {
+    trigger_model_name: string;
+    slot_index: number;
+    node_id: string;
+    blocks: CanvasBlock[];
+  } | null {
+    for (const model of Object.values(this.models)) {
+      const exists = model.blocks.some((block) => block.block_id === blockId);
+
+      if (exists) {
+        return model;
+      }
+    }
+
     return null;
   }
 
