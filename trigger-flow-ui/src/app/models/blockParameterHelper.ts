@@ -16,7 +16,7 @@ export const BLOCK_CATEGORY_VALUES: Record<string, readonly string[]> = {
   ],
   branches: ['always', 'once excluded', 'on event'],
   notify: ['log event', 'notify'],
-  timing: ['delay constant', 'wait on event'],
+  timing: ['constant delay', 'wait on event'],
 };
 
 const HIDDEN_PARAMETER_NAMES = new Set(['trigger_model_name', 'slot_index']);

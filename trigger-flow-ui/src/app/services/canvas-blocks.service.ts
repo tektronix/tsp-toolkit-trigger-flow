@@ -95,6 +95,12 @@ export class CanvasBlocksService {
     this.restoreConnections();
   }
 
+  resetCanvas(): void {
+    this.models = {};
+    this.sections.set([]);
+    this.connections.set([]);
+  }
+
   /**
    * Derives FlowSection[] from the current `this.models` map. Each model
    * becomes a section with one FlowNode per CanvasBlock.
