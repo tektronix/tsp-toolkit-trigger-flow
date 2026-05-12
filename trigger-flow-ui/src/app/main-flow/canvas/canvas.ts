@@ -8,16 +8,19 @@ import {
   AfterViewInit,
   Output,
   EventEmitter,
+  DestroyRef,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
 import { AngularSvgIconModule } from 'angular-svg-icon';
-import { SvgManagerService } from '../../services/svg-manager.service';
 import { CanvasBlocksService } from '../../services/canvas-blocks.service';
 import { TriggerFlowDataService } from '../../services/triggerFlowDataService';
 import { BlockErrorEntry } from '../../models/triggerFlowState';
 import { EFMarkerType, FFlowModule, FSelectionChangeEvent } from '@foblex/flow';
+import { ModelModalValue } from '../model-modal/model-modal';
 
-interface FlowNode {
+export interface FlowNode {
   blockId: string;
   sectionId: string;
   position: { x: number; y: number };
@@ -28,7 +31,7 @@ interface FlowNode {
   outputs: string[];
   color?: string;
 }
-interface FlowConnection {
+export interface FlowConnection {
   id: string;
   fOutputId: string;
   fInputId: string;
@@ -48,10 +51,11 @@ interface FlowCanvasEvent {
   fNodes?: ({ id: string; position: { x: number; y: number } } | string)[];
 }
 
-interface FlowSection {
+export interface FlowSection {
   id: string;
   modelName: string;
   slotIndex: number;
+  nodeId: string;
   nodes: FlowNode[];
 }
 
@@ -66,13 +70,6 @@ interface ModelModalRequest {
   notes: string;
 }
 
-//User entered data from Model Modal form
-interface ModelModalResult {
-  name: string;
-  slot: number;
-  notes: string;
-}
-
 @Component({
   selector: 'app-canvas',
   imports: [FFlowModule, CommonModule, AngularSvgIconModule],
@@ -81,15 +78,21 @@ interface ModelModalResult {
 })
 export class Canvas implements AfterViewInit {
   private hostRef = inject(ElementRef<HTMLElement>);
-  private svgManager = inject(SvgManagerService);
   private canvasBlocksService = inject(CanvasBlocksService);
   private triggerFlowDataService = inject(TriggerFlowDataService);
+  private http = inject(HttpClient);
+  private destroyRef = inject(DestroyRef);
   protected readonly eMarkerType = EFMarkerType;
+
+  // Cache of input-connector positions (as % of node bounds) keyed by svgPath.
+  // null = SVG has no <g class="Connector"> group, so no input should render.
+  private connectorPositions = signal<Record<string, { xPct: number; yPct: number } | null>>({});
+  // svgPaths whose load is in flight, to avoid duplicate HTTP requests.
+  private connectorLoadInFlight = new Set<string>();
 
   private nodeCounter = 0;
 
   canvasSize = signal(this.getCanvasSize());
-  connections = signal<FlowConnection[]>([]);
   selectedNodeIds = signal<string[]>([]);
   canvasMoveTrigger = (event: MouseEvent | TouchEvent | WheelEvent): boolean => {
     return event instanceof MouseEvent && event.button === 1; // middle mouse pan
@@ -102,28 +105,61 @@ export class Canvas implements AfterViewInit {
   // Stores the first dropped-node event temporarily until modal closes.
   private pendingCreateNodeEvent: FlowCanvasEvent | null = null;
 
-  // Start empty -> first block drop triggers model modal
-  sections = signal<FlowSection[]>([]);
+  get sections() { return this.canvasBlocksService.sections; }
+  get connections() { return this.canvasBlocksService.connections; }
 
-sectionLayouts = computed<LaidOutSection[]>(() => {
-  const size = this.canvasSize();
+  sectionLayouts = computed<LaidOutSection[]>(() => {
+    const size = this.canvasSize();
 
-  const sectionWidth = 1400; // virtual width per section
-  const sectionHeight = Math.max(size.height, 2000); // virtual vertical space
+    const sectionWidth = 1400; // virtual width per section
+    const sectionHeight = Math.max(size.height, 2000); // virtual vertical space
 
-  return this.sections().map((section, index) => ({
-    ...section,
-    position: {
-      x: index * sectionWidth,
-      y: 0,
-    },
-    size: {
-      width: sectionWidth,
-      height: sectionHeight,
-    },
-  }));
-});
+    return this.sections().map((section, index) => ({
+      ...section,
+      position: {
+        x: index * sectionWidth,
+        y: 0,
+      },
+      size: {
+        width: sectionWidth,
+        height: sectionHeight,
+      },
+    }));
+  });
   sectionNodes = computed<FlowNode[]>(() => this.sections().flatMap((section) => section.nodes));
+
+  constructor() {
+    // External requests (e.g. from BlockParameters) to add a connection.
+    this.canvasBlocksService.connectionRequest$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(({ sourceBlockId, targetBlockId }) => {
+        this.addConnectionByBlockIds(sourceBlockId, targetBlockId);
+      });
+  }
+
+  /**
+   * Adds a FlowConnection from `sourceBlockId`'s right output port to
+   * `targetBlockId`'s input port. No-ops if a matching connection already
+   * exists.
+   */
+  private addConnectionByBlockIds(sourceBlockId: string, targetBlockId: string): void {
+    if (!sourceBlockId || !targetBlockId) return;
+    const fOutputId = `${sourceBlockId}-out-right`;
+    const fInputId = `${targetBlockId}-in`;
+
+    const exists = this.connections().some(
+      (c) => c.fOutputId === fOutputId && c.fInputId === fInputId,
+    );
+    if (exists) return;
+
+    const newConnection: FlowConnection = {
+      id: `connection-${++this.connectionCounter}`,
+      fOutputId,
+      fInputId,
+    };
+    this.connections.update((current) => [...current, newConnection]);
+    console.log('Connection added (parameter-driven):', newConnection);
+  }
 
   readonly modelErrorSummary = computed<Record<string, { hasError: boolean; tooltip: string }>>(
     () => {
@@ -178,7 +214,7 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
     this.createNodeInSection(event);
   }
 
-  createModelAndContinue(result: ModelModalResult): void {
+  createModelAndContinue(result: ModelModalValue): void {
     const sectionId = `group-${this.sections().length + 1}`;
     const modelName = result.name.trim() || `Model${this.sections().length + 1}`;
 
@@ -187,10 +223,11 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
       id: sectionId,
       modelName,
       slotIndex: result.slot,
+      nodeId: result.nodeId,
       nodes: [],
     };
 
-    this.sections.update((current) => [...current, newSection]);
+    this.canvasBlocksService.sections.update((current) => [...current, newSection]);
 
     // Resume deferred first-drop node creation into this new section.
     if (this.pendingCreateNodeEvent) {
@@ -200,7 +237,21 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
     }
   }
 
-  getInputPosition(node: FlowNode): string {
+  /**
+   * Returns true when the node's SVG contains a `<g class="Connector">` group
+   * (i.e. an input port should be rendered). Triggers a background fetch on
+   * first access for each unique svgPath.
+   */
+  hasInputConnector(node: FlowNode): boolean {
+    const pos = this.connectorPositions()[node.svgPath];
+    if (pos === undefined) {
+      this.loadConnectorPosition(node.svgPath);
+      return false;
+    }
+    return pos !== null;
+  }
+
+  getInputDirection(node: FlowNode): string {
     const catalog = this.triggerFlowDataService.catalog$();
     const blockCatalog = catalog?.blocks[node.catalogLabel || ''];
     const hasBranchParam = blockCatalog?.parameters.some(
@@ -209,7 +260,87 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
     const hasReferenceParam = blockCatalog?.parameters.some(
       (param) => param.name === 'reference_block_name'
     );
-    return hasBranchParam? "right" : hasReferenceParam ? "left" :"NA";
+    const hasResetBranchCountParam = blockCatalog?.parameters.some(
+      (param) => param.name === 'reset_branch_count_block_name'
+    );
+    return hasBranchParam ? "right" : hasResetBranchCountParam ? "left" : hasReferenceParam ? "left" : "right";
+  }
+
+
+  /**
+   * Inline style positioning the input connector exactly on top of the SVG's
+   * Connector element (expressed as % of the node's bounding box).
+   */
+  getInputStyle(node: FlowNode): Record<string, string> {
+    const pos = this.connectorPositions()[node.svgPath];
+    if (!pos) return {};
+    return {
+      left: `${pos.xPct}%`,
+      top: `${pos.yPct}%`,
+    };
+  }
+
+  private loadConnectorPosition(svgPath: string): void {
+    if (!svgPath) return;
+    if (svgPath in this.connectorPositions()) return;
+    if (this.connectorLoadInFlight.has(svgPath)) return;
+    this.connectorLoadInFlight.add(svgPath);
+
+    this.http.get(svgPath, { responseType: 'text' }).subscribe({
+      next: (svgText) => {
+        const parsed = this.parseConnectorPosition(svgText);
+        this.connectorPositions.update((current) => ({ ...current, [svgPath]: parsed }));
+        this.connectorLoadInFlight.delete(svgPath);
+      },
+      error: () => {
+        this.connectorPositions.update((current) => ({ ...current, [svgPath]: null }));
+        this.connectorLoadInFlight.delete(svgPath);
+      },
+    });
+  }
+
+  private parseConnectorPosition(svgText: string): { xPct: number; yPct: number } | null {
+    try {
+      const doc = new DOMParser().parseFromString(svgText, 'image/svg+xml');
+      const svg = doc.querySelector('svg');
+      if (!svg) return null;
+
+      const connector = doc.querySelector('g.Connector');
+      if (!connector) return null;
+
+      const viewBoxAttr = svg.getAttribute('viewBox');
+      let vbX = 0, vbY = 0, vbW = 0, vbH = 0;
+      if (viewBoxAttr) {
+        const parts = viewBoxAttr.trim().split(/\s+|,/).map(Number);
+        if (parts.length === 4 && parts.every((n) => Number.isFinite(n))) {
+          [vbX, vbY, vbW, vbH] = parts;
+        }
+      }
+      if (!vbW || !vbH) {
+        vbW = Number(svg.getAttribute('width')) || 0;
+        vbH = Number(svg.getAttribute('height')) || 0;
+      }
+      if (!vbW || !vbH) return null;
+
+      // Prefer a circle inside the Connector group (the visual port).
+      const circle = connector.querySelector('circle');
+      let cx: number | null = null;
+      let cy: number | null = null;
+      if (circle) {
+        cx = Number(circle.getAttribute('cx'));
+        cy = Number(circle.getAttribute('cy'));
+      }
+      if (cx === null || cy === null || !Number.isFinite(cx) || !Number.isFinite(cy)) {
+        return null;
+      }
+
+      return {
+        xPct: ((cx - vbX) / vbW) * 100,
+        yPct: ((cy - vbY) / vbH) * 100,
+      };
+    } catch {
+      return null;
+    }
   }
 
   discardPendingCreateNode(): void {
@@ -228,12 +359,12 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
     if (!section) return;
 
     const uniqueBlockId = this.createUniqueNodeId();
-
+    const newSVGPath = this.changeSVGPath(event.data?.svgPath);
     const newNode: FlowNode = {
       blockId: uniqueBlockId,
       sectionId: targetSectionId,
       position: { x: event.rect.x, y: event.rect.y },
-      svgPath: event.data?.svgPath,
+      svgPath: newSVGPath,
       catalogLabel: event.data?.catalogLabel,
       blockType: event.data?.type,
       input: `input-${this.nodeCounter}`,
@@ -254,11 +385,16 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
       newNode.position,
       section.modelName,
       section.slotIndex,
+      section.nodeId,
     );
 
     this.canvasBlocksService.selectBlock(newNode.blockId);
   }
 
+  private changeSVGPath(svgPath: string): string {
+    return svgPath.replace('palette/', 'canvas/');
+  }
+ 
   private createUniqueNodeId(): string {
     const existingIds = new Set(this.sectionNodes().map((node) => node.blockId));
     let candidate = '';
@@ -274,55 +410,78 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
     this.canvasBlocksService.selectBlock(blockId);
   }
 
-  getSvgStyle(node: FlowNode): Record<string, string> {
-    const blockType = node.blockType;
-    const cssConfig = this.getBlockCSSConfig(blockType);
-    return {
-      '--fill-color': cssConfig.fillColor,
-      '--stroke-color': cssConfig.strokeColor,
-      '--title-color': cssConfig.titleColor,
-      '--event-fill-color': cssConfig.eventFillColor || cssConfig.fillColor,
-      '--event-stroke-color': cssConfig.eventStrokeColor || cssConfig.strokeColor,
-    };
-  }
-
-  private getBlockCSSConfig(blockType: string | undefined): {
-    fillColor: string;
-    strokeColor: string;
-    titleColor: string;
-    eventFillColor?: string;
-    eventStrokeColor?: string;
-  } {
-    switch (blockType) {
-      case 'Action':
-        return { fillColor: '#173727', strokeColor: '#95C5AD', titleColor: '#95C5AD' };
-      case 'Branch':
-        return { fillColor: '#1E3A41', strokeColor: '#95BBC5', titleColor: '#95BBC5' };
-      case 'Notify':
-        return {
-          fillColor: '#3C2F20',
-          strokeColor: '#E79F48',
-          titleColor: '#E79F48',
-          eventFillColor: '#26251A',
-          eventStrokeColor: '#F1EF8B',
-        };
-      case 'Timing':
-        return {
-          fillColor: '#372E3F',
-          strokeColor: '#C687FA',
-          titleColor: '#C687FA',
-          eventFillColor: '#26251A',
-          eventStrokeColor: '#F1EF8B',
-        };
-      default:
-        return { fillColor: '#FFFFFF', strokeColor: '#333333', titleColor: '#333333' };
-    }
-  }
   onCreateConnection(event: any) {
     console.log('🔗 CONNECTION CREATED! Event details:', event);
     console.log('Connection data:', JSON.stringify(event, null, 2));
-    
+
     if (event.fOutputId && event.fInputId) {
+      const outputBlockId = this.extractBlockIdFromPortId(event.fOutputId);
+      const inputBlockId = this.extractBlockIdFromPortId(event.fInputId);
+
+      const outputBlock = outputBlockId
+        ? this.canvasBlocksService.getBlockById(outputBlockId)
+        : null;
+      const inputBlock = inputBlockId
+        ? this.canvasBlocksService.getBlockById(inputBlockId)
+        : null;
+
+      // Wire the connection in the data model:
+      //  1. Read `trigger_block_name` from the output (source) block.
+      //  2. If the input (target) block has a `branch_to_block_name` parameter, set it there.
+      //  3. Otherwise, if the input (target) block has `reference_block_name`, set it there.
+      if (outputBlock && inputBlock && outputBlockId && inputBlockId) {
+        const triggerBlockName = outputBlock.actual_parameters.find(
+          (p) => p.name === 'trigger_block_name',
+        )?.value;
+
+        // Ensure sourceValue is string | number | null only
+        const sourceValue =
+          triggerBlockName !== undefined && triggerBlockName !== null
+            ? String(triggerBlockName)
+            : outputBlock.block_id;
+
+        const inputHasBranch = inputBlock.actual_parameters.some(
+          (p) => p.name === 'branch_to_block_name',
+        );
+        const inputHasReference = inputBlock.actual_parameters.some(
+          (p) => p.name === 'reference_block_name',
+        );
+
+        const inputHasResetBranchCounter = inputBlock.actual_parameters.some(
+          (p) => p.name === 'reset_branch_count_block_name',
+        );
+
+        if (inputHasBranch) {
+          this.canvasBlocksService.updateBlockParameterValue(
+            inputBlockId,
+            'branch_to_block_name',
+            sourceValue,
+          );
+          console.log(
+            `Set branch_to_block_name=${sourceValue} on input block ${inputBlockId}`,
+          );
+        } else if (inputHasReference) {
+          this.canvasBlocksService.updateBlockParameterValue(
+            inputBlockId,
+            'reference_block_name',
+            sourceValue,
+          );
+          console.log(
+            `Set reference_block_name=${sourceValue} on input block ${inputBlockId}`,
+          );
+        }
+        else if (inputHasResetBranchCounter) {
+          this.canvasBlocksService.updateBlockParameterValue(
+            inputBlockId,
+            'reset_branch_count_block_name',
+            sourceValue,
+          );
+          console.log(
+            `Set reset_branch_count_block_name=${sourceValue} on input block ${inputBlockId}`,
+          );
+        }
+      }
+
       const newConnection: FlowConnection = {
         id: `connection-${++this.connectionCounter}`,
         fOutputId: event.fOutputId,
@@ -332,6 +491,19 @@ sectionLayouts = computed<LaidOutSection[]>(() => {
       console.log('Connection added to array:', newConnection);
       console.log('Total connections:', this.connections().length);
     }
+  }
+
+  /**
+   * Port ids are constructed as `<blockId>-out-<side>` or `<blockId>-in[-<side>]`.
+   * Strip the trailing port suffix so we can resolve back to the FlowNode/block.
+   */
+  private extractBlockIdFromPortId(portId: string): string | null {
+    if (!portId) return null;
+    const match = portId.match(/^(.*)-(?:in|out)(?:-[a-z]+)?$/i);
+    if (match) return match[1];
+    // Fallback: match against known block ids.
+    const node = this.sectionNodes().find((n) => portId.startsWith(n.blockId + '-'));
+    return node?.blockId ?? null;
   }
 
   onSelectionChange(event: FSelectionChangeEvent): void {

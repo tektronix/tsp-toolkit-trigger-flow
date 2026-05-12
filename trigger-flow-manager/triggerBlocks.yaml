@@ -27,7 +27,7 @@ script_template:
     -- {{this.trigger_model_name}} --
     slot[{{this.slot_index}}].trigger.model.create("{{this.trigger_model_name}}")
     {{#each this.blocks}}
-    {{> (lookup this "type") this.block_parameters}}
+    {{> (lookup this "type") this.block_parameters slot_index=../slot_index trigger_model_name=../trigger_model_name}}
 
     {{/each}}
     -- IMPORTANT: Don't forget to start your trigger model by
@@ -41,13 +41,6 @@ script_template:
 blocks:
   always:
     parameters:
-      - name: slot_index
-        type: SlotIndex
-        required: true
-      - name: trigger_model_name
-        type: string
-        default: myTM1
-        required: true
       - name: trigger_block_name
         type: string
         required: true
@@ -62,19 +55,12 @@ blocks:
       When the trigger model reaches a branch-always block, it always proceeds
       to the block that you specified.
     shape: conditional
-  counter:
+  "< loop counter":
     parameters:
-      - name: slot_index
-        type: SlotIndex
-        required: true
-      - name: trigger_model_name
-        type: string
-        required: true
-        default: myTM1
       - name: trigger_block_name
         type: string
         required: true
-        default: Counter
+        default: Loop Counter
       - name: branch_to_block_name
         type: blockReference
         required: true
@@ -88,19 +74,12 @@ blocks:
       When trigger model execution reaches a loop counter block, it goes to a
       specified block until the count value is reached.
     shape: conditional
-  reset counter:
+  reset branch counter:
     parameters:
-      - name: slot_index
-        type: SlotIndex
-        required: true
-      - name: trigger_model_name
-        type: string
-        required: true
-        default: myTM1
       - name: trigger_block_name
         type: string
         required: true
-        default: Reset Counter
+        default: Reset Branch Counter
       - name: reset_branch_count_block_name
         type: string
         required: true
@@ -115,41 +94,27 @@ blocks:
       When this block is encountered in the trigger model, the specified branch
       counter resets to 0.
     shape: conditional
-  event:
+  on event:
     parameters:
-      - name: slot_index
-        type: SlotIndex
-        required: true
-      - name: trigger_model_name
-        type: string
-        required: true
-        default: myTM1
       - name: trigger_block_name
         type: string
         required: true
-        default: Event
+        default: On Event
       - name: branch_to_block_name
         type: string
         required: true
       - name: event_id
-        type: triggerEventType
+        type: EventItem
         required: true
     syntax: >-
       slot[{{slot_index}}].trigger.model.addblock.branch.event("{{trigger_model_name}}",
       "{{trigger_block_name}}", "{{branch_to_block_name}}", {{event_id}})
     description: >-
       The branch-on-event block branches to a specified block when a specified
-      trigger event occurs
+      trigger event occurs.
     shape: conditional
   once:
     parameters:
-      - name: slot_index
-        type: SlotIndex
-        required: true
-      - name: trigger_model_name
-        type: string
-        required: true
-        default: myTM1
       - name: trigger_block_name
         type: string
         required: true
@@ -164,15 +129,8 @@ blocks:
       When the trigger model reaches a branch-once block, it goes to a specified
       block the first time it is encountered in the trigger model.
     shape: conditional
-  onceexcluded:
+  once excluded:
     parameters:
-      - name: slot_index
-        type: SlotIndex
-        required: true
-      - name: trigger_model_name
-        type: string
-        required: true
-        default: myTM1
       - name: trigger_block_name
         type: string
         required: true
@@ -188,21 +146,14 @@ blocks:
       every time it is encountered in the trigger model except for the first
       time.
     shape: conditional
-  configlist next:
+  config list next:
     parameters:
-      - name: slot_index
-        type: SlotIndex
-        required: true
-      - name: trigger_model_name
-        type: string
-        required: true
-        default: myTM1
       - name: trigger_block_name
         type: string
         required: true
-        default: Config List NEXT
+        default: Config List Next
       - name: channel_index
-        type: ChannelIndex
+        type: ChannelItem
         required: true
       - name: config_list_name
         type: string
@@ -215,21 +166,14 @@ blocks:
       the settings stored at the next index of a configuration list are
       recalled.
     shape: conditional
-  configlist prev:
+  config list prev:
     parameters:
-      - name: slot_index
-        type: SlotIndex
-        required: true
-      - name: trigger_model_name
-        type: string
-        required: true
-        default: myTM1
       - name: trigger_block_name
         type: string
         required: true
-        default: Config List PREV
+        default: Config List Prev
       - name: channel_index
-        type: ChannelIndex
+        type: ChannelItem
         required: true
       - name: config_list_name
         type: string
@@ -242,21 +186,14 @@ blocks:
       block, the settings at the previous index in the specified configuration
       list are restored.
     shape: conditional
-  configlist recall:
+  config list recall:
     parameters:
-      - name: slot_index
-        type: SlotIndex
-        required: true
-      - name: trigger_model_name
-        type: string
-        required: true
-        default: myTM1
       - name: trigger_block_name
         type: string
         required: true
-        default: Config List RECALL
+        default: Config List Recall
       - name: channel_index
-        type: ChannelIndex
+        type: ChannelItem
         required: true
       - name: config_list_name
         type: string
@@ -264,6 +201,7 @@ blocks:
       - name: recall_index
         type: number
         required: false
+        default: 1
     syntax: |
       -- The configuration list must be defined before the trigger model uses this block.
       slot[{{slot_index}}].trigger.model.addblock.configlist.recall("{{trigger_model_name}}", "{{trigger_block_name}}", {{channel_index}}, "{{config_list_name}}"{{#if recall_index}}, {{recall_index}}{{/if}})
@@ -271,46 +209,43 @@ blocks:
       When the trigger model reaches a configuration recall block, the settings
       in the specified configuration list are recalled.
     shape: conditional
-  delay constant:
+  constant delay:
     parameters:
-      - name: slot_index
-        type: SlotIndex
-        required: true
-      - name: trigger_model_name
-        type: string
-        required: true
-        default: myTM1
       - name: trigger_block_name
         type: string
         required: true
-        default: Delay
-      - name: delay_list
-        type: DelayList
+        default: Constant Delay
+      - name: delay_time
+        type: double
         required: true
-      - name: reference_block_name
-        type: string
-        required: false
         range:
           min: 0.000001
           max: 1000000
-    syntax: >-
-      slot[{{slot_index}}].trigger.model.addblock.delay.constant("{{trigger_model_name}}",
+      - name: reference_block_name
+        type: string
+        required: false
+      - name: list_config
+        type: DelayListConfig
+        required: false
+        label: List
+        description: "When enabled, delay values are sourced from a Config List rather than a fixed delay time value. Opens a modal to configure per-step values."
+    syntax: >
+      slot[{{slot_index}}].trigger.model.addblock.delay.constant(
+      "{{trigger_model_name}}",
       "{{trigger_block_name}}",
-      { {{#each delay_list}}{{this}}{{#unless @last}}, {{/unless}}{{/each}} },
-      {{#if reference_block_name}}"{{reference_block_name}}"{{/if}})
+      {{#if list_config}}
+        {{list_config}}
+      {{else}}
+        {{delay_time}}
+      {{/if}}
+      {{#if reference_block_name}}, "{{reference_block_name}}"{{/if}}
+      )
     description: >-
       When trigger model execution reaches a delay block, it stops the trigger
       model operation for the time set by the delay.
     shape: conditional
-  log_event:
+  log event:
     parameters:
-      - name: slot_index
-        type: SlotIndex
-        required: true
-      - name: trigger_model_name
-        type: string
-        default: myTM1
-        required: true
       - name: trigger_block_name
         type: string
         default: Log Event
@@ -359,13 +294,6 @@ blocks:
     shape: conditional
   measure:
     parameters:
-      - name: slot_index
-        type: SlotIndex
-        required: true
-      - name: trigger_model_name
-        type: string
-        required: true
-        default: myTM1
       - name: trigger_block_name
         type: string
         required: true
@@ -387,13 +315,6 @@ blocks:
     shape: conditional
   measure overlapped:
     parameters:
-      - name: slot_index
-        type: SlotIndex
-        required: true
-      - name: trigger_model_name
-        type: string
-        required: true
-        default: myTM1
       - name: trigger_block_name
         type: string
         required: true
@@ -416,17 +337,10 @@ blocks:
     shape: conditional
   no operation:
     parameters:
-      - name: slot_index
-        type: SlotIndex
-        required: true
-      - name: trigger_model_name
-        type: string
-        required: true
-        default: myTM1
       - name: trigger_block_name
         type: string
         required: true
-        default: NOP
+        default: No Operation
     syntax: >-
       slot[{{slot_index}}].trigger.model.addblock.nop("{{trigger_model_name}}",
       "{{trigger_block_name}}")
@@ -436,13 +350,6 @@ blocks:
     shape: conditional
   notify:
     parameters:
-      - name: slot_index
-        type: SlotIndex
-        required: true
-      - name: trigger_model_name
-        type: string
-        required: true
-        default: myTM1
       - name: trigger_block_name
         type: string
         required: true
@@ -457,17 +364,10 @@ blocks:
     shape: conditional
   source action bias:
     parameters:
-      - name: slot_index
-        type: SlotIndex
-        required: true
-      - name: trigger_model_name
-        type: string
-        required: true
-        default: myTM1
       - name: trigger_block_name
         type: string
         required: true
-        default: Source Action BIAS
+        default: Source Action Bias
       - name: channel_list
         type: ChannelList
         required: true
@@ -481,17 +381,10 @@ blocks:
     shape: conditional
   source action set:
     parameters:
-      - name: slot_index
-        type: SlotIndex
-        required: true
-      - name: trigger_model_name
-        type: string
-        required: true
-        default: myTM1
       - name: trigger_block_name
         type: string
         required: true
-        default: Source Action SET
+        default: Source Action Set
       - name: channel_list
         type: ChannelList
         required: true
@@ -505,19 +398,12 @@ blocks:
     shape: conditional
   source action skip:
     parameters:
-      - name: slot_index
-        type: SlotIndex
-        required: true
-      - name: trigger_model_name
-        type: string
-        required: true
-        default: myTM1
       - name: trigger_block_name
         type: string
         required: true
-        default: Source Action SKIP
+        default: Source Action Skip
       - name: channel_list
-        type: ChannelList
+        type: ChannelItem
         required: true
     syntax: >-
       slot[{{slot_index}}].trigger.model.addblock.source.action.skip("{{trigger_model_name}}",
@@ -529,17 +415,10 @@ blocks:
     shape: conditional
   source action step:
     parameters:
-      - name: slot_index
-        type: SlotIndex
-        required: true
-      - name: trigger_model_name
-        type: string
-        required: true
-        default: myTM1
       - name: trigger_block_name
         type: string
         required: true
-        default: Source Action STEP
+        default: Source Action Step
       - name: channel_list
         type: ChannelList
         required: true
@@ -554,17 +433,10 @@ blocks:
     shape: conditional
   source output:
     parameters:
-      - name: slot_index
-        type: SlotIndex
-        required: true
-      - name: trigger_model_name
-        type: string
-        required: true
-        default: myTM1
       - name: trigger_block_name
         type: string
         required: true
-        default: Source OUTPUT
+        default: Source Output
       - name: channel_list
         type: ChannelList
         required: true
@@ -576,6 +448,7 @@ blocks:
             value: 'ON'
           - label: 'OFF'
             value: 'OFF'
+        default: 'ON'
     syntax: >-
       slot[{{slot_index}}].trigger.model.addblock.source.output("{{trigger_model_name}}",
       "{{trigger_block_name}}",
@@ -583,31 +456,15 @@ blocks:
       {{state}})
     description: The source output block turns the output of the source on or off.
     shape: conditional
-  wait:
+  wait on event:
     parameters:
-      - name: slot_index
-        type: SlotIndex
-        required: true
-      - name: trigger_model_name
-        type: string
-        required: true
-        default: myTM1
       - name: trigger_block_name
         type: string
         required: true
-        default: Wait
-      - name: event0
-        type: triggerEventType
+        default: Wait on Event
+      - name: event
+        type: EventList
         required: true
-      - name: event1
-        type: triggerEventType
-        required: false
-      - name: event2
-        type: triggerEventType
-        required: false
-      - name: event3
-        type: triggerEventType
-        required: false
       - name: clear
         type: ClearType
         required: false
@@ -625,19 +482,17 @@ blocks:
           - label: OR
             value: OR
     syntax: >-
-      slot[{{slot_index}}].trigger.model.addblock.wait("{{trigger_model_name}}",
+      slot[{{slot_index}}].trigger.model.addblock.wait(
+      "{{trigger_model_name}}",
       "{{trigger_block_name}}",
-      {{event0}}
-      {{#if clear}}, slot[{{slot_index}}].trigger.model.CLEAR_{{clear}}
-      {{#if logic}}, slot[{{slot_index}}].trigger.model.WAIT_{{logic}}
-      {{#if event1}}, {{event1}}
-      {{#if event2}}, {{event2}}
-      {{#if event3}}, {{event3}}
+      {{#if events.[0]}}
+        {{events.[0]}}
       {{/if}}
-      {{/if}}
-      {{/if}}
-      {{/if}}
-      {{/if}}
+      {{#if clear}}, slot[{{slot_index}}].trigger.model.CLEAR_{{clear}}{{/if}}
+      {{#if logic}}, slot[{{slot_index}}].trigger.model.WAIT_{{logic}}{{/if}}
+      {{#each events}}
+        {{#if @index}}, {{this}}{{/if}}
+      {{/each}}
       )
     description: >-
       The wait block causes the trigger model to stop and wait for an event or
@@ -826,6 +681,47 @@ trigger_events:
             value: '3'
     syntax: tsplink.trigger[{{trigger_line}}].EVENT_ID
     shape: circle
+
+custom_types:
+  EventList:
+    description: "List of trigger events (max 4)"
+    max_items: 4
+    item:
+      type: EventItem
+
+  EventItem:
+    description: "Single trigger event selection"
+    fields:
+      - name: type
+        type: string
+        source: trigger_events   # reuse existing event definitions
+
+      - name: parameters
+        type: dynamic            # resolved based on selected event type
+
+  DelayList:
+    description: "Delay list values as an array of positive double values in seconds"
+    type: array
+    item:
+      type: double
+      range:
+        min: 0.000001
+        max: 1000000
+
+  DelayListConfig:
+    description: "Configuration for per-step delay values in a modal dialog"
+    modal: true
+    fields:
+      - name: delay_count
+        type: integer
+        label: "Number of Delays"
+        required: true
+        description: "Number of delay steps to configure"
+      - name: delay_durations
+        type: DelayList
+        label: "Delay Duration"
+        required: true
+        description: "Per-point delay values. Point # is generated by row index and treated as read-only in UI."
 
 templates:
     pulsed_sweep:

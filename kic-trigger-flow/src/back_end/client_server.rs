@@ -39,6 +39,7 @@ impl AppState {
             session: Arc::new(Mutex::new(None)),
             catalog: catalog_ref,
             trigger_flow_state: Arc::new(Mutex::new(TriggerFlowState {
+                catalog: None,
                 slot_channel_list: SlotChannelList::default(),
                 models: IndexMap::new(),
             })),
@@ -155,6 +156,21 @@ async fn ws_index(
                         Ok(ipc_data) => {
                             match RequestType::try_from(&ipc_data) {
                                 Ok(request) => {
+                                    // Capture state from the original request for backend persistence
+                                    // BEFORE handing the request off to the (consuming) processor.
+                                    let request_state_for_persist: Option<(
+                                        TriggerFlowState,
+                                        bool,
+                                    )> = match &request {
+                                        RequestType::EvaluateRequest { trigger_flow_state } => {
+                                            Some((trigger_flow_state.clone(), false))
+                                        }
+                                        RequestType::RecallRequest { trigger_flow_state } => {
+                                            Some((trigger_flow_state.clone(), true))
+                                        }
+                                        RequestType::InitialRequest => None,
+                                    };
+
                                     // Stateless processing - no backend state needed
                                     let processor = RequestProcessor::new(app_state.catalog);
                                     let response_type = processor.process_request(request);
@@ -181,41 +197,37 @@ async fn ws_index(
                                     );
                                     if should_trigger_script {
                                         let mut state_persisted = false;
-                                        match serde_json::from_str::<IpcData>(&response) {
-                                            Ok(ipc_response) => {
-                                                match RequestType::try_from(&ipc_response) {
-                                                    Ok(RequestType::EvaluateRequest {
-                                                        trigger_flow_state,
-                                                    }) => {
-                                                        let mut state_lock = app_state
-                                                            .trigger_flow_state
-                                                            .lock()
-                                                            .await;
-                                                        *state_lock = trigger_flow_state;
-                                                        state_persisted = true;
-                                                        println!(
-                                                            "Persisted evaluate state from WebSocket response before script generation"
-                                                        );
-                                                    }
-                                                    Ok(RequestType::InitialRequest) => {
-                                                        println!(
-                                                            "WebSocket response did not contain evaluate state; skipping script-generation signal"
-                                                        );
-                                                    }
-                                                    Err(e) => {
-                                                        eprintln!(
-                                                            "Failed to parse WebSocket response into request type for state persistence: {:?}",
-                                                            e
-                                                        );
-                                                    }
-                                                }
-                                            }
-                                            Err(e) => {
-                                                eprintln!(
-                                                    "Failed to deserialize WebSocket response into IpcData for state persistence: {}",
-                                                    e
+                                        if let Some((incoming_state, is_recall)) =
+                                            request_state_for_persist
+                                        {
+                                            let mut state_lock =
+                                                app_state.trigger_flow_state.lock().await;
+                                            // Recall arrives BEFORE Systems: the recall payload
+                                            // already contains the saved slot_channel_list and
+                                            // models, so persist it as-is. Systems will later
+                                            // refresh slot_channel_list against current hardware.
+                                            *state_lock = incoming_state;
+                                            println!(
+                                                "###WS persist: is_recall={}, slots={}, nodes={}, models={}",
+                                                is_recall,
+                                                state_lock.slot_channel_list.slots.len(),
+                                                state_lock.slot_channel_list.nodes.len(),
+                                                state_lock.models.len()
+                                            );
+                                            if is_recall {
+                                                println!(
+                                                    "Persisted recall state from WebSocket request"
+                                                );
+                                            } else {
+                                                println!(
+                                                    "Persisted evaluate state from WebSocket request before script generation"
                                                 );
                                             }
+                                            state_persisted = true;
+                                        } else {
+                                            println!(
+                                                "WebSocket request did not contain evaluate state; skipping script-generation signal"
+                                            );
                                         }
 
                                         if state_persisted {
@@ -549,6 +561,19 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                         // For demonstration, we just print the session data. You can add your own processing logic here.
                         match RequestType::try_from(&msg) {
                             Ok(request) => {
+                                // Capture state from the original request for backend persistence
+                                // BEFORE handing the request off to the (consuming) processor.
+                                let request_state_for_persist: Option<(TriggerFlowState, bool)> =
+                                    match &request {
+                                        RequestType::EvaluateRequest { trigger_flow_state } => {
+                                            Some((trigger_flow_state.clone(), false))
+                                        }
+                                        RequestType::RecallRequest { trigger_flow_state } => {
+                                            Some((trigger_flow_state.clone(), true))
+                                        }
+                                        RequestType::InitialRequest => None,
+                                    };
+
                                 // Keep processor scoped so it is dropped before any await below.
                                 let response = {
                                     let processor = RequestProcessor::new(app_state.catalog);
@@ -578,41 +603,37 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                                 );
                                 if should_trigger_script {
                                     let mut state_persisted = false;
-                                    match serde_json::from_str::<IpcData>(&response) {
-                                        Ok(ipc_response) => {
-                                            match RequestType::try_from(&ipc_response) {
-                                                Ok(RequestType::EvaluateRequest {
-                                                    trigger_flow_state,
-                                                }) => {
-                                                    let mut state_lock = app_state_clone
-                                                        .trigger_flow_state
-                                                        .lock()
-                                                        .await;
-                                                    *state_lock = trigger_flow_state;
-                                                    state_persisted = true;
-                                                    println!(
-                                                        "Persisted evaluate state from SessionData response before script generation"
-                                                    );
-                                                }
-                                                Ok(RequestType::InitialRequest) => {
-                                                    println!(
-                                                        "SessionData response did not contain evaluate state; skipping script-generation signal"
-                                                    );
-                                                }
-                                                Err(e) => {
-                                                    eprintln!(
-                                                        "Failed to parse SessionData response into request type for state persistence: {:?}",
-                                                        e
-                                                    );
-                                                }
-                                            }
-                                        }
-                                        Err(e) => {
-                                            eprintln!(
-                                                "Failed to deserialize SessionData response into IpcData for state persistence: {}",
-                                                e
+                                    if let Some((incoming_state, is_recall)) =
+                                        request_state_for_persist
+                                    {
+                                        let mut state_lock =
+                                            app_state_clone.trigger_flow_state.lock().await;
+                                        // Recall arrives BEFORE Systems: the recall payload
+                                        // already contains the saved slot_channel_list and
+                                        // models, so persist it as-is. Systems will later
+                                        // refresh slot_channel_list against current hardware.
+                                        *state_lock = incoming_state;
+                                        println!(
+                                            "###SessionData persist: is_recall={}, slots={}, nodes={}, models={}",
+                                            is_recall,
+                                            state_lock.slot_channel_list.slots.len(),
+                                            state_lock.slot_channel_list.nodes.len(),
+                                            state_lock.models.len()
+                                        );
+                                        if is_recall {
+                                            println!(
+                                                "Persisted recall state from SessionData request"
+                                            );
+                                        } else {
+                                            println!(
+                                                "Persisted evaluate state from SessionData request before script generation"
                                             );
                                         }
+                                        state_persisted = true;
+                                    } else {
+                                        println!(
+                                            "SessionData request did not contain evaluate state; skipping script-generation signal"
+                                        );
                                     }
 
                                     if state_persisted {
@@ -640,6 +661,7 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
 
                                 // if session exists, send response back to UI
                                 let mut session_lock = app_state_clone.session.lock().await;
+                                println!("send response to WebSocket session: {}", response);
                                 if let Some(ref mut session) = session_lock.as_mut() {
                                     if let Err(e) = session.text(response).await {
                                         eprintln!("Failed to send response to WebSocket: {:?}", e);
@@ -659,6 +681,26 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                         println!("Received shutdown command from stdin, shutting down...");
                         let _ = value.send(());
                         break;
+                    }
+                    StdinLine::ResetSession(_reset) => {
+                        let mut triggerflow_state: tokio::sync::MutexGuard<'_, TriggerFlowState> =
+                            app_state.trigger_flow_state.lock().await;
+
+                        // Pass the entire Systems structure to process_system_config
+                        triggerflow_state.reset();
+
+                        let response = IpcData {
+                            request_type: "Reset_session".to_string(),
+                            additional_info: "".to_string(),
+                            json_value: "{}".to_string(),
+                        };
+                        let mut session = app_state.session.lock().await;
+                        if let Some(session) = session.as_mut() {
+                            session
+                                .text(serde_json::to_string(&response).unwrap())
+                                .await
+                                .unwrap();
+                        }
                     }
                 }
             } else {

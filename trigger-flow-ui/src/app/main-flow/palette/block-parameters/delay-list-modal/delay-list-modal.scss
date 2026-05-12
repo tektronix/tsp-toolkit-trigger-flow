@@ -1,0 +1,157 @@
+.tf-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+}
+
+.tf-modal {
+  background: var(--vscode-editor-background);
+  border-radius: 11px;
+  border: 1px solid var(--vscode-editorWidget-border);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.tf-delay-list-modal {
+  width: min(270px, calc(100vw - 24px));
+}
+
+.tf-modal__header {
+  padding: 10px 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tf-modal__header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--vscode-editor-foreground);
+}
+
+.tf-modal__body {
+  padding: 8px 15px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tf-modal__divider {
+  height: 1px;
+  background: var(--vscode-editorWidget-border);
+}
+
+.tf-modal__divider--header {
+  margin-top: 2px;
+  margin-bottom: 4px;
+}
+
+.field-label {
+  font-size: 12px;
+  color: var(--vscode-foreground);
+}
+
+:host ::ng-deep app-textbox {
+  width: 100%;
+}
+
+// .sweep-cell {
+//   width: 96px;
+// }
+
+.delay-cell {
+  width: 96px;
+}
+
+:host ::ng-deep app-textbox.delay-input .textbox {
+  width: 84px;
+}
+
+:host ::ng-deep app-textbox.delay-input .textbox label {
+  display: none;
+}
+
+:host ::ng-deep app-textbox.delay-input .textbox input {
+  width: 84px;
+  padding: 3px 6px;
+  font-size: 12px;
+}
+
+// .delay-input {
+//   width: 84px;
+//   padding: 3px 6px;
+//   font-size: 12px;
+// }
+
+.table-wrap {
+  border: 1px solid var(--vscode-editorWidget-border);
+  border-radius: 6px;
+  max-height: 280px;
+  overflow: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--vscode-editorWidget-border);
+}
+
+th {
+  text-align: left;
+  position: sticky;
+  top: 0;
+  background: var(--vscode-editor-background);
+}
+
+.tf-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.btn {
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.btn.ghost {
+  background: transparent;
+  color: var(--vscode-foreground);
+}
+
+.btn.primary {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.icon-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  border: none;
+}
+
+.icon-img {
+  width: 16px;
+  height: 16px;
+  display: block;
+}

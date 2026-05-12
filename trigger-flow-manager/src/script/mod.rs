@@ -117,7 +117,11 @@ impl Script {
 
 impl Display for Script {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}{}{}", self.preamble, self.contents, self.postamble)
+        write!(
+            f,
+            "{}\n{}\n{}",
+            self.preamble, self.contents, self.postamble
+        )
     }
 }
 
@@ -152,6 +156,7 @@ pub(crate) mod script_tests {
                             param_type: ParamTypeName::SlotIndex,
                             required: true,
                             options: None,
+                            constraints: None,
                             default: Some(1.into()),
                             range: Some(ParameterRange {
                                 min: Some(1.into()),
@@ -163,6 +168,7 @@ pub(crate) mod script_tests {
                             param_type: ParamTypeName::String,
                             required: true,
                             options: None,
+                            constraints: None,
                             default: Some("model_name".into()),
                             range: None,
                         },
@@ -171,6 +177,7 @@ pub(crate) mod script_tests {
                             param_type: ParamTypeName::String,
                             required: true,
                             options: None,
+                            constraints: None,
                             default: None,
                             range: None,
                         },
@@ -179,6 +186,7 @@ pub(crate) mod script_tests {
                             param_type: ParamTypeName::String,
                             required: true,
                             options: None,
+                            constraints: None,
                             default: None,
                             range: None,
                         },
@@ -201,6 +209,7 @@ pub(crate) mod script_tests {
                             param_type: ParamTypeName::SlotIndex,
                             required: true,
                             options: None,
+                            constraints: None,
                             default: Some(1.into()),
                             range: Some(ParameterRange {
                                 min: Some(1.into()),
@@ -212,6 +221,7 @@ pub(crate) mod script_tests {
                             param_type: ParamTypeName::String,
                             required: true,
                             options: None,
+                            constraints: None,
                             default: Some("model_name".into()),
                             range: None,
                         },
@@ -220,6 +230,7 @@ pub(crate) mod script_tests {
                             param_type: ParamTypeName::String,
                             required: true,
                             options: None,
+                            constraints: None,
                             default: None,
                             range: None,
                         },
@@ -228,6 +239,7 @@ pub(crate) mod script_tests {
                             param_type: ParamTypeName::ChannelList,
                             required: true,
                             options: None,
+                            constraints: None,
                             default: None,
                             range: None,
                         },
@@ -236,6 +248,7 @@ pub(crate) mod script_tests {
                             param_type: ParamTypeName::Number,
                             required: false,
                             options: None,
+                            constraints: None,
                             default: None,
                             range: None,
                         },
@@ -320,6 +333,7 @@ slot[{{this.slot_index}}].trigger.model.create("{{this.trigger_model_name}}")
         let slot_channel_list = slot_channel_list();
 
         let input = TriggerFlowState {
+            catalog: None,
             slot_channel_list,
             models: IndexMap::new(),
         };
@@ -348,11 +362,13 @@ slot[{{this.slot_index}}].trigger.model.create("{{this.trigger_model_name}}")
 
         let input = TriggerFlowState {
             slot_channel_list,
+            catalog: None,
             models: IndexMap::from([(
                 "tm1".to_string(),
                 TriggerModelState {
                     model_name: "tm1".to_string(),
                     slot_index: SlotIndex(1),
+                    node_id: "node[1]".to_string(),
                     blocks: vec![TriggerModelBlock {
                         block_type: "always".to_string(),
                         block_parameters: HashMap::from([
@@ -405,11 +421,13 @@ slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_blo
 
         let input = TriggerFlowState {
             slot_channel_list,
+            catalog: None,
             models: IndexMap::from([(
                 "tm1".to_string(),
                 TriggerModelState {
                     model_name: "tm1".to_string(),
                     slot_index: SlotIndex(1),
+                    node_id: "node[1]".to_string(),
                     blocks: vec![
                         TriggerModelBlock {
                             block_type: "always".to_string(),
@@ -474,6 +492,7 @@ slot[1].trigger.model.addblock.measure("tm1", "tm1_measure_001", { 1 }, 5)
         let slot_channel_list = slot_channel_list();
 
         let input = TriggerFlowState {
+            catalog: None,
             slot_channel_list,
             models: IndexMap::from([
                 (
@@ -481,6 +500,7 @@ slot[1].trigger.model.addblock.measure("tm1", "tm1_measure_001", { 1 }, 5)
                     TriggerModelState {
                         model_name: "tm1".to_string(),
                         slot_index: SlotIndex(1),
+                        node_id: "node[1]".to_string(),
                         blocks: vec![TriggerModelBlock {
                             block_type: "always".to_string(),
                             block_parameters: HashMap::from([
@@ -502,6 +522,7 @@ slot[1].trigger.model.addblock.measure("tm1", "tm1_measure_001", { 1 }, 5)
                     TriggerModelState {
                         model_name: "tm2".to_string(),
                         slot_index: SlotIndex(2),
+                        node_id: "node[2]".to_string(),
                         blocks: vec![TriggerModelBlock {
                             block_type: "measure".to_string(),
                             block_parameters: HashMap::from([
@@ -554,6 +575,7 @@ slot[2].trigger.model.addblock.measure("tm2", "tm2_measure_001", { 1 }, 5)
         let slot_channel_list = slot_channel_list();
 
         let input = TriggerFlowState {
+            catalog: None,
             slot_channel_list,
             models: IndexMap::from([
                 (
@@ -561,6 +583,7 @@ slot[2].trigger.model.addblock.measure("tm2", "tm2_measure_001", { 1 }, 5)
                     TriggerModelState {
                         model_name: "tm1".to_string(),
                         slot_index: SlotIndex(1),
+                        node_id: "node[1]".to_string(),
                         blocks: vec![
                             TriggerModelBlock {
                                 block_type: "always".to_string(),
@@ -599,6 +622,7 @@ slot[2].trigger.model.addblock.measure("tm2", "tm2_measure_001", { 1 }, 5)
                     TriggerModelState {
                         model_name: "tm2".to_string(),
                         slot_index: SlotIndex(2),
+                        node_id: "node[2]".to_string(),
                         blocks: vec![
                             TriggerModelBlock {
                                 block_type: "always".to_string(),
@@ -677,12 +701,14 @@ slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_blo
 -- Postamble Text
 "#;
         let input = TriggerFlowState {
+            catalog: None,
             slot_channel_list,
             models: IndexMap::from([(
                 "tm2".to_string(),
                 TriggerModelState {
                     model_name: "tm2".to_string(),
                     slot_index: SlotIndex(2),
+                    node_id: "node[2]".to_string(),
                     blocks: vec![TriggerModelBlock {
                         block_type: "always".to_string(),
                         block_parameters: HashMap::from([
@@ -733,12 +759,14 @@ slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_blo
 -- Postamble Text
 "#;
         let input = TriggerFlowState {
+            catalog: None,
             slot_channel_list,
             models: IndexMap::from([(
                 "tm2".to_string(),
                 TriggerModelState {
                     model_name: "tm2".to_string(),
                     slot_index: SlotIndex(2),
+                    node_id: "node[2]".to_string(),
                     blocks: vec![TriggerModelBlock {
                         block_type: "always".to_string(),
                         block_parameters: HashMap::from([

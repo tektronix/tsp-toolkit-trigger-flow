@@ -15,7 +15,7 @@
   width: 1rem;
   height: 1rem;
   cursor: pointer;
-  accent-color: #0969da;
+  accent-color: var(--vscode-button-background);
 }
 
 .checkbox-input:disabled {
@@ -25,8 +25,8 @@
 
 .checkbox-text {
   font-size: 0.875rem;
-  font-weight: 500;
-  color: #24292e;
+  font-weight: var(--vscode-font-weight);
+  color: var(--vscode-editor-foreground);
 }
 
 .checkbox-label:has(.checkbox-input:disabled) {
@@ -35,6 +35,6 @@
 }
 
 .checkbox-input:focus {
-  outline: 2px solid #0969da;
-  outline-offset: 2px;
+  outline: 1px solid var(--vscode-button-background);
+  outline-offset: 0;
 }

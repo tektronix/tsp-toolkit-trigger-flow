@@ -1,9 +1,9 @@
 <div class="tf-modal-backdrop" *ngIf="open">
-  <section class="tf-modal" role="dialog" aria-modal="true" aria-label="New Model">
+  <section class="tf-modal" role="dialog" aria-modal="true" [attr.aria-label]="'New-Model-Settings'">
     <header class="tf-modal__header">
       <h2>New Model</h2>
-      <button type="button" class="icon-btn" (click)="onClose()" aria-label="Close">
-        <img class="icon-img" src="assets/shapes/Icons/X.svg" alt="Close" />
+      <button type="button" class="icon-btn" (click)="onClose()" >
+        <img class="icon-img" src="assets/shapes/Icons/X.svg" alt="Close" [attr.aria-label]="'Close-Model-Settings'"/>
       </button>
     </header>
     
@@ -12,15 +12,16 @@
       <!-- dedicated divider under header -->
       <div class="tf-modal__divider tf-modal__divider--header"></div>
 
-      <app-textbox label="Name" [(ngModel)]="name"></app-textbox>
+      <app-textbox label="Name" [(ngModel)]="name" automationID ="Input-Model-Name"></app-textbox>
 
       <app-dropdown
         label="Slot"
         [options]="slotOptionsAsString"
-        [(ngModel)]="slotValue">
+        [(ngModel)]="slotValue"
+        automationID ="'Model-Slot-Selection'">
       </app-dropdown>
 
-      <!-- <app-dropdown
+        <!-- <app-dropdown
         label="Channel"
         [options]="channelOptionsAsString"
         [(ngModel)]="channelValue">
@@ -32,18 +33,18 @@
         [(ngModel)]="nodeValue">
       </app-dropdown> -->
 
-      <app-textbox label="Notes" [(ngModel)]="notes"></app-textbox>
+      <app-textbox label="Notes" [(ngModel)]="notes" automationID ="Input-Model-Notes"></app-textbox>
 
-      <!-- dedicated divider under notes -->
-      <div class="tf-modal__divider tf-modal__divider--notes"></div>
-      <!-- <div class="tf-modal__divider"></div> -->
+        <!-- dedicated divider under notes -->
+        <div class="tf-modal__divider tf-modal__divider--notes"></div>
+        <!-- <div class="tf-modal__divider"></div> -->
 
       <div class="tf-modal__footer-icons">
-        <button type="button" class="icon-btn" (click)="onCopy()" aria-label="Copy">
-          <img class="icon-img" src="assets/shapes/Icons/Copy.svg" alt="Copy" />
+        <button type="button" class="icon-btn" (click)="onCopy()" >
+          <img class="icon-img" src="assets/shapes/Icons/Copy.svg" alt="Copy" [attr.aria-label]="'Copy-Model-Settings'"/>
         </button>
-        <button type="button" class="icon-btn" (click)="onDelete()" aria-label="Delete">
-          <img class="icon-img" src="assets/shapes/Icons/Trash.svg" alt="Delete" />
+        <button type="button" class="icon-btn" (click)="onDelete()" >
+          <img class="icon-img" src="assets/shapes/Icons/Trash.svg" alt="Delete" [attr.aria-label]="'Delete-Model-Settings'" />
         </button>
       </div>
     </div>

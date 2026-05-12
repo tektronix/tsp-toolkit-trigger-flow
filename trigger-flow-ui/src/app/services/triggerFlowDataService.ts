@@ -1,7 +1,8 @@
-import { Injectable, signal } from '@angular/core';
-import { InitialPayload, Catalog } from '../models/triggerBlock';
+import { inject, Injectable, Injector, signal } from '@angular/core';
+import { InitialPayload, Catalog, EventDefinition } from '../models/triggerBlock';
 import { SlotChannelList } from '../models/slotChannelModel';
 import { TriggerFlowStatePayload, TriggerModel } from '../models/triggerFlowState';
+import { CanvasBlocksService } from './canvas-blocks.service';
 
 @Injectable({
   providedIn: 'root',
@@ -20,6 +21,11 @@ export class TriggerFlowDataService {
   // Optional: raw snapshots for debugging/non-reactive inspection
   private initialPayloadSnapshot: InitialPayload | null = null;
   private statePayloadSnapshot: TriggerFlowStatePayload | null = null;
+  // Lazy lookup to avoid a DI cycle (CanvasBlocksService -> TriggerFlowDataService).
+  private injector = inject(Injector);
+  private get canvasBlocksService(): CanvasBlocksService {
+    return this.injector.get(CanvasBlocksService);
+  }
 
   setInitialPayload(payload: InitialPayload): void {
     // Set once
@@ -34,16 +40,53 @@ export class TriggerFlowDataService {
 
   updateStatePayload(payload: TriggerFlowStatePayload): void {
     this.statePayloadSnapshot = payload;
+    console.log('###State payload updated:', payload);
 
-    // Keep slot_channel_list fresh from runtime updates
-    this.slotChannelList.set(payload.slot_channel_list);
+    // ORDER MATTERS: catalog must be set BEFORE models, otherwise any
+    // consumer that reacts to models$ (e.g. canvas block restoration) reads
+    // a stale/null catalog and cannot resolve block definitions.
+    // This case is hit in case of recall session, catalog is getting passed explicitly.
+    if (payload.catalog) {
+      this.catalog.set(payload.catalog);
+      if (!this.initialPayloadSnapshot) {
+        this.initialPayloadSnapshot = new InitialPayload({
+          slot_channel_list: payload.slot_channel_list,
+          catalog: payload.catalog,
+        });
+      }
+      // Keep slot_channel_list fresh from runtime updates
+      this.slotChannelList.set(payload.slot_channel_list);
 
-    this.models.set(payload.models);
+      // Set models LAST so any subscriber reacting to models change sees a
+      // fully populated catalog and slot_channel_list.
+      this.canvasBlocksService.loadSessionData(payload.models);
+      this.models.set(payload.models);
+    } else {
+      // Keep slot_channel_list fresh from runtime updates
+      this.slotChannelList.set(payload.slot_channel_list);
+
+      // Set models LAST so any subscriber reacting to models change sees a
+      // fully populated catalog and slot_channel_list.
+      this.models.set(payload.models);
+    }
+  }
+
+  resetState(): void {
+    this.canvasBlocksService.resetCanvas();
+    this.catalog.set(null);
+    this.slotChannelList.set(null);
+    this.models.set({});
+    this.initialPayloadSnapshot = null;
+    this.statePayloadSnapshot = null;
   }
 
   // Optional synchronous getters
   getCatalog(): Catalog | null {
     return this.catalog();
+  }
+
+  getTriggerEvents(): Record<string, EventDefinition> {
+    return this.catalog()?.trigger_events || {};
   }
 
   getSlotChannelList(): SlotChannelList | null {

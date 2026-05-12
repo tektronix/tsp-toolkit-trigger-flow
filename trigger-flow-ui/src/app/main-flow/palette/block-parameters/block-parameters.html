@@ -1,10 +1,10 @@
 @if (!selectedBlockId) {
-  <div class="empty-state">
+  <div class="empty-state" [attr.aria-label]="'empty-block-parameter-editing-panel'">
     <h3>No block added or selected</h3>
     <p>Add a new block onto the canvas or select an existing block to edit the block parameters.</p>
   </div>
 } @else {
-  <section class="params-shell">
+  <section class="params-shell" [attr.aria-label]="'block-parameter-editing-panel'">
     <header class="params-header">
       <div class="params-header-left">
         @if (blockTypeSvgPath) {
@@ -15,7 +15,7 @@
 
       <svg-icon
         src="assets/shapes/Icons/X.svg"
-        aria-label="Close block parameters panel"
+        [attr.aria-label]="'Close-block-parameters-panel'"
         title="Close"
         role="button"
         tabindex="0"
@@ -28,21 +28,112 @@
     <div class="params-body">
       @for (param of actualParameters; track param.name) {
         @if (shouldShowInUI(param)) {
-          @if (isNumberType(param.type)) {
-            <app-input-numeric
+          @if (getControlType(param) === 'custom') {
+            <app-event-block
+              [param]="param"
+              [triggerEvents]="triggerEvents"
+              [selectionMode]="getEventSelectionMode(param)"
+              (valueChange)="onParameterValueChange()"
+            />
+          } @else if (getControlType(param) === 'radio') {
+            <app-radio-button
               [label]="param.name"
+              automationID="{{ 'param-' + param.name }}"
+              [options]="getSelectOptions(param)"
+              [name]="getRadioGroupName(param)"
               [(ngModel)]="param.value"
+              (radioChange)="onParameterValueChange()"
+            />
+          } @else if (getControlType(param) === 'select') {
+            <app-dropdown
+              [label]="param.name"
+              [options]="getSelectOptions(param)"
+              [(ngModel)]="param.value"
+              (selectedChange)="onParameterValueChange()"
+            />
+          } @else if (getControlType(param) === 'channel-list') {
+            <app-checkbox-group
+              [label]="getParameterDisplayName(param)"
+              [options]="channelListOptions"
+              [selectedValues]="getChannelListSelected(param)"
+              (selectionChange)="onChannelListChange(param, $event)"
+            />
+          } @else if (getControlType(param) === 'channel-item') {
+            <app-radio-group
+              [label]="getParameterDisplayName(param)"
+              [name]="getRadioGroupName(param)"
+              [options]="channelItemOptions"
+              [selectedValue]="getChannelItemSelected(param)"
+              (selectionChange)="onChannelItemChange(param, $event)"
+            />
+          } @else if (getControlType(param) === 'number') {
+            <!-- delay_time is shown in seconds and stays visible but disabled when List mode is enabled. -->
+            <app-input-numeric
+              [label]="getParameterDisplayName(param)"
+              [unit]="param.name === 'delay_time' ? 's' : undefined"
+              [floatAllowed]="param.name === 'delay_time'"
+              [(ngModel)]="param.value"
+              [disabled]="param.name === 'delay_time' && isDelayListEnabled()"
+              (inputChange)="onParameterValueChange()"
+              automationID="input-{{ param.name }}"
+            />
+          } @else if (getControlType(param) === 'toggle' && param.options) {
+            <app-toggle
+              [label]="getParameterDisplayName(param)"
+              [options]="param.options"
+              [(ngModel)]="param.value"
+              (toggleOptionChange)="onParameterValueChange()"
+            />
+          } @else if (getControlType(param) === 'multiline') {
+            <app-multiline-textbox
+              [label]="getParameterDisplayName(param)"
+              [(ngModel)]="param.value"
+              [rows]="5"
+              [maxLength]="52"
               (inputChange)="onParameterValueChange()"
             />
-          } @else {
+          } @else if (getControlType(param) === 'text') {
             <app-textbox
-              [label]="param.name"
+              [label]="getParameterDisplayName(param)"
               [(ngModel)]="param.value"
               (inputChange)="onParameterValueChange()"
+              automationID="input-{{ param.name }}"
             />
           }
         }
       }
+
+      @if (hasDelayListConfig()) {
+        <div class="delay-list-row">
+          <!-- Checkbox toggles list_config on/off; Edit opens the modal for sweep value details. -->
+          <app-checkbox
+              class="delay-list-checkbox"
+            label="List"
+            [checked]="isDelayListEnabled()"
+            (checkedChange)="onDelayListCheckedChange($event)"
+          />
+          @if (isDelayListEnabled()) {
+            <button type="button" class="delay-list-configure-btn" (click)="openDelayListModal()">
+              Edit
+            </button>
+          }
+        </div>
+      }
+
+      <app-multiline-textbox
+        label="Notes"
+        [rows]="5"
+        [(ngModel)]="blockNotes"
+        (inputChange)="onBlockNotesChange()"
+      />
+
+      <app-delay-list-modal
+        [open]="showDelayListModal"
+        [delayCount]="delayListModalDelayCount"
+        [delayDurations]="delayListModalDelayDurations"
+        (cancelled)="onDelayListCancel()"
+        (applyList)="onDelayListApply($event)"
+      />
     </div>
   </section>
 }

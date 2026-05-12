@@ -1,7 +1,7 @@
 <div class="custom-accordion">
-    <div *ngFor="let group of groups; let i = index" class="accordion-item">
+    <div *ngFor="let group of groups(); let i = index" class="accordion-item">
         <div class="accordion-header" (click)="togglePanel(i)">
-            <mat-icon class="arrow" [class.expanded]="expanded.has(i)">
+            <mat-icon class="arrow" [class.expanded]="expanded.has(i)" [attr.aria-label]="expanded.has(i) ? 'Collapse-' + group.label : 'Expand-' + group.label">
                 {{ expanded.has(i) ? 'keyboard_arrow_down' : 'keyboard_arrow_right' }}
             </mat-icon>
             <span class="title">{{ group.label }}</span>
@@ -11,7 +11,7 @@
                 <div class="custom-accordion sub-accordion">
                     <div *ngFor="let sub of group.subgroups; let j = index" class="accordion-item">
                         <div class="accordion-header sub-header" (click)="toggleBlock(j); $event.stopPropagation()">
-                            <mat-icon class="arrow" [class.expanded]="blockExpanded.has(j)">
+                            <mat-icon class="arrow" [class.expanded]="blockExpanded.has(j)" [attr.aria-label]="blockExpanded.has(j) ? 'Collapse-' + sub.label : 'Expand-' + sub.label">
                                 {{ blockExpanded.has(j) ? 'keyboard_arrow_down' : 'keyboard_arrow_right' }}
                             </mat-icon>
                             <span class="title">{{ sub.label }}</span>
@@ -20,7 +20,7 @@
                             <ng-container *ngIf="sub.shapes && sub.shapes.length > 0; else subgroupContent">
                                 <div *ngFor="let shape of sub.shapes" class="palette-item" 
                                     >
-                                    <div class="shape-icon" fExternalItem [fData]="shape">
+                                    <div class="shape-icon" fExternalItem [fData]="shape" [aria-label]='shape.catalogLabel+"_"+"palette"'>
                                         <img [src]="shape.svgPath" class="shape-svg" />
                                     </div>
                                     <!-- <span class="shape-label">{{ shape.label }}</span> -->

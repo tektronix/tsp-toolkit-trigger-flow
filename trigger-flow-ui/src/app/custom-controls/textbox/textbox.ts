@@ -18,6 +18,7 @@ import { ControlValueAccessor, FormsModule, NG_VALUE_ACCESSOR } from '@angular/f
 })
 export class Textbox implements ControlValueAccessor, OnInit {
   @Input() label: string | undefined;
+  @Input() unit: string | undefined;
   @Input() disabled = false;
   @Input() automationID: string | undefined;
   @Output() inputChange = new EventEmitter<string>();
@@ -30,15 +31,22 @@ export class Textbox implements ControlValueAccessor, OnInit {
   }
 
   get value(): string {
-    return this._value;
+    // Keep the model value unit-free, but show the unit suffix in the UI text.
+    if (!this.unit || this._value === '') {
+      return this._value;
+    }
+
+    return `${this._value}${this.unit}`;
   }
 
   set value(val: string) {
-    if (this._value === val) {
+    // Convert user input like "1s" back to the raw value "1" before emitting.
+    const nextValue = this.stripUnitSuffix(val);
+    if (this._value === nextValue) {
       return;
     }
 
-    this._value = val;
+    this._value = nextValue;
     if (this.onChange) {
       this.onChange(this._value);
     }
@@ -46,8 +54,10 @@ export class Textbox implements ControlValueAccessor, OnInit {
   }
 
   writeValue(value: string | undefined): void {
-    if (value !== undefined) {
+    if (value !== undefined && value !== null) {
       this._value = value;
+    } else {
+      this._value = '';
     }
   }
 
@@ -66,6 +76,8 @@ export class Textbox implements ControlValueAccessor, OnInit {
   onInputChange(event: Event): void {
     const inputElement = event.target as HTMLInputElement;
     this.value = inputElement.value;
+    // Repaint the input with normalized formatting (for example re-appending unit).
+    inputElement.value = this.value;
   }
 
   onBlur(event: Event): void {
@@ -76,5 +88,18 @@ export class Textbox implements ControlValueAccessor, OnInit {
     if (event.key === 'Enter') {
       this.onInputChange(event);
     }
+  }
+
+  private stripUnitSuffix(value: string): string {
+    if (!this.unit) {
+      return value;
+    }
+
+    const trimmedValue = value.trim();
+    if (trimmedValue.endsWith(this.unit)) {
+      return trimmedValue.slice(0, -this.unit.length).trim();
+    }
+
+    return trimmedValue;
   }
 }

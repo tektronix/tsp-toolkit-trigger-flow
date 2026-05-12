@@ -1,5 +1,5 @@
 <div class="main-flow-container">
-  <aside class="palette-sidebar" [class.collapsed]="sidebarCollapsed">
+  <aside class="palette-sidebar" [class.collapsed]="sidebarCollapsed" [attr.aria-label]="'Left-panel'">
     <div class="collapse-btn-header">
       <!-- Left button group -->
       <div class="header-left-buttons">
@@ -22,7 +22,7 @@
       </div>
 
       <!-- Collapse button on right -->
-      <button class="collapse-btn" (click)="toggleSidebar()">
+      <button class="collapse-btn" (click)="toggleSidebar()" [attr.aria-label]="'left-panel-collapse-button'">
         <mat-icon>{{ sidebarCollapsed ? 'chevron_right' : 'chevron_left' }}</mat-icon>
       </button>
     </div>
@@ -39,6 +39,7 @@
       [open]="showModelModal"
       [name]="modelName"
       [slot]="modelSlot"
+      [nodeId]="modelNodeId"
       [notes]="modelNotes"
       [slotOptions]="slotOptions"
       (slotChanged)="onModelModalSlotChanged($event)"
@@ -47,7 +48,7 @@
       (copyClicked)="onModelModalCopy()">
     </app-model-modal>
   </main>
-  <aside class="parameters-sidebar">
+  <aside class="parameters-sidebar" [attr.aria-label]="'Block-parameters-sidebar'">
     <app-block-parameters></app-block-parameters>
   </aside>
 </div>

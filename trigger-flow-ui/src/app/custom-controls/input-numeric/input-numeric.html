@@ -2,7 +2,8 @@
   <label for="input">{{ label }}</label>
   <input
     [attr.aria-label]="automationID"
-    type="number"
+    [type]="unit ? 'text' : 'number'"
+    [attr.inputmode]="floatAllowed ? 'decimal' : 'numeric'"
     [value]="displayValue"
     (blur)="onBlur($event)"
     (keydown)="onKeyDown($event)"
