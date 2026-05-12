@@ -55,12 +55,12 @@ blocks:
       When the trigger model reaches a branch-always block, it always proceeds
       to the block that you specified.
     shape: conditional
-  counter:
+  "< loop counter":
     parameters:
       - name: trigger_block_name
         type: string
         required: true
-        default: Counter
+        default: Loop Counter
       - name: branch_to_block_name
         type: blockReference
         required: true
@@ -94,12 +94,12 @@ blocks:
       When this block is encountered in the trigger model, the specified branch
       counter resets to 0.
     shape: conditional
-  event:
+  on event:
     parameters:
       - name: trigger_block_name
         type: string
         required: true
-        default: Event
+        default: On Event
       - name: branch_to_block_name
         type: string
         required: true
@@ -111,7 +111,7 @@ blocks:
       "{{trigger_block_name}}", "{{branch_to_block_name}}", {{event_id}})
     description: >-
       The branch-on-event block branches to a specified block when a specified
-      trigger event occurs
+      trigger event occurs.
     shape: conditional
   once:
     parameters:
@@ -129,7 +129,7 @@ blocks:
       When the trigger model reaches a branch-once block, it goes to a specified
       block the first time it is encountered in the trigger model.
     shape: conditional
-  onceexcluded:
+  once excluded:
     parameters:
       - name: trigger_block_name
         type: string
@@ -151,7 +151,7 @@ blocks:
       - name: trigger_block_name
         type: string
         required: true
-        default: Config List NEXT
+        default: Config List Next
       - name: channel_index
         type: ChannelItem
         required: true
@@ -171,7 +171,7 @@ blocks:
       - name: trigger_block_name
         type: string
         required: true
-        default: Config List PREV
+        default: Config List Prev
       - name: channel_index
         type: ChannelItem
         required: true
@@ -191,7 +191,7 @@ blocks:
       - name: trigger_block_name
         type: string
         required: true
-        default: Config List RECALL
+        default: Config List Recall
       - name: channel_index
         type: ChannelItem
         required: true
@@ -209,12 +209,12 @@ blocks:
       When the trigger model reaches a configuration recall block, the settings
       in the specified configuration list are recalled.
     shape: conditional
-  delay constant:
+  constant delay:
     parameters:
       - name: trigger_block_name
         type: string
         required: true
-        default: Delay
+        default: Constant Delay
       - name: delay_time
         type: double
         required: true
@@ -244,7 +244,7 @@ blocks:
       When trigger model execution reaches a delay block, it stops the trigger
       model operation for the time set by the delay.
     shape: conditional
-  log_event:
+  log event:
     parameters:
       - name: trigger_block_name
         type: string
@@ -340,7 +340,7 @@ blocks:
       - name: trigger_block_name
         type: string
         required: true
-        default: NOP
+        default: No Operation
     syntax: >-
       slot[{{slot_index}}].trigger.model.addblock.nop("{{trigger_model_name}}",
       "{{trigger_block_name}}")
@@ -367,7 +367,7 @@ blocks:
       - name: trigger_block_name
         type: string
         required: true
-        default: Source Action BIAS
+        default: Source Action Bias
       - name: channel_list
         type: ChannelList
         required: true
@@ -384,7 +384,7 @@ blocks:
       - name: trigger_block_name
         type: string
         required: true
-        default: Source Action SET
+        default: Source Action Set
       - name: channel_list
         type: ChannelList
         required: true
@@ -401,7 +401,7 @@ blocks:
       - name: trigger_block_name
         type: string
         required: true
-        default: Source Action SKIP
+        default: Source Action Skip
       - name: channel_list
         type: ChannelItem
         required: true
@@ -418,7 +418,7 @@ blocks:
       - name: trigger_block_name
         type: string
         required: true
-        default: Source Action STEP
+        default: Source Action Step
       - name: channel_list
         type: ChannelList
         required: true
@@ -436,7 +436,7 @@ blocks:
       - name: trigger_block_name
         type: string
         required: true
-        default: Source OUTPUT
+        default: Source Output
       - name: channel_list
         type: ChannelList
         required: true
@@ -456,15 +456,15 @@ blocks:
       {{state}})
     description: The source output block turns the output of the source on or off.
     shape: conditional
-  wait:
+  wait on event:
     parameters:
       - name: trigger_block_name
         type: string
         required: true
-        default: Wait
+        default: Wait on Event
       - name: event
         type: EventList
-        required: true      
+        required: true
       - name: clear
         type: ClearType
         required: false
