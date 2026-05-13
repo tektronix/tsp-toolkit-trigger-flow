@@ -90,4 +90,43 @@ export class ModelResourceAllocationService {
 
     return this.findSlot(ownerModel.slot_index, ownerModel.node_id, slotChannelList)?.module ?? null;
   }
+
+  /**
+   * Returns all installed (non-Empty) slots on the node that owns the given
+   * block. Used by event parameter dropdowns where the user may target any
+   * slot on the same node, independent of the block's own slot.
+   */
+  getNodeSlotsForBlock(blockId: string): Slot[] {
+    const slotChannelList = this.triggerFlowDataService.getSlotChannelList();
+    if (!slotChannelList) {
+      return [];
+    }
+
+    const ownerModel = Object.values(this.canvasBlocksService.getModels()).find((m) =>
+      m.blocks.some((b) => b.block_id === blockId),
+    );
+    if (!ownerModel) {
+      return [];
+    }
+
+    const slots =
+      ownerModel.node_id === 'localnode'
+        ? slotChannelList.slots
+        : (slotChannelList.nodes.find((n) => n.nodeId === ownerModel.node_id)?.slots ?? []);
+
+    return slots.filter((slot) => slot.module !== 'Empty');
+  }
+
+  /**
+   * Returns the module installed in a specific slot on the same node as the
+   * given block. Useful for event parameters whose constraint branch
+   * (SMU/PSU) depends on the slot the user picked inside the event UI,
+   * which may differ from the block's own slot.
+   */
+  getModuleForNodeSlot(blockId: string, slotId: number | string): Module | null {
+    const slot = this.getNodeSlotsForBlock(blockId).find(
+      (candidate) => `${candidate.slotId}` === `${slotId}`,
+    );
+    return slot?.module ?? null;
+  }
 }
