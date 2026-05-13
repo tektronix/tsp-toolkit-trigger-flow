@@ -9,6 +9,7 @@ import {
   Output,
   EventEmitter,
   DestroyRef,
+  viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
@@ -17,7 +18,7 @@ import { AngularSvgIconModule } from 'angular-svg-icon';
 import { CanvasBlock, CanvasBlocksService } from '../../services/canvas-blocks.service';
 import { TriggerFlowDataService } from '../../services/triggerFlowDataService';
 import { BlockErrorEntry } from '../../models/triggerFlowState';
-import { EFMarkerType, FFlowModule, FSelectionChangeEvent } from '@foblex/flow';
+import { EFMarkerType, FCanvasComponent, FFlowModule, FSelectionChangeEvent, FDragStartedEvent } from '@foblex/flow';
 import { ModelModalValue } from '../model-modal/model-modal';
 
 export interface FlowNode {
@@ -77,12 +78,16 @@ interface ModelModalRequest {
   styleUrl: './canvas.scss',
 })
 export class Canvas implements AfterViewInit {
+  private static readonly INTERACTIVE_PAN_BLOCKERS =
+    'button, input, textarea, select, option, label, a, [role="button"], [contenteditable="true"]';
+
   private hostRef = inject(ElementRef<HTMLElement>);
   private canvasBlocksService = inject(CanvasBlocksService);
   private triggerFlowDataService = inject(TriggerFlowDataService);
   private http = inject(HttpClient);
   private destroyRef = inject(DestroyRef);
   protected readonly eMarkerType = EFMarkerType;
+  private readonly _canvas = viewChild(FCanvasComponent);
 
   // Cache of input-connector positions (as % of node bounds) keyed by svgPath.
   // null = SVG has no <g class="Connector"> group, so no input should render.
@@ -95,8 +100,33 @@ export class Canvas implements AfterViewInit {
   canvasSize = signal(this.getCanvasSize());
   selectedNodeIds = signal<string[]>([]);
   canvasMoveTrigger = (event: MouseEvent | TouchEvent | WheelEvent): boolean => {
-    return event instanceof MouseEvent && event.button === 1; // middle mouse pan
+    if (!(event instanceof MouseEvent)) {
+      return true;
+    }
+
+    if (event.button !== 0 && event.button !== 1) {
+      return false;
+    }
+
+    const target = event.target;
+    if (!(target instanceof Element)) {
+      return event.button === 1;
+    }
+
+    if (target.closest('.node-wrapper, [fNode], [fNodeInput], [fNodeOutput]')) {
+      return false;
+    }
+
+    if (target.closest(Canvas.INTERACTIVE_PAN_BLOCKERS)) {
+      return false;
+    }
+
+    return true;
   };
+
+  protected onDragStarted(event: FDragStartedEvent): void {
+    console.log('Drag started:', event.fEventType, event.fData);
+  }
 
   // Raised to parent (MainFlow) when first block is dropped and
   // a model must be created before node insertion can continue.
@@ -359,7 +389,7 @@ export class Canvas implements AfterViewInit {
   private changeSVGPath(svgPath: string): string {
     return svgPath.replace('palette/', 'canvas/');
   }
- 
+
   private createUniqueNodeId(): string {
     const existingIds = new Set(this.sectionNodes().map((node) => node.blockId));
     let candidate = '';

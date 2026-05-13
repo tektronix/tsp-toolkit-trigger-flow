@@ -38,6 +38,7 @@ f-canvas {
     linear-gradient(var(--vscode-editorWidget-border) 1px, transparent 1px),
     linear-gradient(90deg, var(--vscode-editorWidget-border) 1px, transparent 1px);
   padding: 0 10px;
+  pointer-events: none;
 }
 
 .title-left,
@@ -75,6 +76,7 @@ f-canvas {
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  pointer-events: auto;
 }
 
 .title-btn-icon {
@@ -100,6 +102,7 @@ f-canvas {
     linear-gradient(var(--vscode-editorWidget-border) 1px, transparent 1px),
     linear-gradient(90deg, var(--vscode-editorWidget-border) 1px, transparent 1px);
   background-size: 20px 20px;
+  pointer-events: none;
 }
 
 .node-wrapper {
