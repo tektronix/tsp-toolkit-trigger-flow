@@ -60,6 +60,8 @@ export class EventBlockComponent implements OnChanges {
   @Input() param!: ActualParameter;
   @Input() triggerEvents!: Record<string, EventDefinition>;
   @Input() selectionMode: 'single' | 'multi' = 'multi';
+  @Input() modelNodeId = 'localnode';
+  @Input() modelSlotIndex = 1;
   @Output() valueChange = new EventEmitter<void>();
 
   eventTypes: string[] = [];
@@ -166,7 +168,15 @@ export class EventBlockComponent implements OnChanges {
 
       const newItem: EventListItem = {
         type,
-        params: {},
+        params: normalizeParameterValues(
+          this.getParamsForType(type),
+          {
+            slot_index: this.modelSlotIndex,
+          },
+          this.slotChannelList,
+          this.modelNodeId,
+          this.modelSlotIndex,
+        ),
       };
 
       this.param.value = [...this.selectedEvents, newItem];
@@ -180,7 +190,15 @@ export class EventBlockComponent implements OnChanges {
 
     const selected = existing ?? {
       type,
-      params: {},
+      params: normalizeParameterValues(
+        this.getParamsForType(type),
+        {
+          slot_index: this.modelSlotIndex,
+        },
+        this.slotChannelList,
+        this.modelNodeId,
+        this.modelSlotIndex,
+      ),
     };
 
     if (this.param.type === 'EventItem') {
@@ -250,6 +268,8 @@ export class EventBlockComponent implements OnChanges {
               this.getParamsForType(eventItem.type),
               eventItem.params,
               this.slotChannelList,
+              this.modelNodeId,
+              this.modelSlotIndex,
             ),
           }
         : eventItem,
@@ -267,6 +287,8 @@ export class EventBlockComponent implements OnChanges {
     return resolveParameterOptions(param, {
       values: this.getParamValues(type),
       slotChannelList: this.slotChannelList,
+      modelNodeId: this.modelNodeId,
+      modelSlotIndex: this.modelSlotIndex,
     });
   }
 
