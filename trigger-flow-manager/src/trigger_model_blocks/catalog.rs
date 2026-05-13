@@ -147,7 +147,7 @@ impl Parameter {
             }
         }
         match self.param_type {
-            ParamTypeName::TriggerEventType | ParamTypeName::NotifyType => {
+            ParamTypeName::TriggerEventType | ParamTypeName::EventNotifyN => {
                 if let Some(event_value) = value {
                     catalog.validate_event(event_value, block)?;
                 }

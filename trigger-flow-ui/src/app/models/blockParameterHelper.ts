@@ -23,6 +23,18 @@ const HIDDEN_PARAMETER_NAMES = new Set(['trigger_model_name', 'slot_index']);
 
 const PARAMETER_DISPLAY_NAMES: Record<string, string> = {
   trigger_block_name: 'Block Name',
+  event_id: 'Event ID',
+};
+
+// Friendly labels for catalog `trigger_events` keys. Any caller (event-block,
+// specific-event, palette items, …) should use this so naming stays consistent.
+const EVENT_TYPE_LABELS: Record<string, string> = {
+  event_notify_n: 'Notify',
+  event_digio: 'Digital I/O',
+  event_at_limit: 'At Limit',
+  event_generator: 'Trigger Generator',
+  event_timer: 'Trigger Timer',
+  event_tsplink: 'TSP Link Line',
 };
 
 // Centralize control decisions so adding support for new ParamTypeName values stays in one place
@@ -34,6 +46,7 @@ export type ParamControlType =
   | 'toggle'
   | 'multiline'
   | 'custom'
+  | 'specific-event'
   | 'channel-list'
   | 'channel-item'
   | 'channel-index'
@@ -78,11 +91,10 @@ const PARAM_TYPE_TO_CONTROL: Record<string, ParamControlType> = {
   EventID: 'select',
   ChannelList: 'channel-list',
   ChannelItem: 'channel-item',
-  LogEventType: 'radio',
+  LogEventType: 'select',
   ClearType: 'radio',
   LogicType: 'radio',
   TriggerEventType: 'radio',
-  notifyType: 'radio',
   SourceState: 'toggle',
   EventItem: 'custom',
   EventList: 'custom',
@@ -90,6 +102,12 @@ const PARAM_TYPE_TO_CONTROL: Record<string, ParamControlType> = {
 };
 
 export function resolveParamControlType(context: ControlRuleContext): ParamControlType {
+  // Any catalog `trigger_events` key (by convention prefixed with `event_`) used
+  // as a parameter type means the parameter renders as a fixed-event widget.
+  if (context.type?.startsWith('event_')) {
+    return 'specific-event';
+  }
+
   // Primary decision path: prefer explicit type mapping when available.
   const mapped = context.type ? PARAM_TYPE_TO_CONTROL[context.type] : undefined;
   const isIndexLike =
@@ -334,7 +352,11 @@ function getConstraintKeyForSlot(
   return slot ? getConstraintKeyForModule(slot.module) : null;
 }
 
-function getConstraintKeyForModule(module: Module): string | null {
+export function getConstraintKeyForModule(module: Module | null | undefined): string | null {
+  if (!module) {
+    return null;
+  }
+
   // Catalog constraints are authored against broad instrument families, while runtime slot
   // metadata uses concrete module names. Collapse those names back to the schema keys here.
   if (/SMU/i.test(module)) {
@@ -375,4 +397,30 @@ export function getBlockParameterDisplayName(paramName: string): string {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
+}
+
+// Resolve a friendly label for a catalog event type (e.g. `event_notify_n`).
+// Falls back to the generic name-prettifier if no explicit override exists.
+export function getEventTypeLabel(eventType: string | undefined | null): string {
+  if (!eventType) {
+    return '';
+  }
+
+  return EVENT_TYPE_LABELS[eventType] ?? getBlockParameterDisplayName(eventType);
+}
+
+// Resolve dropdown options for a catalog parameter, given the parent block's
+// installed module. Explicit options win; otherwise the constraint branch
+// matching the module (SMU/PSU) is used. Returns an empty array if neither
+// applies, so callers can decide whether to render the control at all.
+export function getModuleConstrainedOptions(
+  param: ParamOptionSource,
+  module: Module | null | undefined,
+): string[] {
+  if (param.options?.length) {
+    return param.options.map((o) => o.value);
+  }
+
+  const key = getConstraintKeyForModule(module);
+  return key ? (param.constraints?.[key]?.options?.map((o) => o.value) ?? []) : [];
 }
