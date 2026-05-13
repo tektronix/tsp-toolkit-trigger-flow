@@ -227,7 +227,7 @@ export interface EventListItem {
   params: Record<string, string | number>;
 }
 
-export interface DelayListConfigValue {
+export interface DelayListConfig {
   delay_count: number;
   delay_durations: number[];
 }
@@ -240,4 +240,4 @@ export type ParameterValue =
   | number[]
   | EventListItem
   | EventListItem[]
-  | DelayListConfigValue;
+  | DelayListConfig;
