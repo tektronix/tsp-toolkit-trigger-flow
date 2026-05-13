@@ -141,7 +141,7 @@ export class Canvas implements AfterViewInit {
   sectionLayouts = computed<LaidOutSection[]>(() => {
     const size = this.canvasSize();
 
-    const sectionWidth = 1400; // virtual width per section
+    const sectionWidth = 400; // virtual width per section
     const sectionHeight = Math.max(size.height, 2000); // virtual vertical space
 
     return this.sections().map((section, index) => ({
