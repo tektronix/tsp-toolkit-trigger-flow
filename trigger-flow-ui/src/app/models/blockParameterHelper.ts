@@ -73,6 +73,10 @@ export interface ParamOptionSource {
 interface ParamOptionContext {
   values: Record<string, string | number>;
   slotChannelList: SlotChannelList | null;
+
+  // trigger model context
+  modelNodeId?: string;
+  modelSlotIndex?: number;
 }
 
 // Mapping table for parameter-type driven rendering. This is the primary
@@ -178,11 +182,12 @@ export function resolveParameterOptions(
   }
 
   if (param.name === 'slot_index') {
-    return getSlotIndexOptions(context.slotChannelList);
+    return getSlotIndexOptions(context.slotChannelList, context.modelNodeId);
   }
 
   if (param.name === 'channel_index') {
-    return getChannelIndexOptions(context.slotChannelList);
+    return getChannelIndexOptions(context.slotChannelList, context.modelNodeId,
+    context.values['slot_index']);
   }
 
   // Final fallback for index/number-like params with no catalog-defined options.
@@ -193,6 +198,8 @@ export function normalizeParameterValues(
   params: ParamOptionSource[],
   values: Record<string, string | number>,
   slotChannelList: SlotChannelList | null,
+  modelNodeId = 'localnode',
+  modelSlotIndex = 1,
 ): Record<string, string | number> {
   // Normalize against currently valid options so dependent params remain serializable
   // after sibling updates (for example slot_index changing instrument family).
@@ -202,6 +209,8 @@ export function normalizeParameterValues(
     const options = resolveParameterOptions(param, {
       values: normalizedValues,
       slotChannelList,
+      modelNodeId,
+      modelSlotIndex,
     });
 
     if (options.length === 0) {
@@ -232,37 +241,77 @@ function getConstrainedOptions(param: ParamOptionSource, context: ParamOptionCon
   // Constraints are keyed by instrument family such as SMU/PSU and currently
   // use slot_index as the selector in event parameter payloads.
   const slotIndex = context.values['slot_index'];
-  const instrumentKey = getConstraintKeyForSlot(slotIndex, context.slotChannelList);
+  const instrumentKey = getConstraintKeyForSlot(slotIndex, context.slotChannelList, context.modelNodeId);
   const matchedOptions = instrumentKey ? (constraints[instrumentKey]?.options ?? null) : null;
 
   if (matchedOptions?.length) {
     return matchedOptions.map((option) => option.value);
   }
 
-  // If runtime slot metadata is unavailable, expose the union so the control remains usable
-  // until the correct branch can be resolved.
-  const allOptions = Object.values(constraints)
-    .flatMap((constraint) => constraint.options ?? [])
-    .map((option) => option.value);
-
-  return Array.from(new Set(allOptions));
+  // No valid runtime constraint match found.
+  //
+  // IMPORTANT:
+  // We intentionally return an empty array instead of merging all
+  // constraint branches together.
+  //
+  // Why?
+  // Mixing PSU + SMU option sets would expose invalid values in the UI
+  // and could allow stale selections after slot changes.
+  //
+  // Returning [] lets normalizeParameterValues() recover cleanly once
+  // slot_index becomes valid.
+  return [];
 }
 
-function getSlotIndexOptions(slotChannelList: SlotChannelList | null): string[] {
-  const slots = slotChannelList?.slots ?? [];
+function getSlotIndexOptions(
+  slotChannelList: SlotChannelList | null,
+  modelNodeId = 'localnode',
+): string[] {
+  let slots = [];
 
-  // Runtime slot metadata is authoritative: only expose installed modules.
-  // Empty slots should not be selectable for event parameter configuration.
-  if (slots.length > 0) {
-    return slots.filter((slot) => slot.module !== 'Empty').map((slot) => `${slot.slotId}`);
+  // localnode
+  if (modelNodeId === 'localnode') {
+    slots = slotChannelList?.slots ?? [];
+  } else {
+    // remote node
+    const node = slotChannelList?.nodes?.find((n) => n.nodeId === modelNodeId);
+
+    slots = node?.slots ?? [];
   }
 
-  // Keep a fallback only when slot metadata is not available yet.
-  return ['1', '2', '3'];
+  // show only non-empty slots
+  const validSlots = slots.filter((slot) => slot.module !== 'Empty');
+
+  if (validSlots.length > 0) {
+    return validSlots.map((slot) => `${slot.slotId}`);
+  }
+
+  return [];
 }
 
-function getChannelIndexOptions(slotChannelList: SlotChannelList | null): string[] {
-  const slots = slotChannelList?.slots ?? [];
+function getChannelIndexOptions(
+  slotChannelList: SlotChannelList | null,
+  modelNodeId = 'localnode',
+  selectedSlotIndex?: string | number,
+): string[] {
+  let slots = [];
+
+  // use only model node
+  if (modelNodeId === 'localnode') {
+    slots = slotChannelList?.slots ?? [];
+  } else {
+    const node = slotChannelList?.nodes?.find((n) => n.nodeId === modelNodeId);
+
+    slots = node?.slots ?? [];
+  }
+
+  // if slot selected, use only that slot
+  if (selectedSlotIndex !== undefined) {
+    const slotId = Number(selectedSlotIndex);
+
+    slots = slots.filter((slot) => slot.slotId === slotId);
+  }
+
   const unique = new Set<string>();
 
   for (const slot of slots) {
@@ -272,19 +321,34 @@ function getChannelIndexOptions(slotChannelList: SlotChannelList | null): string
   }
 
   const values = Array.from(unique).sort((a, b) => Number(a) - Number(b));
+
   return values.length > 0 ? values : ['1', '2'];
 }
 
 function getConstraintKeyForSlot(
   slotIndex: string | number | undefined,
   slotChannelList: SlotChannelList | null,
+  modelNodeId = 'localnode',
 ): string | null {
   const slotId = Number(slotIndex);
+
   if (!Number.isFinite(slotId)) {
     return null;
   }
 
-  const slot = slotChannelList?.slots.find((candidate) => candidate.slotId === slotId);
+  let slots = [];
+
+  // localnode
+  if (modelNodeId === 'localnode') {
+    slots = slotChannelList?.slots ?? [];
+  } else {
+    const node = slotChannelList?.nodes?.find((n) => n.nodeId === modelNodeId);
+
+    slots = node?.slots ?? [];
+  }
+
+  const slot = slots.find((candidate) => candidate.slotId === slotId);
+
   return slot ? getConstraintKeyForModule(slot.module) : null;
 }
 

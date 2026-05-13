@@ -80,6 +80,8 @@ export class BlockParameters {
   showDelayListModal = false;
   delayListModalDelayCount = 1;
   delayListModalDelayDurations: number[] = [1];
+  selectedBlockNodeId = 'localnode';
+  selectedBlockSlotIndex = 1;
   private previousDelayListConfig: DelayListConfigValue | null = null;
 
   constructor() {
@@ -112,6 +114,13 @@ export class BlockParameters {
         }
 
         this.actualParameters = canvasBlock.actual_parameters;
+        
+        // Resolve model context from the owning model
+        const model = this.canvasBlocksService.getModelForBlock(this.selectedBlockId);
+
+        this.selectedBlockNodeId = model?.node_id ?? 'localnode';
+        this.selectedBlockSlotIndex = model?.slot_index ?? 1;
+
         // Notes are per-block, so refresh the textarea each time selection changes.
         this.blockNotes = canvasBlock.notes ?? '';
         this.ensureParameterDefaults(this.actualParameters);
@@ -228,8 +237,8 @@ export class BlockParameters {
         // The block whose `trigger_block_name` matches is the source (output);
         // the currently selected block is the target (input).
         this.canvasBlocksService.requestConnection(
-          targetBlock.block_id,
-          canvasBlock.block_id,
+          targetBlock,
+          canvasBlock,
         );
       } else {
         console.warn(`No block found with name "${sourceValue}"`);

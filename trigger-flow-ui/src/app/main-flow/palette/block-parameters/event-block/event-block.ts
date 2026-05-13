@@ -60,6 +60,8 @@ export class EventBlockComponent implements OnChanges {
   @Input() param!: ActualParameter;
   @Input() triggerEvents!: Record<string, EventDefinition>;
   @Input() selectionMode: 'single' | 'multi' = 'multi';
+  @Input() modelNodeId = 'localnode';
+  @Input() modelSlotIndex = 1;
   @Output() valueChange = new EventEmitter<void>();
 
   eventTypes: string[] = [];
@@ -177,7 +179,18 @@ export class EventBlockComponent implements OnChanges {
     } else {
       if (this.selectedEvents.length >= this.MAX_EVENTS) return;
 
-      const newItem: EventListItem = this.buildEventItem(type);
+      const newItem: EventListItem = {
+        type,
+        params: normalizeParameterValues(
+          this.getParamsForType(type),
+          {
+            slot_index: this.modelSlotIndex,
+          },
+          this.slotChannelList,
+          this.modelNodeId,
+          this.modelSlotIndex,
+        ),
+      };
 
       this.param.value = [...this.selectedEvents, newItem];
     }
@@ -188,7 +201,18 @@ export class EventBlockComponent implements OnChanges {
   selectSingleEvent(type: string) {
     const existing = this.selectedEvents.find((e) => e.type === type);
 
-    const selected = existing ?? this.buildEventItem(type);
+    const selected = existing ?? {
+      type,
+      params: normalizeParameterValues(
+        this.getParamsForType(type),
+        {
+          slot_index: this.modelSlotIndex,
+        },
+        this.slotChannelList,
+        this.modelNodeId,
+        this.modelSlotIndex,
+      ),
+    };
 
     if (this.param.type === 'EventItem') {
       this.param.value = selected;
@@ -265,6 +289,8 @@ export class EventBlockComponent implements OnChanges {
               this.getParamsForType(eventItem.type),
               eventItem.params,
               this.slotChannelList,
+              this.modelNodeId,
+              this.modelSlotIndex,
             ),
           }
         : eventItem,
@@ -282,6 +308,8 @@ export class EventBlockComponent implements OnChanges {
     return resolveParameterOptions(param, {
       values: this.getParamValues(type),
       slotChannelList: this.slotChannelList,
+      modelNodeId: this.modelNodeId,
+      modelSlotIndex: this.modelSlotIndex,
     });
   }
 
