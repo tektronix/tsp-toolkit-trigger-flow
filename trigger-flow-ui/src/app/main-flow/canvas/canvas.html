@@ -25,16 +25,15 @@
         <div class="section-title">
           <div class="title-left">
             <span class="title-chip title-chip-primary">{{ section.modelName }}</span>
-            <span class="title-chip">Node Info</span>
-            <span class="title-chip">Slot {{ section.slotIndex }}</span>
-            <button
+            <span class="title-chip">{{section.nodeId}}.slot[{{section.slotIndex}}]</span>
+            <!--button
               type="button"
               class="title-btn"
               [attr.aria-label]="'Model-Settings-' + section.modelName"
               title="Model Settings"
             >
               <svg-icon src="assets/shapes/Icons/Pencil.svg" class="title-btn-icon"></svg-icon>
-            </button>
+            </button-->
           </div>
           <div class="title-right">
             <button
