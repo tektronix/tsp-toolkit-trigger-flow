@@ -3,6 +3,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Textbox } from '../../custom-controls/textbox/textbox';
 import { Dropdown } from '../../custom-controls/dropdown/dropdown';
+import { MultilineTextbox } from '../../custom-controls/multiline-textbox/multiline-textbox';
 
 export interface ModelModalValue {
   name: string;
@@ -20,7 +21,7 @@ export interface ModelSlotOption {
 @Component({
   selector: 'app-model-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule, Textbox, Dropdown],
+  imports: [CommonModule, FormsModule, Textbox, Dropdown, MultilineTextbox],
   templateUrl: './model-modal.html',
   styleUrl: './model-modal.scss',
 })
@@ -32,11 +33,14 @@ export class ModelModal {
   @Input() nodeId = '';
 
   @Input() slotOptions: ModelSlotOption[] = [];
+  @Input() existingModelNames: string[] = [];
 
   @Output() closeWithValue = new EventEmitter<ModelModalValue>();
   @Output() deleteClicked = new EventEmitter<void>();
   @Output() copyClicked = new EventEmitter<void>();
   @Output() slotChanged = new EventEmitter<ModelSlotOption>();
+  
+  nameError = '';
 
   get slotOptionsAsString(): string[] {
     return this.slotOptions.map((o) => o.label);
@@ -62,9 +66,34 @@ export class ModelModal {
     //this.slotChanged.emit(this.slot);
   }
 
+  validateName(): boolean {
+    const trimmed = this.name.trim();
+
+    if (!trimmed) {
+      this.nameError = 'Model name is required.';
+      return false;
+    }
+
+    const isDuplicate = this.existingModelNames.some(
+      (existing) => existing.toLowerCase() === trimmed.toLowerCase(),
+    );
+
+    if (isDuplicate) {
+      this.nameError = `A model named "${trimmed}" already exists.`;
+      return false;
+    }
+
+    this.nameError = '';
+    return true;
+  }
+
   onClose(): void {
+    if (!this.validateName()) {
+      return;
+    }
+
     this.closeWithValue.emit({
-      name: this.name.trim() || 'MyTriggerModel',
+      name: this.name.trim(),
       slot: this.slot,
       nodeId: this.nodeId,
       notes: this.notes.trim(),

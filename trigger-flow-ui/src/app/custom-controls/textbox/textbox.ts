@@ -20,6 +20,8 @@ export class Textbox implements ControlValueAccessor, OnInit {
   @Input() label: string | undefined;
   @Input() unit: string | undefined;
   @Input() disabled = false;
+  @Input() invalid = false;
+  @Input() errorMessage = '';
   @Input() automationID: string | undefined;
   @Output() inputChange = new EventEmitter<string>();
 
