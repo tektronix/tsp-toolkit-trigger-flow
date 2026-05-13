@@ -62,7 +62,7 @@ blocks:
         required: true
         default: Loop Counter
       - name: branch_to_block_name
-        type: blockReference
+        type: string
         required: true
       - name: target_count
         type: number
@@ -108,7 +108,8 @@ blocks:
         required: true
     syntax: >-
       slot[{{slot_index}}].trigger.model.addblock.branch.event("{{trigger_model_name}}",
-      "{{trigger_block_name}}", "{{branch_to_block_name}}", {{event_id}})
+      "{{trigger_block_name}}", "{{branch_to_block_name}}"{{#if event_id.type}},
+      {{> (lookup event_id "type") event_id.params}}{{/if}})
     description: >-
       The branch-on-event block branches to a specified block when a specified
       trigger event occurs.
@@ -253,6 +254,7 @@ blocks:
       - name: event_type
         type: LogEvent
         required: true
+        default: 'INFO1'
         options:
           - label: Information 1
             value: 'INFO1'
@@ -359,7 +361,8 @@ blocks:
         required: true
     syntax: >-
       slot[{{slot_index}}].trigger.model.addblock.notify("{{trigger_model_name}}",
-      "{{trigger_block_name}}", {{event_id}})
+      "{{trigger_block_name}}"{{#if event_id.type}},
+      {{> (lookup event_id "type") event_id.params}}{{/if}})
     description: The notify block generates a trigger event in the system.
     shape: conditional
   source action bias:
@@ -402,13 +405,12 @@ blocks:
         type: string
         required: true
         default: Source Action Skip
-      - name: channel_list
+      - name: channel_index
         type: ChannelItem
         required: true
     syntax: >-
       slot[{{slot_index}}].trigger.model.addblock.source.action.skip("{{trigger_model_name}}",
-      "{{trigger_block_name}}",
-      { {{#each channel_list}}{{this}}{{#unless @last}}, {{/unless}}{{/each}} })
+      "{{trigger_block_name}}", {{channel_index}})
     description: >-
       The source action skip block advances the index in the list of sweep
       values with no change to the source level.
@@ -482,18 +484,12 @@ blocks:
           - label: OR
             value: OR
     syntax: >-
-      slot[{{slot_index}}].trigger.model.addblock.wait(
-      "{{trigger_model_name}}",
-      "{{trigger_block_name}}",
-      {{#if events.[0]}}
-        {{events.[0]}}
-      {{/if}}
-      {{#if clear}}, slot[{{slot_index}}].trigger.model.CLEAR_{{clear}}{{/if}}
-      {{#if logic}}, slot[{{slot_index}}].trigger.model.WAIT_{{logic}}{{/if}}
-      {{#each events}}
-        {{#if @index}}, {{this}}{{/if}}
-      {{/each}}
-      )
+      slot[{{slot_index}}].trigger.model.addblock.wait("{{trigger_model_name}}",
+      "{{trigger_block_name}}"{{#if event.[0].type}},
+      {{> (lookup event.[0] "type") event.[0].params}}{{/if}}{{#if clear}},
+      slot[{{slot_index}}].trigger.model.CLEAR_{{clear}}{{/if}}{{#if event.[1].type}}{{#if logic}},
+      slot[{{slot_index}}].trigger.model.WAIT_{{logic}}{{/if}}{{/if}}{{#each event}}{{#unless @first}}{{#if this.type}},
+      {{> (lookup this "type") this.params}}{{/if}}{{/unless}}{{/each}})
     description: >-
       The wait block causes the trigger model to stop and wait for an event or
       set of events to occur before continuing.
@@ -624,6 +620,7 @@ trigger_events:
       - name: generator_number
         type: generatorNumber
         required: true
+        default: '1'
         options:
           - label: '1'
             value: '1'
@@ -648,6 +645,7 @@ trigger_events:
       - name: trigger_timer_number
         type: triggerTimerNumber
         required: true
+        default: '1'
         options:
           - label: '1'
             value: '1'
@@ -672,6 +670,7 @@ trigger_events:
       - name: trigger_line
         type: triggerLine
         required: true
+        default: '1'
         options:
           - label: '1'
             value: '1'

@@ -102,9 +102,22 @@ export class EventBlockComponent implements OnChanges {
     // Enforce min 1 in multi mode.
     // If nothing is selected, auto-select first available event type to keep valid state.
     if (!this.isSingleSelection && this.selectedEvents.length < this.MIN_EVENTS && this.eventTypes.length > 0) {
-      this.param.value = [{ type: this.eventTypes[0], params: {} }];
+      this.param.value = [this.buildEventItem(this.eventTypes[0])];
       this.valueChange.emit();
     }
+  }
+
+  // Build a new EventListItem seeded with catalog-provided default values so the
+  // generated script reflects the same defaults shown in the UI dropdowns.
+  private buildEventItem(type: string): EventListItem {
+    const params: Record<string, string | number> = {};
+    for (const p of this.getParamsForType(type)) {
+      const def = (p as { default?: string | number | null }).default;
+      if (def !== undefined && def !== null) {
+        params[p.name] = def;
+      }
+    }
+    return { type, params };
   }
 
   get isSingleSelection(): boolean {
@@ -164,10 +177,7 @@ export class EventBlockComponent implements OnChanges {
     } else {
       if (this.selectedEvents.length >= this.MAX_EVENTS) return;
 
-      const newItem: EventListItem = {
-        type,
-        params: {},
-      };
+      const newItem: EventListItem = this.buildEventItem(type);
 
       this.param.value = [...this.selectedEvents, newItem];
     }
@@ -178,10 +188,7 @@ export class EventBlockComponent implements OnChanges {
   selectSingleEvent(type: string) {
     const existing = this.selectedEvents.find((e) => e.type === type);
 
-    const selected = existing ?? {
-      type,
-      params: {},
-    };
+    const selected = existing ?? this.buildEventItem(type);
 
     if (this.param.type === 'EventItem') {
       this.param.value = selected;
@@ -198,9 +205,17 @@ export class EventBlockComponent implements OnChanges {
 
   getParamValue(type: string, paramName: string): string {
     const eventItem = this.selectedEvents.find((event) => event.type === type);
-    const value = eventItem?.params?.[paramName];
-    // Dropdown controls work with strings, so normalize stored numbers/strings to one shape.
-    return value === undefined || value === null ? '' : `${value}`;
+    const stored = eventItem?.params?.[paramName];
+    if (stored !== undefined && stored !== null) {
+      // Dropdown controls work with strings, so normalize stored numbers/strings to one shape.
+      return `${stored}`;
+    }
+
+    // Non-selected rows have no stored value; show the catalog default so the
+    // dropdown reflects what would be sent if the user selected this type.
+    const paramDef = this.getParamsForType(type).find((p) => p.name === paramName);
+    const def = (paramDef as { default?: string | number | null } | undefined)?.default;
+    return def === undefined || def === null ? '' : `${def}`;
   }
 
   getControlType(param: { name: string; type?: string; options?: { value: string }[] | null }): ParamControlType {
@@ -223,7 +238,7 @@ export class EventBlockComponent implements OnChanges {
           return;
         }
 
-        this.param.value = [...this.selectedEvents, { type, params: {} }];
+        this.param.value = [...this.selectedEvents, this.buildEventItem(type)];
       }
     }
 
