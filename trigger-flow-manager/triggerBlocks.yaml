@@ -235,7 +235,7 @@ blocks:
       "{{trigger_model_name}}",
       "{{trigger_block_name}}",
       {{#if list_config}}
-      {{list_config}}
+      { {{#each list_config.delay_durations}}{{this}}{{#unless @last}}, {{/unless}}{{/each}} }
       {{else}}
       {{delay_time}}
       {{/if}}
