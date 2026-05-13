@@ -32,7 +32,7 @@ script_template:
     {{/each}}
     -- IMPORTANT: Don't forget to start your trigger model by
     -- uncommenting the following line (after you complete the setup)
-    -- slot[{{this.slot_index}}].trigger.model.initialize({{this.trigger_model_name}})
+    -- slot[{{this.slot_index}}].trigger.model.initialize("{{this.trigger_model_name}}")
     {{/each}}
 
     -- do not remove the line below
@@ -235,9 +235,9 @@ blocks:
       "{{trigger_model_name}}",
       "{{trigger_block_name}}",
       {{#if list_config}}
-        {{list_config}}
+      {{list_config}}
       {{else}}
-        {{delay_time}}
+      {{delay_time}}
       {{/if}}
       {{#if reference_block_name}}, "{{reference_block_name}}"{{/if}}
       )
