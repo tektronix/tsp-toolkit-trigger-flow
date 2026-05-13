@@ -41,6 +41,8 @@ export class CanvasBlocksService {
    // public, readable signal
   readonly connections = signal<FlowConnection[]>([]);
 
+  private connectionCounter = 0;
+
   private canvasBlocksSubject = new BehaviorSubject<CanvasBlocksData>(this.getCanvasData());
   public canvasBlocks$ = this.canvasBlocksSubject.asObservable();
 
@@ -57,7 +59,7 @@ export class CanvasBlocksService {
   private selectedBlockSubject = new BehaviorSubject<string | null>(null);
   public selectedBlock$ = this.selectedBlockSubject.asObservable();
 
-  private connectionRequestSubject = new Subject<{ sourceBlockId: string; targetBlockId: string }>();
+  private connectionRequestSubject = new Subject<{ source: CanvasBlock; target: CanvasBlock }>();
   public connectionRequest$ = this.connectionRequestSubject.asObservable();
 
   /**
@@ -65,9 +67,9 @@ export class CanvasBlocksService {
    * to `targetBlockId`'s input. Listeners (e.g. canvas component) subscribe to
    * `connectionRequest$` to add the FlowConnection to their signal.
    */
-  requestConnection(sourceBlockId: string, targetBlockId: string): void {
-    if (!sourceBlockId || !targetBlockId) return;
-    this.connectionRequestSubject.next({ sourceBlockId, targetBlockId });
+  requestConnection(sourceBlock: CanvasBlock, targetBlock: CanvasBlock): void {
+    if (!sourceBlock || !targetBlock) return;
+    this.connectionRequestSubject.next({ source: sourceBlock, target: targetBlock });
   }
 
   private toParameterMap(params: ActualParameter[]): Record<string, unknown> {
@@ -216,10 +218,6 @@ export class CanvasBlocksService {
       'reset_branch_count_block_name',
     ];
 
-    const restored: FlowConnection[] = [];
-    const seen = new Set<string>();
-    let counter = 0;
-
     for (const model of Object.values(this.models)) {
       for (const targetBlock of model.blocks) {
         for (const param of targetBlock.actual_parameters) {
@@ -229,31 +227,64 @@ export class CanvasBlocksService {
           const sourceName = String(param.value);
           const sourceBlock = this.findBlockByName(sourceName);
           if (!sourceBlock) continue;
-
-          const fOutputId = `${sourceBlock.block_id}-out-right`;
-          const fInputId = `${targetBlock.block_id}-in`;
-          const dedupeKey = `${fOutputId}->${fInputId}`;
-          if (seen.has(dedupeKey)) continue;
-          seen.add(dedupeKey);
-
-          restored.push({
-            id: `connection-restored-${++counter}`,
-            fOutputId,
-            fInputId,
-          });
+          this.addConnectionByBlockIds(sourceBlock, targetBlock);
         }
       }
     }
-
-    this.connections.set(restored);
   }
+  /**
+   * Adds a FlowConnection from `sourceBlockId`'s right output port to
+   * `targetBlockId`'s input port. No-ops if a matching connection already
+   * exists.
+   */
+  addConnectionByBlockIds(sourceBlock: CanvasBlock, targetBlock: CanvasBlock): void {
+    if (!sourceBlock || !targetBlock) return;
+    const fOutputId = `${sourceBlock.block_id}-out-${this.getInputDirection(targetBlock.type)}`;
+    const fInputId = `${targetBlock.block_id}-in`;
 
+    const exists = this.connections().some(
+      (c) => c.fOutputId === fOutputId && c.fInputId === fInputId,
+    );
+    if (exists) return;
+
+    const newConnection: FlowConnection = {
+      id: `connection-${++this.connectionCounter}`,
+      fOutputId,
+      fInputId,
+    };
+    this.connections.update((current) => [...current, newConnection]);
+    console.log('Connection added to array:', newConnection);
+    console.log('Total connections:', this.connections().length);
+  }
   private getSVGPath(blockType: string): string {
     const svgPath = this.paletteDataService.getSVGPathByCatalogLabel(blockType);
     return this.changeSVGPath(svgPath || '');
   }
   changeSVGPath(svgPath: string): string {
     return svgPath.replace('palette/', 'canvas/');
+  }
+
+  /**
+   * Returns the side ("left" | "right") on which the input port should be
+   * rendered for a block, based on which `*_block_name` parameter the
+   * catalog defines for that block type.
+   */
+  getInputDirection(catalogLabel: string | undefined): 'left' | 'right' {
+    const catalog = this.triggerFlowDataService.catalog$();
+    const blockCatalog = catalog?.blocks[catalogLabel || ''];
+    const params = blockCatalog?.parameters ?? [];
+    const hasBranch = params.some((p) => p.name === 'branch_to_block_name');
+    const hasReference = params.some((p) => p.name === 'reference_block_name');
+    const hasResetBranchCount = params.some(
+      (p) => p.name === 'reset_branch_count_block_name',
+    );
+    return hasBranch
+      ? 'right'
+      : hasResetBranchCount
+        ? 'left'
+        : hasReference
+          ? 'left'
+          : 'right';
   }
 
 
