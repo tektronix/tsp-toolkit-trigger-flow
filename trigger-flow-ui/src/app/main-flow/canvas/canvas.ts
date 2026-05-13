@@ -590,6 +590,10 @@ export class Canvas implements AfterViewInit {
     this.selectedNodeIds.set([]);
   }
 
+  getSections(): FlowSection[] {
+    return this.sections();
+  }
+
   getSectionHasError(modelName: string): boolean {
     return this.modelErrorSummary()[modelName]?.hasError ?? false;
   }

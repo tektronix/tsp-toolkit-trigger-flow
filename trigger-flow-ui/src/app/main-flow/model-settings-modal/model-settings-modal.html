@@ -1,0 +1,110 @@
+@if (open) {
+  <div class="modal-overlay" (click)="onOverlayClick($event)">
+
+    <div class="modal-container">
+
+      <!-- HEADER -->
+      <div class="modal-header">
+
+        <div class="modal-title">
+            MODELS
+
+            <span
+                class="model-count"
+                [class.model-count-limit]="isAddDisabled"
+            >
+                {{ models.length }}/{{ maxModels }}
+            </span>
+        </div>
+
+        <button
+          type="button"
+          class="icon-btn"
+          (click)="close.emit()"
+        >
+          <svg-icon src="assets/shapes/Icons/X.svg"></svg-icon>
+        </button>
+
+        <!-- dedicated divider under header -->
+        <!-- <div class="modal__divider tf-modal__divider--header"></div> -->
+      </div>
+
+      <!-- dedicated divider under header -->
+      <div class="header-divider"></div>
+
+      <!-- LIST -->
+      <div class="model-list">
+
+        @for (model of models; track model.id) {
+
+          <div class="model-row">
+
+            <!-- LEFT -->
+            <div class="model-info">
+
+              <div class="model-name">
+                {{ model.modelName }}
+              </div>
+
+              <div class="model-details">
+                NODE: {{ model.nodeId }}
+                &nbsp;&nbsp;
+                SLOT: {{ model.slotIndex }}
+              </div>
+
+              <button
+                type="button"
+                class="icon-btn"
+                (click)="editModel.emit(model)"
+              >
+                <svg-icon src="assets/shapes/Icons/Pencil.svg"></svg-icon>
+              </button>
+
+            </div>
+
+            <!-- RIGHT -->
+            <div class="model-actions">
+
+              <button
+                type="button"
+                class="icon-btn"
+                (click)="copyModel.emit(model)"
+              >
+                <svg-icon src="assets/shapes/Icons/Copy.svg"></svg-icon>
+              </button>
+
+              <button
+                type="button"
+                class="icon-btn"
+                (click)="deleteModel.emit(model)"
+              >
+                <svg-icon src="assets/shapes/Icons/Trash.svg"></svg-icon>
+              </button>
+
+            </div>
+
+          </div>
+
+        }
+
+      </div>
+
+      <!-- FOOTER -->
+      <div class="footer">
+
+        <button
+          type="button"
+          class="add-model-btn"
+          [disabled]="isAddDisabled"
+          [class.add-model-btn-disabled]="isAddDisabled"
+          (click)="!isAddDisabled && addModel.emit()"
+        >
+          + Add Model
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+}
