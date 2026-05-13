@@ -7,7 +7,9 @@ import { SidePanelAccordion } from './palette/side-panel-accordion/side-panel-ac
 import { BlockParameters } from './palette/block-parameters/block-parameters';
 import { ModelModal, ModelModalValue, ModelSlotOption } from './model-modal/model-modal';
 import { TriggerFlowDataService } from '../services/triggerFlowDataService';
-import { vscode } from '../services/canvas-blocks.service';
+import { CanvasBlocksService, vscode } from '../services/canvas-blocks.service';
+
+
 import {
   ModelSettingsModal,
   ModelSettingsItem,
@@ -47,6 +49,7 @@ export class MainFlow {
   slotOptions: ModelSlotOption[] = [];
 
   private readonly triggerFlowDataService = inject(TriggerFlowDataService);
+  private readonly canvasBlocksService = inject(CanvasBlocksService);
 
   toggleSidebar(): void {
     this.sidebarCollapsed = !this.sidebarCollapsed;
@@ -59,6 +62,8 @@ export class MainFlow {
 
   openScript(): void {
     console.log('Open Script clicked');
+    // Ask the server to regenerate the script from current canvas state.
+    this.canvasBlocksService.updateAndPrint();
     vscode.postMessage({ command: 'open_script' });
   }
 

@@ -62,7 +62,7 @@ blocks:
         required: true
         default: Loop Counter
       - name: branch_to_block_name
-        type: blockReference
+        type: string
         required: true
       - name: target_count
         type: number

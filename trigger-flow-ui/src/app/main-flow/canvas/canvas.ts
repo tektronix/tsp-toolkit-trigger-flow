@@ -14,7 +14,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { AngularSvgIconModule } from 'angular-svg-icon';
-import { CanvasBlocksService } from '../../services/canvas-blocks.service';
+import { CanvasBlock, CanvasBlocksService } from '../../services/canvas-blocks.service';
 import { TriggerFlowDataService } from '../../services/triggerFlowDataService';
 import { BlockErrorEntry } from '../../models/triggerFlowState';
 import { EFMarkerType, FFlowModule, FSelectionChangeEvent } from '@foblex/flow';
@@ -132,34 +132,12 @@ export class Canvas implements AfterViewInit {
     // External requests (e.g. from BlockParameters) to add a connection.
     this.canvasBlocksService.connectionRequest$
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(({ sourceBlockId, targetBlockId }) => {
-        this.addConnectionByBlockIds(sourceBlockId, targetBlockId);
+      .subscribe(({ source, target }) => {
+        this.canvasBlocksService.addConnectionByBlockIds(source, target);
       });
   }
 
-  /**
-   * Adds a FlowConnection from `sourceBlockId`'s right output port to
-   * `targetBlockId`'s input port. No-ops if a matching connection already
-   * exists.
-   */
-  private addConnectionByBlockIds(sourceBlockId: string, targetBlockId: string): void {
-    if (!sourceBlockId || !targetBlockId) return;
-    const fOutputId = `${sourceBlockId}-out-right`;
-    const fInputId = `${targetBlockId}-in`;
 
-    const exists = this.connections().some(
-      (c) => c.fOutputId === fOutputId && c.fInputId === fInputId,
-    );
-    if (exists) return;
-
-    const newConnection: FlowConnection = {
-      id: `connection-${++this.connectionCounter}`,
-      fOutputId,
-      fInputId,
-    };
-    this.connections.update((current) => [...current, newConnection]);
-    console.log('Connection added (parameter-driven):', newConnection);
-  }
 
   readonly modelErrorSummary = computed<Record<string, { hasError: boolean; tooltip: string }>>(
     () => {
@@ -191,8 +169,6 @@ export class Canvas implements AfterViewInit {
       return result;
     },
   );
-
-  private connectionCounter = 0;
 
   onCreateNode(event: FlowCanvasEvent): void {
     console.log('fCreateNode event:', event);
@@ -252,18 +228,7 @@ export class Canvas implements AfterViewInit {
   }
 
   getInputDirection(node: FlowNode): string {
-    const catalog = this.triggerFlowDataService.catalog$();
-    const blockCatalog = catalog?.blocks[node.catalogLabel || ''];
-    const hasBranchParam = blockCatalog?.parameters.some(
-      (param) => param.name === 'branch_to_block_name'
-    );
-    const hasReferenceParam = blockCatalog?.parameters.some(
-      (param) => param.name === 'reference_block_name'
-    );
-    const hasResetBranchCountParam = blockCatalog?.parameters.some(
-      (param) => param.name === 'reset_branch_count_block_name'
-    );
-    return hasBranchParam ? "right" : hasResetBranchCountParam ? "left" : hasReferenceParam ? "left" : "right";
+    return this.canvasBlocksService.getInputDirection(node.catalogLabel);
   }
 
 
@@ -480,16 +445,8 @@ export class Canvas implements AfterViewInit {
             `Set reset_branch_count_block_name=${sourceValue} on input block ${inputBlockId}`,
           );
         }
+      this.canvasBlocksService.addConnectionByBlockIds(outputBlock, inputBlock);
       }
-
-      const newConnection: FlowConnection = {
-        id: `connection-${++this.connectionCounter}`,
-        fOutputId: event.fOutputId,
-        fInputId: event.fInputId
-      };
-      this.connections.update(current => [...current, newConnection]);
-      console.log('Connection added to array:', newConnection);
-      console.log('Total connections:', this.connections().length);
     }
   }
 

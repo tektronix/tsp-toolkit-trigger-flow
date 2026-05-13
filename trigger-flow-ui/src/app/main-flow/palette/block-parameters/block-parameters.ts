@@ -228,8 +228,8 @@ export class BlockParameters {
         // The block whose `trigger_block_name` matches is the source (output);
         // the currently selected block is the target (input).
         this.canvasBlocksService.requestConnection(
-          targetBlock.block_id,
-          canvasBlock.block_id,
+          targetBlock,
+          canvasBlock,
         );
       } else {
         console.warn(`No block found with name "${sourceValue}"`);
