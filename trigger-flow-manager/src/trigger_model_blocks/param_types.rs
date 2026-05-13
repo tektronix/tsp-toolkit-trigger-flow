@@ -22,8 +22,6 @@ pub enum ParamTypeName {
     TriggerEventType,
     #[serde(rename = "notifyEventNumber")]
     NotifyEventNumber,
-    #[serde(rename = "notifyType")]
-    NotifyType,
     #[serde(rename = "digioTriggerLine")]
     DigioTriggerLine,
     #[serde(rename = "generatorNumber")]
@@ -40,6 +38,8 @@ pub enum ParamTypeName {
     EventList,
     MultiString,
     DelayListConfig,
+    #[serde(rename = "event_notify_n")]
+    EventNotifyN,
 }
 
 /// Enum representing actual parameter values

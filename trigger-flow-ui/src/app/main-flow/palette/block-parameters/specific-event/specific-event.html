@@ -1,0 +1,20 @@
+<div class="specific-event">
+  <div class="specific-event-row">
+    <div class="specific-event-type-label">{{ typeLabel }}</div>
+
+    <div class="specific-event-config">
+      @for (p of paramsToRender; track p.name) {
+        @if (p.options.length) {
+          <div class="specific-event-param-control">
+            <app-dropdown
+              [label]="p.label"
+              [options]="p.options"
+              [(ngModel)]="p.selected"
+              (selectedChange)="onChange(p.name, $event)"
+            />
+          </div>
+        }
+      }
+    </div>
+  </div>
+</div>

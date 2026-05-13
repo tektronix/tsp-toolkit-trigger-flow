@@ -20,7 +20,7 @@ export interface CanvasBlock {
 }
 
 declare const acquireVsCodeApi: unknown;
- 
+
 export const vscode =
   typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : { postMessage: () => { } };
 
@@ -40,6 +40,7 @@ export class CanvasBlocksService {
   readonly sections = signal<FlowSection[]>([]);
    // public, readable signal
   readonly connections = signal<FlowConnection[]>([]);
+  private blockNamesSet = new Map<string, number>();
 
   private connectionCounter = 0;
 
@@ -184,6 +185,17 @@ export class CanvasBlocksService {
               actual_parameters: blockData.parameters.map((param) => {
                 const actual = new ActualParameter(param);
                 const paramValue = item.block_parameters[param.name];
+                if (param.name === 'trigger_block_name' && typeof paramValue === 'string') {
+                  const serializedNameRegex = /^(.*?)(?:\s\d+)?$/; // captures base name without trailing number
+                  const match = paramValue.match(serializedNameRegex);
+                  if (match) {
+                    const baseName = match[1];
+                    let count = this.blockNamesSet.get(baseName) || 0;
+                    count += 1;
+                    this.blockNamesSet.set(baseName, count);
+                    actual.value = `${baseName} ${count}`;
+                  }
+                }
                 if (paramValue !== null && paramValue !== undefined) {
                   actual.value = paramValue as any;
                 }
@@ -206,7 +218,7 @@ export class CanvasBlocksService {
       this.models = nextModels;
       this.update(this.getCanvasData());
     }
-  
+
 
   restoreConnections(): void {
     // Walk every restored block and rebuild FlowConnections from the
@@ -311,7 +323,17 @@ export class CanvasBlocksService {
 
     // Search for block in catalog (case-insensitive)
     const blockData = this.findBlockInCatalog(blockLabel, catalogData);
+    const blockName = ((blockData?.parameters.find((p) => p.name === "trigger_block_name")?.default) ?? "No Default").toString();
 
+    // ensure each block has a unique name
+    const uniqueBlockName = this.getUniqueBlockName(blockName);
+
+    if (blockData) {
+      if (blockData.parameters.some((p) => p.name === "trigger_block_name")) {
+        const index = blockData.parameters.findIndex((p) => p.name === "trigger_block_name");
+        blockData.parameters[index].default = uniqueBlockName;
+      }
+    }
     if (!blockData) {
       console.warn(`Block "${blockLabel}" not found in catalog`);
       return;
@@ -347,6 +369,18 @@ export class CanvasBlocksService {
     this.sortBlocksByVerticalPosition(this.models[modelName]);
     this.updateAndPrint();
     //vscode.postMessage({ command: 'open_manual', payload: 'block_name: ' + blockName });
+  }
+
+  getUniqueBlockName(baseName: string): string {
+    if (!this.blockNamesSet.has(baseName)) {
+      this.blockNamesSet.set(baseName, 1);
+      return baseName;
+    }
+    let uniqueName = baseName;
+    const count = this.blockNamesSet.get(baseName) ?? 1;
+    uniqueName = `${baseName} ${count}`;
+    this.blockNamesSet.set(baseName, count + 1);
+    return uniqueName;
   }
 
   // Remove block by nodeId from the model where it exists
@@ -441,7 +475,8 @@ export class CanvasBlocksService {
       for (const [key, value] of Object.entries(catalogData.blocks)) {
         const normalizedKey = key.toLowerCase().replace(/\s+/g, ' ').trim();
         if (normalizedKey === normalizedBlockName) {
-          return value;
+          //Use a structured clone to prevent mutations to the catalog
+          return structuredClone(value);
         }
       }
     }

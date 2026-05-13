@@ -1,0 +1,37 @@
+.specific-event {
+  --specific-event-dropdown-width: 100px;
+}
+
+.specific-event-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 220px) 1fr;
+  column-gap: 12px;
+  align-items: start;
+}
+
+.specific-event-type-label {
+  padding-top: 6px;
+}
+
+.specific-event-config {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  justify-self: stretch;
+}
+
+.specific-event-param-control app-dropdown {
+  display: block;
+  width: var(--specific-event-dropdown-width);
+  margin-left: auto;
+}
+
+:host ::ng-deep .specific-event-param-control .dropdown {
+  margin-bottom: 0;
+  gap: 0.25rem;
+}
+
+:host ::ng-deep .specific-event-param-control .dropdown select {
+  width: 100%;
+  box-sizing: border-box;
+}

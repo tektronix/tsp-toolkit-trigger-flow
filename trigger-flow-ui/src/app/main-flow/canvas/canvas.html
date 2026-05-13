@@ -18,6 +18,8 @@
         [fGroupId]="section.id"
         [fGroupPosition]="section.position"
         [fGroupSize]="section.size"
+        [fGroupDraggingDisabled]="true"
+        [fGroupSelectionDisabled]="true"
         [aria-label]="'Section-' + section.modelName"
       >
         <div class="section-title">
@@ -92,7 +94,7 @@
             fOutputConnectableSide="right"
             class="output-connector connector-right"
           ></div>
-          
+
           <div
             fNodeOutput
             [fOutputId]="node.blockId + '-out-left'"
@@ -126,7 +128,7 @@
         </svg>
       </f-connection>
     }
-    
+
     <f-connection-for-create></f-connection-for-create>
   </f-canvas>
 </f-flow>

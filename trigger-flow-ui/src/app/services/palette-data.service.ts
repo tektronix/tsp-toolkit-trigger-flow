@@ -110,11 +110,11 @@ export class PaletteDataService {
     const shapesByType = this.getShapesByType();
 
     return [
-      {
-        label: 'Templates',
-        type: 'single'
-        // TODO: Add subgroups when template data is available
-      },
+      // {
+        // label: 'Templates',
+        // type: 'single'
+        //TODO: Add subgroups when template data is available
+      // },
       {
         label: 'Blocks',
         type: 'group',
