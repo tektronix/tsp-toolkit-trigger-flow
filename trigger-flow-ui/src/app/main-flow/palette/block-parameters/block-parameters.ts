@@ -17,6 +17,7 @@ import { RadioButton } from '../../../custom-controls/radio-button/radio-button'
 import { MultilineTextbox } from '../../../custom-controls/multiline-textbox/multiline-textbox';
 import { FormsModule } from '@angular/forms';
 import { EventBlockComponent } from './event-block/event-block';
+import { SpecificEvent } from './specific-event/specific-event';
 import { TriggerFlowDataService } from '../../../services/triggerFlowDataService';
 import { EventDefinition } from '../../../models/triggerBlock';
 import { Toggle } from '../../../custom-controls/toggle/toggle';
@@ -56,6 +57,7 @@ const CATEGORY_ICON_PATHS: Record<string, string> = {
     RadioGroup,
     FormsModule,
     EventBlockComponent,
+    SpecificEvent,
     DelayListModal,
   ],
   templateUrl: './block-parameters.html',
@@ -156,6 +158,13 @@ export class BlockParameters {
     }
 
     return 'multi';
+  }
+
+  // Look up the catalog `trigger_events` entry for a parameter whose `type` is
+  // a specific event (e.g. `event_notify_n`). Returns null if the catalog has
+  // not arrived yet or the type is not an event.
+  getEventDefinition(param: ActualParameter): EventDefinition | null {
+    return this.triggerEvents[param.type] ?? null;
   }
 
   getSelectOptions(param: ActualParameter): string[] {

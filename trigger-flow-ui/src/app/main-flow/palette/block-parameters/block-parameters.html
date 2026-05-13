@@ -35,6 +35,14 @@
               [selectionMode]="getEventSelectionMode(param)"
               (valueChange)="onParameterValueChange()"
             />
+          } @else if (getControlType(param) === 'specific-event') {
+            <div class="param-label">{{ getParameterDisplayName(param) }}</div>
+            <app-specific-event
+              [param]="param"
+              [eventDefinition]="getEventDefinition(param)"
+              [blockId]="selectedBlockId"
+              (valueChange)="onParameterValueChange()"
+            />
           } @else if (getControlType(param) === 'radio') {
             <app-radio-button
               [label]="param.name"
@@ -89,7 +97,7 @@
               [label]="getParameterDisplayName(param)"
               [(ngModel)]="param.value"
               [rows]="5"
-              [maxLength]="52"
+              [maxLength]="31"
               (inputChange)="onParameterValueChange()"
             />
           } @else if (getControlType(param) === 'text') {

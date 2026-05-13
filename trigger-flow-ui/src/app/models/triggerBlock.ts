@@ -64,10 +64,13 @@ export type ParamTypeName =
   | 'LogicType'
   | 'TriggerEventType'
   | 'Number'
-  | 'notifyType'
   | 'MultiString'
   | 'EventItem'
-  | 'EventList';
+  | 'EventList'
+  // Specific trigger event types that render as a single fixed event in the UI.
+  // The ParamTypeName matches the key under catalog.trigger_events so the renderer
+  // can look up the event definition without extra mapping.
+  | 'event_notify_n';
 
 export class InitialPayload {
   slot_channel_list: SlotChannelList;

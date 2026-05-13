@@ -281,7 +281,7 @@ blocks:
           - label: Abort
             value: 'WARN_ABORT'
       - name: event_message
-        type: string
+        type: MultiString
         required: true
     syntax: >-
       slot[{{slot_index}}].trigger.model.addblock.logevent("{{trigger_model_name}}",
@@ -355,7 +355,7 @@ blocks:
         required: true
         default: Notify
       - name: event_id
-        type: notifyType
+        type: event_notify_n
         required: true
     syntax: >-
       slot[{{slot_index}}].trigger.model.addblock.notify("{{trigger_model_name}}",
@@ -500,7 +500,7 @@ blocks:
     shape: conditional
 
 trigger_events:
-  event_notify_in:
+  event_notify_n:
     parameters:
       - name: slot_index
         type: SlotIndex

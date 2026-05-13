@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { CanvasBlocksService } from './canvas-blocks.service';
 import { TriggerFlowDataService } from './triggerFlowDataService';
-import { Slot, SlotChannelList } from '../models/slotChannelModel';
+import { Module, Slot, SlotChannelList } from '../models/slotChannelModel';
 import { CheckboxOption } from '../custom-controls/checkbox-group/checkbox-group';
 
 @Injectable({ providedIn: 'root' })
@@ -69,5 +69,25 @@ export class ModelResourceAllocationService {
     }
     const node = list.nodes.find((n) => n.nodeId === nodeId);
     return node?.slots?.find((s) => s.slotId === slotId) ?? null;
+  }
+
+  /**
+   * Returns the module installed in the slot that owns the given block,
+   * or null if the block / slot cannot be resolved.
+   */
+  getModuleForBlock(blockId: string): Module | null {
+    const slotChannelList = this.triggerFlowDataService.getSlotChannelList();
+    if (!slotChannelList) {
+      return null;
+    }
+
+    const ownerModel = Object.values(this.canvasBlocksService.getModels()).find((m) =>
+      m.blocks.some((b) => b.block_id === blockId),
+    );
+    if (!ownerModel) {
+      return null;
+    }
+
+    return this.findSlot(ownerModel.slot_index, ownerModel.node_id, slotChannelList)?.module ?? null;
   }
 }

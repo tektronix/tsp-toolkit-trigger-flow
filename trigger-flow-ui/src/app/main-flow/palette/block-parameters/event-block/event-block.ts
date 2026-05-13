@@ -23,7 +23,7 @@ interface EventParamView {
 // Fallback event set used when trigger_events has not arrived from catalog yet.
 // This ensures the Event custom UI still shows the expected checkboxes/parameter names.
 const FALLBACK_EVENT_DEFINITIONS: Record<string, { parameters: EventParamView[] }> = {
-  event_notify_in: {
+  event_notify_n: {
     parameters: [{ name: 'slot_index' }, { name: 'notify_event_number' }],
   },
   event_digio: {
