@@ -126,7 +126,22 @@ export class Canvas implements AfterViewInit {
 
   protected onDragStarted(event: FDragStartedEvent): void {
     console.log('Drag started:', event.fEventType, event.fData);
+  }  
+  
+  /**
+   * Pans the canvas so the section with the given id is brought into view at
+   * the left edge of the viewport. No-op if the section or canvas is missing.
+   */
+  private focusSection(sectionId: string): void {
+    const canvas = this._canvas();
+    if (!canvas) return;
+    const layout = this.sectionLayouts().find((s) => s.id === sectionId);
+    if (!layout) return;
+    const current = canvas.getPosition();
+    canvas.setPosition({ x: -layout.position.x, y: current.y });
+    canvas.redraw();
   }
+
 
   // Raised to parent (MainFlow) when first block is dropped and
   // a model must be created before node insertion can continue.
@@ -241,6 +256,10 @@ export class Canvas implements AfterViewInit {
       this.pendingCreateNodeEvent = null;
       this.createNodeInSection(pending, sectionId);
     }
+
+    // Defer focus until after the new section's layout has rendered, so
+    // sectionLayouts() reflects the just-added section.
+    queueMicrotask(() => this.focusSection(sectionId));
   }
 
   /**
