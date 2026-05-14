@@ -39,8 +39,6 @@ export class ModelSettingsModal {
 
   @Output() editModel = new EventEmitter<ModelSettingsItem>();
 
-  @Output() copyModel = new EventEmitter<ModelSettingsItem>();
-
   @Output() deleteModel = new EventEmitter<ModelSettingsItem>();
 
   onOverlayClick(event: MouseEvent): void {

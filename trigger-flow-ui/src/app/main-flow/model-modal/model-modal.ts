@@ -37,7 +37,6 @@ export class ModelModal {
 
   @Output() closeWithValue = new EventEmitter<ModelModalValue>();
   @Output() deleteClicked = new EventEmitter<void>();
-  @Output() copyClicked = new EventEmitter<void>();
   @Output() slotChanged = new EventEmitter<ModelSlotOption>();
   
   nameError = '';
@@ -102,9 +101,5 @@ export class ModelModal {
 
   onDelete(): void {
     this.deleteClicked.emit();
-  }
-
-  onCopy(): void {
-    this.copyClicked.emit();
   }
 }
