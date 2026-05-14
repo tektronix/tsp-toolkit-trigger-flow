@@ -31,3 +31,19 @@
   cursor: not-allowed;
   border-color: var(--vscode-editorWidget-border);
 }
+
+:host input.textbox--error {
+  border-color: var(--vscode-errorForeground, #f14c4c);
+}
+
+:host input.textbox--error:focus {
+  // outline: 1px solid var(--vscode-errorForeground, #f14c4c);
+  border-color: var(--vscode-errorForeground, #f14c4c);
+  box-shadow: 0 0 0 1px var(--vscode-errorForeground, #f14c4c);
+}
+
+.textbox__error {
+  margin-top: 4px;
+  color: var(--vscode-errorForeground, #f14c4c);
+  font-size: 12px;
+}

@@ -8,8 +8,6 @@ import { BlockParameters } from './palette/block-parameters/block-parameters';
 import { ModelModal, ModelModalValue, ModelSlotOption } from './model-modal/model-modal';
 import { TriggerFlowDataService } from '../services/triggerFlowDataService';
 import { CanvasBlocksService, vscode } from '../services/canvas-blocks.service';
-
-
 import {
   ModelSettingsModal,
   ModelSettingsItem,
@@ -48,6 +46,8 @@ export class MainFlow {
 
   slotOptions: ModelSlotOption[] = [];
 
+  existingModelNames: string[] = [];
+
   private readonly triggerFlowDataService = inject(TriggerFlowDataService);
   private readonly canvasBlocksService = inject(CanvasBlocksService);
 
@@ -57,23 +57,58 @@ export class MainFlow {
 
   addNewTriggerModel(): void {
     this.loadSlotOptions();
+
+    this.refreshExistingModelNames();
+
+    this.modelName = this.generateUniqueModelName('MyTriggerModel');
+
     this.showModelModal = true;
   }
 
-  openScript(): void {
-    console.log('Open Script clicked');
-    // Ask the server to regenerate the script from current canvas state.
-    this.canvasBlocksService.updateAndPrint();
-    vscode.postMessage({ command: 'open_script' });
+  private generateUniqueModelName(baseName: string): string {
+    const lowerCaseNames = this.existingModelNames.map((name) =>
+      name.toLowerCase(),
+    );
+
+    if (!lowerCaseNames.includes(baseName.toLowerCase())) {
+      return baseName;
+    }
+
+    let counter = 1;
+
+    while (
+      lowerCaseNames.includes(`${baseName}${counter}`.toLowerCase())
+    ) {
+      counter++;
+    }
+
+    return `${baseName}${counter}`;
   }
 
-  onRequestModelModal(req: { suggestedName: string; suggestedSlot: number; notes: string }): void {
+  onRequestModelModal(req: {
+    suggestedName: string;
+    suggestedSlot: number;
+    notes: string;
+  }): void {
     this.loadSlotOptions();
 
-    this.modelName = req.suggestedName;
+    this.refreshExistingModelNames();
+
+    this.modelName = this.generateUniqueModelName(
+      req.suggestedName,
+    );
+
     this.modelNotes = req.notes;
 
     this.showModelModal = true;
+  }
+
+  private refreshExistingModelNames(): void {
+    const sections = this.canvas?.getSections() ?? [];
+
+    this.existingModelNames = sections.map(
+      (section) => section.modelName,
+    );
   }
 
   // Kept for future dependent dropdown logic.
@@ -210,4 +245,11 @@ export class MainFlow {
     console.log('Edit model:', item);
   }
   
+  openScript(): void {
+    console.log('Open Script clicked');
+    // Ask the server to regenerate the script from current canvas state.
+    this.canvasBlocksService.updateAndPrint();
+    vscode.postMessage({ command: 'open_script' });
+  }
+
 }
