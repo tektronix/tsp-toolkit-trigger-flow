@@ -383,6 +383,19 @@ export class CanvasBlocksService {
     return uniqueName;
   }
 
+  removeModel(modelId: string): void {
+    console.warn("Models before: ", this.models);
+    console.warn("Remove model:", modelId, this.models[modelId]);
+    for (const block of this.models[modelId]?.blocks ?? []) {
+      // Remove visual components of the connections related to the blocks within this model.
+      this.connections.update((current) => current.filter((c) => !c.fInputId.startsWith(`${block.block_id}-in`) && !c.fOutputId.startsWith(`${block.block_id}-out`)));
+    }
+    delete this.models[modelId];
+    this.sections.update((current) => current.filter((s) => s.modelName !== modelId));
+    this.updateAndPrint();
+    console.warn("Models after: ", this.models);
+  }
+
   // Remove block by nodeId from the model where it exists
   removeBlock(nodeId: string): void {
     for (const model of Object.values(this.models)) {

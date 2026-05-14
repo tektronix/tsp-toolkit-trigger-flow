@@ -43,6 +43,14 @@
         <button type="button" class="icon-btn" (click)="onDelete()" >
           <img class="icon-img" src="assets/shapes/Icons/Trash.svg" alt="Delete" [attr.aria-label]="'Delete-Model-Settings'" />
         </button>
+      <button
+        [attr.aria-label]="'Close-Model-Settings'"
+        class="action-btn"
+        (click)="onClose()"
+        title="Create"
+      >
+        Create
+      </button>
       </div>
     </div>
   </section>

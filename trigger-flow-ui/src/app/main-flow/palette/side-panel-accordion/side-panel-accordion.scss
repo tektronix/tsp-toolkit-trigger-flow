@@ -1,8 +1,10 @@
 .custom-accordion {
     width: 100%;
+    user-select: none;
 }
 
 .accordion-item {
+    user-select: none;
 }
 
 .accordion-header {
@@ -20,16 +22,20 @@
     margin-right: 0.75rem;
     font-size: 1rem;
     margin-left: -1rem;
+    user-select: none;
+
 }
 
 .title {
     flex: 1;
+    user-select: none;
 }
 
 .accordion-content {
     padding: 0.5rem;
     background: var(--vscode-editor-background);
     gap: 0.5rem;
+    user-select: none;
 }
 
 .accordion-shapes {
@@ -38,6 +44,7 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 0.5rem;
+    user-select: none;
 }
 
 .mat-icon {
@@ -57,6 +64,7 @@
     border: 2px solid var(--vscode-panel-border);
     transition: background 0.2s;
     min-height: auto;
+    user-select: none;
 }
 
 /* .palette-item:hover {
@@ -75,6 +83,7 @@
     margin: 0;
     width: fit-content;
     height: fit-content;
+    user-select: none;
 }
 
 .shape-svg {
@@ -83,4 +92,5 @@
     object-fit: cover;
     object-position: center;
     padding: 3px;
+    user-select: none;
 }
