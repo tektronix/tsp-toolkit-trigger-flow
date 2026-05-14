@@ -3,7 +3,10 @@ use std::fmt::Display;
 use anyhow::Error;
 use handlebars::Handlebars;
 
-use crate::{api::state::TriggerFlowState, Catalog};
+use crate::{
+    api::{slot_channel_list::Module, state::TriggerFlowState},
+    Catalog,
+};
 
 /// A script representing the contents of a script. The preamble and postable are used
 /// for comments to be rendered to the file only if the file is being written for the
@@ -52,6 +55,61 @@ impl Script {
             hb.register_template_string(&name, event.syntax.clone())
                 .unwrap_or_else(|_| panic!("should have loaded '{name}' trigger event template"));
         }
+
+        // Register a `module_type` helper so block syntax templates can
+        // resolve the module short-token (e.g. "psu", "smu") for a given
+        // slot/node. Usage in templates:
+        //   {{module_type slot_index}}              -> looks up localnode slot
+        //   {{module_type slot_index node_id}}      -> looks up child-node slot
+        // Returns empty string when the slot/module cannot be resolved.
+        let slot_channel_list = state.slot_channel_list.clone();
+        hb.register_helper(
+            "module_type",
+            Box::new(
+                move |h: &handlebars::Helper,
+                      _: &Handlebars,
+                      _: &handlebars::Context,
+                      _: &mut handlebars::RenderContext,
+                      out: &mut dyn handlebars::Output|
+                      -> handlebars::HelperResult {
+                    let slot_idx = h
+                        .param(0)
+                        .and_then(|p| p.value().as_u64())
+                        .map(|v| v as u8)
+                        .unwrap_or(0);
+
+                    let node_id = h
+                        .param(1)
+                        .and_then(|p| p.value().as_str())
+                        .map(|s| s.to_string())
+                        .filter(|s| !s.is_empty() && s != "localnode");
+
+                    let module = if let Some(nid) = node_id.as_deref() {
+                        slot_channel_list
+                            .nodes
+                            .iter()
+                            .find(|n| n.node_id == nid)
+                            .and_then(|n| n.slots.as_ref())
+                            .and_then(|slots| slots.iter().find(|s| s.slot_id.0 == slot_idx))
+                            .map(|s| s.module)
+                    } else {
+                        slot_channel_list
+                            .slots
+                            .iter()
+                            .find(|s| s.slot_id.0 == slot_idx)
+                            .map(|s| s.module)
+                    };
+
+                    let token = match module {
+                        Some(Module::MPSU50_2ST) => "psu",
+                        Some(Module::MSMU60_2) => "smu",
+                        _ => "",
+                    };
+                    out.write(token)?;
+                    Ok(())
+                },
+            ),
+        );
 
         // render preamble
         let preamble = hb
@@ -276,7 +334,7 @@ slot[{{this.slot_index}}].trigger.model.create("{{this.trigger_model_name}}")
 {{> (lookup this "type") this.block_parameters}}
 
 {{/each}}
--- slot[{{this.slot_index}}].trigger.model.initialize("{{this.trigger_model_name}}")
+-- slot[{{this.slot_index}}].trigger.model.initiate("{{this.trigger_model_name}}")
 {{/each}}
 "##
                 .to_string(),
@@ -406,7 +464,7 @@ slot[{{this.slot_index}}].trigger.model.create("{{this.trigger_model_name}}")
             contents: r##"-- tm1
 slot[1].trigger.model.create("tm1")
 slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_block")
--- slot[1].trigger.model.initialize("tm1")
+-- slot[1].trigger.model.initiate("tm1")
 "##
             .to_string(),
         };
@@ -478,7 +536,7 @@ slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_blo
 slot[1].trigger.model.create("tm1")
 slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_block")
 slot[1].trigger.model.addblock.measure("tm1", "tm1_measure_001", { 1 }, 5)
--- slot[1].trigger.model.initialize("tm1")
+-- slot[1].trigger.model.initiate("tm1")
 "##
             .to_string(),
         };
@@ -557,11 +615,11 @@ slot[1].trigger.model.addblock.measure("tm1", "tm1_measure_001", { 1 }, 5)
             contents: r##"-- tm1
 slot[1].trigger.model.create("tm1")
 slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_block")
--- slot[1].trigger.model.initialize("tm1")
+-- slot[1].trigger.model.initiate("tm1")
 -- tm2
 slot[2].trigger.model.create("tm2")
 slot[2].trigger.model.addblock.measure("tm2", "tm2_measure_001", { 1 }, 5)
--- slot[2].trigger.model.initialize("tm2")
+-- slot[2].trigger.model.initiate("tm2")
 "##
             .to_string(),
         };
@@ -673,12 +731,12 @@ slot[2].trigger.model.addblock.measure("tm2", "tm2_measure_001", { 1 }, 5)
 slot[1].trigger.model.create("tm1")
 slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_block")
 slot[1].trigger.model.addblock.measure("tm1", "tm1_measure_001", { 1 }, 5)
--- slot[1].trigger.model.initialize("tm1")
+-- slot[1].trigger.model.initiate("tm1")
 -- tm2
 slot[2].trigger.model.create("tm2")
 slot[2].trigger.model.addblock.branch.always("tm2", "tm2_always_001", "other_block")
 slot[2].trigger.model.addblock.measure("tm2", "tm2_measure_001", { 1 })
--- slot[2].trigger.model.initialize("tm2")
+-- slot[2].trigger.model.initiate("tm2")
 "##
             .to_string(),
         };
@@ -696,7 +754,7 @@ slot[2].trigger.model.addblock.measure("tm2", "tm2_measure_001", { 1 })
 -- tm1
 slot[1].trigger.model.create("tm1")
 slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_block")
--- slot[1].trigger.model.initialize("tm1")
+-- slot[1].trigger.model.initiate("tm1")
 -- END GENERATED TRIGGER MODEL --
 -- Postamble Text
 "#;
@@ -738,7 +796,7 @@ slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_blo
 -- tm2
 slot[2].trigger.model.create("tm2")
 slot[2].trigger.model.addblock.branch.always("tm2", "tm2_always_001", "other_block")
--- slot[2].trigger.model.initialize("tm2")
+-- slot[2].trigger.model.initiate("tm2")
 -- END GENERATED TRIGGER MODEL --
 -- Postamble Text
 "#;
@@ -755,7 +813,7 @@ slot[2].trigger.model.addblock.branch.always("tm2", "tm2_always_001", "other_blo
 -- tm1
 slot[1].trigger.model.create("tm1")
 slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_block")
--- slot[1].trigger.model.initialize("tm1")
+-- slot[1].trigger.model.initiate("tm1")
 -- Postamble Text
 "#;
         let input = TriggerFlowState {
@@ -796,7 +854,7 @@ slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_blo
 -- tm1
 slot[1].trigger.model.create("tm1")
 slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_block")
--- slot[1].trigger.model.initialize("tm1")
+-- slot[1].trigger.model.initiate("tm1")
 -- Postamble Text
 "#;
 

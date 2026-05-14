@@ -123,9 +123,17 @@ export class BlockParameters {
 
         // Notes are per-block, so refresh the textarea each time selection changes.
         this.blockNotes = canvasBlock.notes ?? '';
-        this.ensureParameterDefaults(this.actualParameters);
+        // Refresh channel options BEFORE seeding defaults so composite params
+        // (e.g. SourceOutputState) can pick a valid initial channel_index.
         this.refreshChannelListOptions();
         this.refreshChannelItemOptions();
+        const seeded = this.ensureParameterDefaults(this.actualParameters);
+        if (seeded) {
+          // Defaults were just populated (e.g. first time a block is dropped onto
+          // the canvas). Regenerate the script so the seeded values are reflected
+          // immediately, not only on the user's first manual edit.
+          this.canvasBlocksService.updateAndPrint();
+        }
       }
     }
   }
@@ -189,7 +197,8 @@ export class BlockParameters {
     return Array.isArray(param.options) && param.options.length > 0;
   }
 
-  private ensureParameterDefaults(parameters: ActualParameter[]): void {
+  private ensureParameterDefaults(parameters: ActualParameter[]): boolean {
+    let changed = false;
     for (const param of parameters) {
       // If the catalog defines options and no value is selected yet,
       // pick the first option so the field is immediately valid/editable.
@@ -197,9 +206,32 @@ export class BlockParameters {
         const options = this.getSelectOptions(param);
         if (options.length > 0) {
           param.value = options[0];
+          changed = true;
         }
       }
+
+      // SourceOutputState is a composite { channel_index, state_value }; ensure
+      // the value is an object so two-way binding in the template has stable refs.
+      if (param.type === 'SourceOutputState') {
+        const current = (param.value ?? {}) as { channel_index?: unknown; state_value?: unknown };
+        const channelOptions = this.getSourceOutputStateChannelOptions();
+        const channelIndex =
+          current.channel_index !== undefined && current.channel_index !== null
+            ? `${current.channel_index}`
+            : channelOptions[0] ?? '';
+        const stateOptions = this.getSourceOutputStateValueOptions();
+        const stateValue =
+          typeof current.state_value === 'string' && current.state_value
+            ? current.state_value
+            : stateOptions[0] ?? 'ON';
+        const before = current as { channel_index?: unknown; state_value?: unknown };
+        if (before.channel_index !== channelIndex || before.state_value !== stateValue) {
+          changed = true;
+        }
+        param.value = { channel_index: channelIndex, state_value: stateValue };
+      }
     }
+    return changed;
   }
 
   getRadioGroupName(param: ActualParameter): string {
@@ -299,6 +331,52 @@ export class BlockParameters {
 
   onChannelItemChange(param: ActualParameter, selected: string): void {
     param.value = selected === '' ? null : Number(selected);
+    this.onParameterValueChange();
+  }
+
+  // ---- SourceOutputState composite control -----------------------------------
+  // Renders two dropdowns: Channel (from the model's allocated channels) and
+  // State (ON/OFF). The bound value is an object so the script template can
+  // emit e.g. `slot[1].psu[1].ON`.
+  getSourceOutputStateChannelOptions(): string[] {
+    return this.channelItemOptions.map((option) => option.value);
+  }
+
+  getSourceOutputStateValueOptions(): string[] {
+    return ['ON', 'OFF'];
+  }
+
+  private getSourceOutputStateObject(
+    param: ActualParameter,
+  ): { channel_index: string; state_value: string } {
+    const value = param.value as { channel_index?: unknown; state_value?: unknown } | null;
+    return {
+      channel_index:
+        value && value.channel_index !== undefined && value.channel_index !== null
+          ? `${value.channel_index}`
+          : '',
+      state_value:
+        value && typeof value.state_value === 'string' ? value.state_value : 'ON',
+    };
+  }
+
+  getSourceOutputChannel(param: ActualParameter): string {
+    return this.getSourceOutputStateObject(param).channel_index;
+  }
+
+  getSourceOutputStateValue(param: ActualParameter): string {
+    return this.getSourceOutputStateObject(param).state_value;
+  }
+
+  onSourceOutputChannelChange(param: ActualParameter, selected: string): void {
+    const current = this.getSourceOutputStateObject(param);
+    param.value = { ...current, channel_index: selected };
+    this.onParameterValueChange();
+  }
+
+  onSourceOutputStateValueChange(param: ActualParameter, selected: string): void {
+    const current = this.getSourceOutputStateObject(param);
+    param.value = { ...current, state_value: selected };
     this.onParameterValueChange();
   }
 

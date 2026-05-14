@@ -58,6 +58,12 @@ export interface FlowSection {
   slotIndex: number;
   nodeId: string;
   nodes: FlowNode[];
+  /**
+   * Stable horizontal slot assigned at creation time. Used to compute the
+   * section's x position so that deleting a model does not cause the
+   * remaining sections to shift left on the canvas.
+   */
+  positionIndex?: number;
 }
 
 interface LaidOutSection extends FlowSection {
@@ -147,7 +153,9 @@ export class Canvas implements AfterViewInit {
     return this.sections().map((section, index) => ({
       ...section,
       position: {
-        x: index * sectionWidth,
+        // Use the stable positionIndex assigned at creation time so that
+        // deleting a section does not re-flow the remaining sections.
+        x: (section.positionIndex ?? index) * sectionWidth,
         y: 0,
       },
       size: {
@@ -224,6 +232,13 @@ export class Canvas implements AfterViewInit {
     const sectionId = `group-${this.sections().length + 1}`;
     const modelName = result.name.trim() || `Model${this.sections().length + 1}`;
 
+    // Assign a stable horizontal slot (max existing + 1) so that deleting
+    // a model later does not shift remaining sections leftward.
+    const nextPositionIndex = this.sections().reduce(
+      (max, s) => Math.max(max, s.positionIndex ?? -1),
+      -1,
+    ) + 1;
+
     // Create a new section/model from modal values.
     const newSection: FlowSection = {
       id: sectionId,
@@ -231,6 +246,7 @@ export class Canvas implements AfterViewInit {
       slotIndex: result.slot,
       nodeId: result.nodeId,
       nodes: [],
+      positionIndex: nextPositionIndex,
     };
 
     this.canvasBlocksService.sections.update((current) => [...current, newSection]);

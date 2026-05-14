@@ -118,3 +118,45 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+// SourceOutputState composite: the outer param label (e.g. "State") sits on
+// the left; the two nested dropdowns (Channel + State value) are stacked on
+// the right side, each rendered with its own inline label next to its select.
+.param-group.source-output-state {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $spacing-sm;
+
+  > .param-label {
+    flex: 0 0 auto;
+    font-weight: 600;
+    padding-top: 6px;
+  }
+
+  .source-output-state-controls {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-xs;
+    flex: 1 1 auto;
+    align-items: stretch;
+  }
+
+  ::ng-deep .dropdown {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.25rem;
+    margin-bottom: 0;
+  }
+
+  ::ng-deep .dropdown label {
+    flex: 0 0 auto;
+    margin: 0;
+  }
+
+  ::ng-deep .dropdown select {
+    width: 100%;
+    min-width: 120px;
+  }
+}
