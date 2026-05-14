@@ -9,6 +9,9 @@
   (fCreateConnection)="onCreateConnection($event)"
   [attr.aria-label]="'Trigger flow canvas'"
 >
+  <f-background>
+    <f-rect-pattern/>
+  </f-background>
 <!-- <f-line-alignment [fAlignThreshold]="100"></f-line-alignment> -->
   <f-canvas  fZoom>
     @for (section of sectionLayouts(); track section.id) {
