@@ -12,7 +12,18 @@
       <!-- dedicated divider under header -->
       <div class="tf-modal__divider tf-modal__divider--header"></div>
 
-      <app-textbox label="Name" [(ngModel)]="name" automationID ="Input-Model-Name"></app-textbox>
+      <app-textbox
+        label="Name"
+        [(ngModel)]="name"
+        (ngModelChange)="validateName()"
+        [invalid]="!!nameError"
+        [errorMessage]="nameError"
+        automationID="Input-Model-Name">
+      </app-textbox>
+
+      <!-- <div *ngIf="nameError" class="field-error">
+        {{ nameError }}
+      </div> -->
 
       <app-dropdown
         label="Slot"
@@ -33,8 +44,13 @@
         [(ngModel)]="nodeValue">
       </app-dropdown> -->
 
-      <app-textbox label="Notes" [(ngModel)]="notes" automationID ="Input-Model-Notes"></app-textbox>
-
+      <!-- <app-textbox label="Notes" [(ngModel)]="notes" automationID ="Input-Model-Notes"></app-textbox> -->
+      <app-multiline-textbox
+        label="Notes"
+        [(ngModel)]="notes"
+        automationID ="Input-Model-Notes">
+      </app-multiline-textbox>
+      
         <!-- dedicated divider under notes -->
         <div class="tf-modal__divider tf-modal__divider--notes"></div>
         <!-- <div class="tf-modal__divider"></div> -->
