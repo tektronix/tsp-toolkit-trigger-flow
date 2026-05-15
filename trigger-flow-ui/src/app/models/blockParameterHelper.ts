@@ -231,7 +231,29 @@ export function normalizeParameterValues(
       currentValue === null ||
       !options.includes(`${currentValue}`)
     ) {
-      normalizedValues[param.name] = options[0];
+      // slot_index should default to the trigger model slot when possible.
+      //
+      // Why:
+      // Event controls are scoped to the currently selected trigger model.
+      // Users expect event dropdowns to inherit the model slot automatically.
+      //
+      // Example:
+      // Trigger model slot = 2
+      //
+      // Newly added event should initialize as:
+      //   slot_index = 2
+      //
+      // instead of always snapping to the first installed slot.
+      if (
+        param.name === 'slot_index' &&
+        options.includes(`${modelSlotIndex}`)
+      ) {
+        normalizedValues[param.name] = `${modelSlotIndex}`;
+      } else {
+        // Generic fallback:
+        // snap invalid/missing values to first valid option.
+        normalizedValues[param.name] = options[0];
+      }
     }
   }
 
