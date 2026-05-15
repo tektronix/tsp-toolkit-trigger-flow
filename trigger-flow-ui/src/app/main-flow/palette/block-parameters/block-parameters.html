@@ -76,6 +76,24 @@
               [selectedValue]="getChannelItemSelected(param)"
               (selectionChange)="onChannelItemChange(param, $event)"
             />
+          } @else if (getControlType(param) === 'source-output-state') {
+            <div class="param-group source-output-state">
+              <div class="param-label">{{ getParameterDisplayName(param) }}</div>
+              <div class="source-output-state-controls">
+                <app-dropdown
+                  label="Channel"
+                  [options]="getSourceOutputStateChannelOptions()"
+                  [selected]="getSourceOutputChannel(param)"
+                  (selectedChange)="onSourceOutputChannelChange(param, $event)"
+                />
+                <app-dropdown
+                  label="State"
+                  [options]="getSourceOutputStateValueOptions()"
+                  [selected]="getSourceOutputStateValue(param)"
+                  (selectedChange)="onSourceOutputStateValueChange(param, $event)"
+                />
+              </div>
+            </div>
           } @else if (getControlType(param) === 'number') {
             <!-- delay_time is shown in seconds and stays visible but disabled when List mode is enabled. -->
             <app-input-numeric

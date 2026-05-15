@@ -38,6 +38,7 @@ pub enum ParamTypeName {
     EventList,
     MultiString,
     DelayListConfig,
+    SourceOutputState,
     #[serde(rename = "event_notify_n")]
     EventNotifyN,
 }

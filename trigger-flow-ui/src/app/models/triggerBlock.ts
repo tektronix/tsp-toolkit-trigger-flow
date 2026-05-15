@@ -67,6 +67,7 @@ export type ParamTypeName =
   | 'MultiString'
   | 'EventItem'
   | 'EventList'
+  | 'SourceOutputState'
   // Specific trigger event types that render as a single fixed event in the UI.
   // The ParamTypeName matches the key under catalog.trigger_events so the renderer
   // can look up the event definition without extra mapping.
@@ -235,6 +236,11 @@ export interface DelayListConfig {
   delay_durations: number[];
 }
 
+export interface SourceOutputStateValue {
+  channel_index: string;
+  state_value: string;
+}
+
 export type ParameterValue =
   | string
   | number
@@ -243,4 +249,5 @@ export type ParameterValue =
   | number[]
   | EventListItem
   | EventListItem[]
-  | DelayListConfig;
+  | DelayListConfig
+  | SourceOutputStateValue;

@@ -50,6 +50,7 @@ export type ParamControlType =
   | 'channel-list'
   | 'channel-item'
   | 'channel-index'
+  | 'source-output-state'
   | 'unknown';
 
 interface ControlRuleContext {
@@ -96,6 +97,7 @@ const PARAM_TYPE_TO_CONTROL: Record<string, ParamControlType> = {
   LogicType: 'radio',
   TriggerEventType: 'radio',
   SourceState: 'toggle',
+  SourceOutputState: 'source-output-state',
   EventItem: 'custom',
   EventList: 'custom',
   MultiString: 'multiline',
@@ -140,6 +142,10 @@ export function resolveParamControlType(context: ControlRuleContext): ParamContr
 
   if (mapped === 'channel-item') {
     return 'channel-item';
+  }
+
+  if (mapped === 'source-output-state') {
+    return 'source-output-state';
   }
 
   if (mapped === 'select') {

@@ -116,6 +116,7 @@ export class CanvasBlocksService {
         modelName: model.trigger_model_name || modelName,
         slotIndex: model.slot_index ?? 0,
         nodeId: model.node_id,
+        positionIndex: index,
         nodes: model.blocks.map((block, blockIdx) => {
           const blockType = block.type;
           return {
