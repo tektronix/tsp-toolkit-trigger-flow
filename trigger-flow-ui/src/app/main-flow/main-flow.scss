@@ -88,13 +88,13 @@
 // on the palette so the button occupies its own vertical space and does not
 // overlap the block-parameters header rendered by <app-block-parameters>.
 .parameters-collapse-header {
-  justify-content: flex-start;
+  display: flex;
+  padding-bottom: $spacing-md;
 }
 
 .parameters-collapse-btn {
   position: absolute;
   left: $spacing-md;
-  right: auto; // override `right: $spacing-md` inherited from `.collapse-btn`
   background: var(--vscode-editor-background);
   border: none;
   @include flex-center;
