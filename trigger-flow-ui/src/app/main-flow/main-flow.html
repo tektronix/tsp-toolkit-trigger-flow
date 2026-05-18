@@ -58,7 +58,23 @@
       (editModel)="onEditModel($event)">
     </app-model-settings-modal>
   </main>
-  <aside class="parameters-sidebar" [attr.aria-label]="'Block-parameters-sidebar'">
-    <app-block-parameters></app-block-parameters>
+  <aside
+    class="parameters-sidebar"
+    [class.collapsed]="parametersCollapsed"
+    [attr.aria-label]="'Block-parameters-sidebar'"
+  >
+    <div class="collapse-btn-header parameters-collapse-header">
+      <button
+        class="collapse-btn parameters-collapse-btn"
+        (click)="toggleParametersSidebar()"
+        [attr.aria-label]="'right-panel-collapse-button'"
+        title="{{ parametersCollapsed ? 'Expand' : 'Collapse' }}"
+      >
+        <mat-icon>{{ parametersCollapsed ? 'chevron_left' : 'chevron_right' }}</mat-icon>
+      </button>
+    </div>
+    @if (!parametersCollapsed) {
+      <app-block-parameters></app-block-parameters>
+    }
   </aside>
 </div>
