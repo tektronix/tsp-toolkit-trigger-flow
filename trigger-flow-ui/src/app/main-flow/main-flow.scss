@@ -65,6 +65,40 @@
   width: 320px;
   flex-shrink: 0;
   overflow: hidden;
+  position: relative;
+  background: var(--vscode-editor-background);
+  box-shadow: -2px 0 4px rgba(0, 0, 0, 0.06);
+  transition: width 0.2s;
+  @include flex-column;
+  padding: 0 $spacing-sm;
+
+  &.collapsed {
+    width: 32px;
+    min-width: 32px;
+    padding: 0;
+    overflow: visible;
+
+    .parameters-collapse-btn {
+      left: -16px;
+    }
+  }
+}
+
+// Header row holding the right-pane collapse button. Mirrors `.collapse-btn-header`
+// on the palette so the button occupies its own vertical space and does not
+// overlap the block-parameters header rendered by <app-block-parameters>.
+.parameters-collapse-header {
+  display: flex;
+  padding-bottom: $spacing-md;
+}
+
+.parameters-collapse-btn {
+  position: absolute;
+  left: $spacing-md;
+  background: var(--vscode-editor-background);
+  border: none;
+  @include flex-center;
+  cursor: pointer;
 }
 
 .mat-icon {
