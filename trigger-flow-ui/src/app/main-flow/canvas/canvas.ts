@@ -653,6 +653,8 @@ export class Canvas implements AfterViewInit {
     }
 
     this.selectedNodeIds.set([]);
+    // Reset BlockParameters back to its "no block selected" state.
+    this.canvasBlocksService.clearSelectedBlock();
   }
 
   getSections(): FlowSection[] {

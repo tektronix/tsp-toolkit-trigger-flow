@@ -8,7 +8,13 @@ script_template:
     -- tsplink.initialize()
 
     -- Initialize and configure any reading buffers into which you wish to put your readings
-    -- e.g. local rb = slot[SLOT_INDEX].smu[CHANNEL_INDEX].makebuffer(1000000)
+    -- e.g. local rb_i = slot[SLOT_INDEX].smu[CHANNEL_INDEX].makebuffer(1000000)
+    -- e.g. local rb_v = slot[SLOT_INDEX].smu[CHANNEL_INDEX].makebuffer(1000000)
+
+    -- Use those reading buffers to put your measurements into when using measure blocks
+    -- e.g. slot[SLOT_INDEX].trigger.measure.iv(rb_i, rb_v)
+    -- Alternatively, you could use defbuffers instead
+    -- e.g. slot[SLOT_INDEX].trigger.measure.iv(slot[SLOT_INDEX].smu[CHANNEL_INDEX].defbuffer1, slot[SLOT_INDEX].smu[CHANNEL_INDEX].defbuffer2)
 
     {{> begin_sentinel}}
   postamble: |
@@ -25,6 +31,7 @@ script_template:
     {{#each models}}
 
     -- {{this.trigger_model_name}} --
+    slot[{{this.slot_index}}].trigger.model.delete("{{this.trigger_model_name}}")
     slot[{{this.slot_index}}].trigger.model.create("{{this.trigger_model_name}}")
     {{#each this.blocks}}
     {{> (lookup this "type") this.block_parameters slot_index=../slot_index node_id=../node_id trigger_model_name=../trigger_model_name}}

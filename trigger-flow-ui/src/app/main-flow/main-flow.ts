@@ -33,6 +33,7 @@ export class MainFlow {
   @ViewChild(Canvas) private canvas?: Canvas;
 
   sidebarCollapsed = false;
+  parametersCollapsed = false;
 
   showModelModal = false;
   modelName = 'MyTriggerModel';
@@ -53,6 +54,10 @@ export class MainFlow {
 
   toggleSidebar(): void {
     this.sidebarCollapsed = !this.sidebarCollapsed;
+  }
+
+  toggleParametersSidebar(): void {
+    this.parametersCollapsed = !this.parametersCollapsed;
   }
 
   addNewTriggerModel(): void {
