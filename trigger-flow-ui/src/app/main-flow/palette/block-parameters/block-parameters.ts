@@ -8,6 +8,8 @@ import {
   ParamControlType,
   resolveParamControlType,
   shouldShowBlockParameter,
+  isBlockReferenceParam,
+  BLOCK_REFERENCE_UNKNOWN_VALUE,
 } from '../../../models/blockParameterHelper';
 import { ActualParameter, EventDefinition, DelayListConfig } from '../../../models/triggerBlock';
 import { Textbox } from '../../../custom-controls/textbox/textbox';
@@ -193,6 +195,22 @@ export class BlockParameters {
     return param.options.map((option) => option.value);
   }
 
+  /**
+   * Options for a block-reference parameter dropdown. Always includes the
+   * sentinel 'unknown' first, followed by every valid target block name in
+   * the same trigger model (filtered per parameter — see service helper).
+   */
+  getBlockReferenceOptions(param: ActualParameter): string[] {
+    if (!this.selectedBlockId) {
+      return [];
+    }
+    const names = this.canvasBlocksService.getBlockReferenceOptionsForBlock(
+      this.selectedBlockId,
+      param.name,
+    );
+    return [BLOCK_REFERENCE_UNKNOWN_VALUE, ...names];
+  }
+
   private hasSelectableOptions(param: ActualParameter): boolean {
     return Array.isArray(param.options) && param.options.length > 0;
   }
@@ -255,13 +273,24 @@ export class BlockParameters {
     );
     canvasBlock.actual_parameters = this.actualParameters;
     this.canvasBlocksService.updateAndPrint();
-    // check if its required to create connection between blocks based on parameter changes
-    const sourceParam = canvasBlock.actual_parameters.find(
-      (p) => p.name === 'branch_to_block_name' || p.name === 'reference_block_name' || p.name === 'reset_branch_count_block_name',
+    // If a block-reference parameter points at another block, request a
+    // connection to that target.
+    const sourceParam = canvasBlock.actual_parameters.find((p) =>
+      isBlockReferenceParam(p.type),
     );
-    const sourceValue = sourceParam?.value ? String(sourceParam.value) : '';
 
-    if (sourceValue) {
+    if (!sourceParam) {
+      return;
+    }
+
+    // A block-reference parameter can target at most one block, so always
+    // drop any previously drawn line into this block before evaluating the
+    // new value. This also covers the case where the user resets the value
+    // to 'unknown' (the line should disappear).
+    this.canvasBlocksService.removeIncomingConnections(canvasBlock.block_id);
+
+    const sourceValue = sourceParam.value ? String(sourceParam.value) : '';
+    if (sourceValue && sourceValue !== BLOCK_REFERENCE_UNKNOWN_VALUE) {
       // search for block with name same as sourceValue to connect with
       const targetBlock = this.canvasBlocksService.findBlockByName(sourceValue);
       if (targetBlock) {

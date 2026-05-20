@@ -54,6 +54,13 @@
               [(ngModel)]="param.value"
               (radioChange)="onParameterValueChange()"
             />
+          } @else if (getControlType(param) === 'block-reference') {
+            <app-dropdown
+              [label]="getParameterDisplayName(param)"
+              [options]="getBlockReferenceOptions(param)"
+              [(ngModel)]="param.value"
+              (selectedChange)="onParameterValueChange()"
+            />
           } @else if (getControlType(param) === 'select') {
             <app-dropdown
               [label]="param.name"

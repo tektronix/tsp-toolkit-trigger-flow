@@ -46,7 +46,7 @@ blocks:
         required: true
         default: Always
       - name: branch_to_block_name
-        type: string
+        type: BlockReference
         required: true
     syntax: >-
       slot[{{slot_index}}].trigger.model.addblock.branch.always("{{trigger_model_name}}",
@@ -62,7 +62,7 @@ blocks:
         required: true
         default: Loop Counter
       - name: branch_to_block_name
-        type: string
+        type: BlockReference
         required: true
       - name: target_count
         type: number
@@ -81,7 +81,7 @@ blocks:
         required: true
         default: Reset Branch Counter
       - name: reset_branch_count_block_name
-        type: string
+        type: BlockReference
         required: true
     syntax: >-
       slot[{{slot_index}}].trigger.model.addblock.reset.branch.counter("{{trigger_model_name}}",
@@ -97,7 +97,7 @@ blocks:
         required: true
         default: On Event
       - name: branch_to_block_name
-        type: string
+        type: BlockReference
         required: true
       - name: event_id
         type: EventItem
@@ -117,7 +117,7 @@ blocks:
         required: true
         default: Once
       - name: branch_to_block_name
-        type: string
+        type: BlockReference
         required: true
     syntax: >-
       slot[{{slot_index}}].trigger.model.addblock.branch.once("{{trigger_model_name}}",
@@ -133,7 +133,7 @@ blocks:
         required: true
         default: Once Excluded
       - name: branch_to_block_name
-        type: string
+        type: BlockReference
         required: true
     syntax: >-
       slot[{{slot_index}}].trigger.model.addblock.branch.onceexcluded("{{trigger_model_name}}",
@@ -219,7 +219,7 @@ blocks:
           min: 0.000001
           max: 1000000
       - name: reference_block_name
-        type: string
+        type: BlockReference
         required: false
       - name: list_config
         type: DelayListConfig

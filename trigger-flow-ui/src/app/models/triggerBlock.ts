@@ -1,4 +1,5 @@
 import { ISlotChannelList, SlotChannelList } from "./slotChannelModel";
+import { BLOCK_REFERENCE_UNKNOWN_VALUE } from "./blockParameterHelper";
 
 export interface IInitialPayload {
   slot_channel_list: ISlotChannelList;
@@ -71,7 +72,8 @@ export type ParamTypeName =
   // Specific trigger event types that render as a single fixed event in the UI.
   // The ParamTypeName matches the key under catalog.trigger_events so the renderer
   // can look up the event definition without extra mapping.
-  | 'event_notify_n';
+  | 'event_notify_n'
+  | 'BlockReference';
 
 export class InitialPayload {
   slot_channel_list: SlotChannelList;
@@ -210,6 +212,11 @@ export class ActualParameter {
     } else if (this.type === 'ChannelList') {
       // Channel list is a multi-select; start empty so no channel is preselected.
       this.value = [];
+    } else if (this.type === 'BlockReference') {
+      // Block-reference parameters start as 'unknown' so the dropdown has a
+      // valid initial selection and no spurious connection is auto-created
+      // when the block is dropped onto the canvas.
+      this.value = parameter.default ?? BLOCK_REFERENCE_UNKNOWN_VALUE;
     } else {
       this.value = parameter.default ?? null;
     }
