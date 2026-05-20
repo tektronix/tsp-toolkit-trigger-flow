@@ -242,7 +242,7 @@ impl Catalog {
     /// Validate an event parameter against catalog event definitions
     pub fn validate_event(&self, event_value: &Value, block: &mut TriggerModelBlock) -> Result<()> {
         if let Value::Object(event_obj) = event_value {
-            if let Some(Value::String(event_type)) = event_obj.get("event_type") {
+            if let Some(Value::String(event_type)) = event_obj.get("type") {
                 if let Some(event_def) = self.trigger_events.get(event_type) {
                     event_def.validate(event_obj, block, self)?;
                 } else {
@@ -254,7 +254,7 @@ impl Catalog {
                     }
                 }
             } else {
-                let err = (true, "Event object missing 'event_type' field".to_string());
+                let err = (true, "Event object missing 'type' field".to_string());
                 if let Some(errors) = block.block_error.as_mut() {
                     errors.push(err);
                 } else {
@@ -295,7 +295,12 @@ impl EventDefinition {
     ) -> Result<()> {
         // Check each parameter defined in the event definition
         for param in &self.parameters {
-            let param_value = event_obj.get(&param.name);
+            let params_map = match event_obj.get("params") {
+                Some(Value::Object(map)) => map,
+                _ => event_obj,
+            };
+
+            let param_value = params_map.get(&param.name);
 
             if param_value.is_none() && param.required {
                 let err = (
