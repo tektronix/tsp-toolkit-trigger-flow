@@ -4,6 +4,7 @@ interface ShapeDefinition {
   type: string;
   svgPath: string;
   catalogLabel: string;
+  label?: string;
 }
 
 interface GroupDefinition {
@@ -52,9 +53,21 @@ export class PaletteDataService {
     { type: 'Timing', svgPath: 'assets/shapes/palette/Timing/Timing-WaitOnEvent.svg', catalogLabel: 'wait on event' },
   ];
 
+  private readonly templates: ShapeDefinition[] = [
+
+    {type: 'Template', svgPath: 'assets/shapes/templates/PulsedSweep.svg', catalogLabel: 'pulsed_sweep', label: 'Pulsed Sweep' },
+    {type: 'Template', svgPath: 'assets/shapes/templates/PulseMeasuredSweep.svg', catalogLabel: 'pulsed_measure_sweep', label: 'Pulsed Measure Sweep' },
+    {type: 'Template', svgPath: 'assets/shapes/templates/DCSweep.svg', catalogLabel: 'dc_sweep', label: 'DC Sweep' },
+    {type: 'Template', svgPath: 'assets/shapes/templates/DCMeasureSweep.svg', catalogLabel: 'dc_measure_sweep', label: 'DC Measure Sweep' },
+    {type: 'Template', svgPath: 'assets/shapes/templates/WaveformCapture.svg', catalogLabel: 'waveform_capture', label: 'Waveform Capture' },
+    {type: 'Template', svgPath: 'assets/shapes/templates/ConfigListLoad.svg', catalogLabel: 'config_list_load', label: 'Config List Load' },
+    {type: 'Template', svgPath: 'assets/shapes/templates/DigitalIOTrigger.svg', catalogLabel: 'digital_io_trigger', label: 'Digital IO Trigger' },
+    {type: 'Template', svgPath: 'assets/shapes/templates/SimpleMeasureLoop.svg', catalogLabel: 'simple_measure_loop', label: 'Simple Measure Loop' },
+    {type: 'Template', svgPath: 'assets/shapes/templates/LoopUntilEvent.svg', catalogLabel: 'loop_until_event', label: 'Loop Until Event' },
+  ];
+
   // TODO: Add actual template and event data when available
-  private readonly templates: ShapeDefinition[] = [];
-  private readonly events: ShapeDefinition[] = [];
+  // private readonly events: ShapeDefinition[] = [];
 
   private readonly catalogLabelToSvgPath = new Map<string, string>();
 
@@ -65,6 +78,9 @@ export class PaletteDataService {
   private buildLookupMap(): void {
     this.shapes.forEach(shape => {
       this.catalogLabelToSvgPath.set(shape.catalogLabel, shape.svgPath);
+    });
+    this.templates.forEach(template => {
+      this.catalogLabelToSvgPath.set(template.catalogLabel, template.svgPath);
     });
   }
 
@@ -110,11 +126,10 @@ export class PaletteDataService {
     const shapesByType = this.getShapesByType();
 
     return [
-      // {
-        // label: 'Templates',
-        // type: 'single'
-        //TODO: Add subgroups when template data is available
-      // },
+      {
+        label: 'Templates',
+        type: 'single' 
+      },
       {
         label: 'Blocks',
         type: 'group',

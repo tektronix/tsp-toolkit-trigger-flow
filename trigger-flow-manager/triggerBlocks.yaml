@@ -966,35 +966,3 @@ templates:
           block_id: loop_until_event_no_operation_001
           block_parameters:
             trigger_block_name: loop_until_event_no_operation_001
-
-
-    wait_on_tm:
-      name: "Wait on TM"
-      description: "Takes measurements with constant timing until event is detected"
-      icon: wait_on_tm
-      models: 
-        - name: Wait on TM Model 1
-          description: "Model that loops until an event is detected"
-          blocks:
-            - type: measure
-              block_id: simple_measure_loop_measure_001
-              block_parameters:
-                trigger_block_name: simple_measure_loop_measure_001
-            - type: constant delay
-              block_id: simple_measure_loop_constant_delay_001
-          block_parameters:
-            trigger_block_name: simple_measure_loop_constant_delay_001
-        - type: on event
-          block_id: loop_until_event_on_event_001
-          block_parameters:
-            trigger_block_name: loop_until_event_on_event_001
-            branch_to_block_name: loop_until_event_no_operation_001
-        - type: always
-          block_id: loop_until_event_always_001
-          block_parameters:
-            trigger_block_name: loop_until_event_always_001
-            branch_to_block_name: simple_measure_loop_measure_001
-        - type: no operation
-          block_id: loop_until_event_no_operation_001
-          block_parameters:
-            trigger_block_name: loop_until_event_no_operation_001
