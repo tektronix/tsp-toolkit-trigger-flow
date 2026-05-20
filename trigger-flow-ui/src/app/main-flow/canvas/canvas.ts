@@ -15,7 +15,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { AngularSvgIconModule } from 'angular-svg-icon';
-import { CanvasBlock, CanvasBlocksService } from '../../services/canvas-blocks.service';
+import { CanvasBlocksService } from '../../services/canvas-blocks.service';
 import { TriggerFlowDataService } from '../../services/triggerFlowDataService';
 import { BlockErrorEntry } from '../../models/triggerFlowState';
 import { EFMarkerType, FCanvasComponent, FFlowModule, FSelectionChangeEvent, FDragStartedEvent } from '@foblex/flow';
@@ -653,6 +653,8 @@ export class Canvas implements AfterViewInit {
     }
 
     this.selectedNodeIds.set([]);
+    // Reset BlockParameters back to its "no block selected" state.
+    this.canvasBlocksService.clearSelectedBlock();
   }
 
   getSections(): FlowSection[] {
