@@ -42,6 +42,8 @@ interface CreateNodePayload {
   type?: string;
   svgPath: string;
   catalogLabel?: string;
+  /** Set by the palette when the user drags a Template instead of a block. */
+  isTemplate?: boolean;
 }
 
 interface FlowCanvasEvent {
@@ -388,6 +390,11 @@ export class Canvas implements AfterViewInit {
     const section = this.getSectionById(targetSectionId);
     if (!section) return;
 
+    if (event.data.isTemplate && event.data.catalogLabel) {
+      this.createTemplateInSection(event.data.catalogLabel, event.rect, section);
+      return;
+    }
+
     const uniqueBlockId = this.createUniqueNodeId();
     const newSVGPath = this.changeSVGPath(event.data?.svgPath);
     const newNode: FlowNode = {
@@ -419,6 +426,140 @@ export class Canvas implements AfterViewInit {
     );
 
     this.canvasBlocksService.selectBlock(newNode.blockId);
+  }
+
+  /**
+   * Instantiate a template (multiple pre-wired blocks) at the drop position.
+   *
+   * Each template block carries a template-scoped `block_id` and may reference
+   * sibling blocks by that id in parameters like `branch_to_block_name`. On
+   * instantiation we generate fresh, unique runtime ids and rewrite those
+   * references so the resulting trigger model is self-consistent.
+   *
+   * Layout is a simple vertical stack starting at the drop position so the
+   * resulting blocks fit the existing section layout without overlapping.
+   */
+  private createTemplateInSection(
+    templateKey: string,
+    dropRect: { x: number; y: number },
+    section: FlowSection,
+  ): void {
+    const catalog = this.triggerFlowDataService.catalog$();
+    const template = catalog?.templates?.[templateKey];
+    if (!template || !template.blocks?.length) {
+      console.warn(`Template "${templateKey}" not found in catalog`);
+      return;
+    }
+
+    // Vertical spacing between stacked template blocks. Roughly matches the
+    // visual height of a canvas node so blocks don't overlap.
+    const VERTICAL_GAP = 120;
+    const LINK_PARAM_NAMES = [
+      'branch_to_block_name',
+      'reference_block_name',
+      'reset_branch_count_block_name',
+    ];
+
+    // Map template-scoped block_id -> runtime block id and trigger_block_name
+    // so we can rewrite cross-block references after all blocks are created.
+    const idMap = new Map<string, { runtimeBlockId: string; triggerBlockName: string }>();
+    const createdBlockIds: string[] = [];
+
+    template.blocks.forEach((tmplBlock, index) => {
+      const blockCatalogLabel = tmplBlock.type;
+      const palettePath = this.canvasBlocksService.getSVGPathForLabel(blockCatalogLabel);
+      const svgPath = this.changeSVGPath(palettePath || '');
+
+      const runtimeBlockId = this.createUniqueNodeId();
+      const position = {
+        x: dropRect.x,
+        y: dropRect.y + index * VERTICAL_GAP,
+      };
+
+      const newNode: FlowNode = {
+        blockId: runtimeBlockId,
+        sectionId: section.id,
+        position,
+        svgPath,
+        catalogLabel: blockCatalogLabel,
+        blockType: 'Template',
+        input: `input-${this.nodeCounter}`,
+        outputs: [`output-${this.nodeCounter}`],
+        color: '#FFFFFF',
+      };
+
+      this.sections.update((current) =>
+        current.map((item) =>
+          item.id === section.id ? { ...item, nodes: [...item.nodes, newNode] } : item,
+        ),
+      );
+
+      this.canvasBlocksService.addBlock(
+        runtimeBlockId,
+        blockCatalogLabel,
+        position,
+        section.modelName,
+        section.slotIndex,
+        section.nodeId,
+      );
+
+      // Record the runtime trigger_block_name addBlock assigned, so sibling
+      // template blocks that reference this one (by its template block_id)
+      // can be rewritten to point at the live name.
+      const created = this.canvasBlocksService.getBlockById(runtimeBlockId);
+      const triggerName = String(
+        created?.actual_parameters.find((p) => p.name === 'trigger_block_name')?.value ??
+          created?.actual_parameters.find((p) => p.name === 'trigger_block_name')?.default ??
+          runtimeBlockId,
+      );
+      idMap.set(tmplBlock.block_id, {
+        runtimeBlockId,
+        triggerBlockName: triggerName,
+      });
+      createdBlockIds.push(runtimeBlockId);
+    });
+
+    // Apply parameter overrides from the template, rewriting cross-block
+    // references so they target the freshly assigned trigger_block_name.
+    template.blocks.forEach((tmplBlock) => {
+      const mapped = idMap.get(tmplBlock.block_id);
+      if (!mapped) return;
+      const params = tmplBlock.block_parameters ?? {};
+
+      for (const [paramName, rawValue] of Object.entries(params)) {
+        if (rawValue === null || rawValue === undefined) continue;
+
+        // Skip trigger_block_name; addBlock already generated a unique one
+        // and overwriting it here would break the references we just resolved.
+        if (paramName === 'trigger_block_name') continue;
+
+        let value: string | number | null =
+          typeof rawValue === 'boolean' ? String(rawValue) : (rawValue as string | number);
+
+        if (LINK_PARAM_NAMES.includes(paramName) && typeof value === 'string') {
+          const target = idMap.get(value);
+          if (target) value = target.triggerBlockName;
+        }
+
+        this.canvasBlocksService.updateBlockParameterValue(mapped.runtimeBlockId, paramName, value);
+      }
+    });
+
+    // Wire visual connections: link each block to the next as a default
+    // execution path, plus any explicit branch references from parameters.
+    for (let i = 0; i < createdBlockIds.length - 1; i++) {
+      const src = this.canvasBlocksService.getBlockById(createdBlockIds[i]);
+      const dst = this.canvasBlocksService.getBlockById(createdBlockIds[i + 1]);
+      if (src && dst) {
+        this.canvasBlocksService.addConnectionByBlockIds(src, dst);
+      }
+    }
+    // Branch/reference connections (e.g. counter -> first block loopback).
+    this.canvasBlocksService.restoreConnections();
+
+    if (createdBlockIds.length > 0) {
+      this.canvasBlocksService.selectBlock(createdBlockIds[0]);
+    }
   }
 
   private changeSVGPath(svgPath: string): string {

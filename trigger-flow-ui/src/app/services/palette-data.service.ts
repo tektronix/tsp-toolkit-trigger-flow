@@ -1,10 +1,19 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
+import { TriggerFlowDataService } from './triggerFlowDataService';
 
 interface ShapeDefinition {
   type: string;
   svgPath: string;
   catalogLabel: string;
   label?: string;
+  /**
+   * When true, dropping this shape on the canvas instantiates a template
+   * (multiple blocks + connections) instead of a single block. `catalogLabel`
+   * then holds the template key (e.g. "pulsed_sweep").
+   */
+  isTemplate?: boolean;
+  /** Display name for templates (shown as title). Blocks use catalogLabel. */
+  displayLabel?: string;
 }
 
 interface GroupDefinition {
@@ -55,21 +64,29 @@ export class PaletteDataService {
 
   private readonly templates: ShapeDefinition[] = [
 
-    {type: 'Template', svgPath: 'assets/shapes/templates/PulsedSweep.svg', catalogLabel: 'pulsed_sweep', label: 'Pulsed Sweep' },
-    {type: 'Template', svgPath: 'assets/shapes/templates/PulseMeasuredSweep.svg', catalogLabel: 'pulsed_measure_sweep', label: 'Pulsed Measure Sweep' },
-    {type: 'Template', svgPath: 'assets/shapes/templates/DCSweep.svg', catalogLabel: 'dc_sweep', label: 'DC Sweep' },
-    {type: 'Template', svgPath: 'assets/shapes/templates/DCMeasureSweep.svg', catalogLabel: 'dc_measure_sweep', label: 'DC Measure Sweep' },
-    {type: 'Template', svgPath: 'assets/shapes/templates/WaveformCapture.svg', catalogLabel: 'waveform_capture', label: 'Waveform Capture' },
-    {type: 'Template', svgPath: 'assets/shapes/templates/ConfigListLoad.svg', catalogLabel: 'config_list_load', label: 'Config List Load' },
-    {type: 'Template', svgPath: 'assets/shapes/templates/DigitalIOTrigger.svg', catalogLabel: 'digital_io_trigger', label: 'Digital IO Trigger' },
-    {type: 'Template', svgPath: 'assets/shapes/templates/SimpleMeasureLoop.svg', catalogLabel: 'simple_measure_loop', label: 'Simple Measure Loop' },
-    {type: 'Template', svgPath: 'assets/shapes/templates/LoopUntilEvent.svg', catalogLabel: 'loop_until_event', label: 'Loop Until Event' },
+    { type: 'Template', svgPath: 'assets/shapes/templates/PulsedSweep.svg', catalogLabel: 'pulsed_sweep', label: 'Pulsed Sweep', isTemplate: true },
+    { type: 'Template', svgPath: 'assets/shapes/templates/PulseMeasuredSweep.svg', catalogLabel: 'pulsed_measure_sweep', label: 'Pulsed Measure Sweep', isTemplate: true },
+    { type: 'Template', svgPath: 'assets/shapes/templates/DCSweep.svg', catalogLabel: 'dc_sweep', label: 'DC Sweep', isTemplate: true },
+    { type: 'Template', svgPath: 'assets/shapes/templates/DCMeasureSweep.svg', catalogLabel: 'dc_measure_sweep', label: 'DC Measure Sweep', isTemplate: true },
+    { type: 'Template', svgPath: 'assets/shapes/templates/WaveformCapture.svg', catalogLabel: 'waveform_capture', label: 'Waveform Capture', isTemplate: true },
+    { type: 'Template', svgPath: 'assets/shapes/templates/ConfigListLoad.svg', catalogLabel: 'config_list_load', label: 'Config List Load', isTemplate: true },
+    { type: 'Template', svgPath: 'assets/shapes/templates/DigitalIOTrigger.svg', catalogLabel: 'digital_io_trigger', label: 'Digital IO Trigger', isTemplate: true },
+    { type: 'Template', svgPath: 'assets/shapes/templates/SimpleMeasureLoop.svg', catalogLabel: 'simple_measure_loop', label: 'Simple Measure Loop', isTemplate: true },
+    { type: 'Template', svgPath: 'assets/shapes/templates/LoopUntilEvent.svg', catalogLabel: 'loop_until_event', label: 'Loop Until Event', isTemplate: true },
   ];
 
   // TODO: Add actual template and event data when available
-  // private readonly events: ShapeDefinition[] = [];
+  private readonly events: ShapeDefinition[] = [];
+
+  // Fallback icon used when a template's catalog `icon` has no matching SVG
+  // shipped in assets. Templates from the backend only carry an icon key, so
+  // until matching assets exist we render a generic action glyph.
+  private static readonly TEMPLATE_FALLBACK_SVG =
+    'assets/shapes/palette/Action/Action-Measure.svg';
 
   private readonly catalogLabelToSvgPath = new Map<string, string>();
+
+  private triggerFlowDataService = inject(TriggerFlowDataService);
 
   constructor() {
     this.buildLookupMap();
@@ -128,7 +145,7 @@ export class PaletteDataService {
     return [
       {
         label: 'Templates',
-        type: 'single' 
+        type: 'single',
       },
       {
         label: 'Blocks',
@@ -150,9 +167,8 @@ export class PaletteDataService {
             label: 'Timing',
             shapes: shapesByType['Timing'] || []
           }
-        ]
-      }
-    ];
+        ],
+      }]
   }
 
   /**

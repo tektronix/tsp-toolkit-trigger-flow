@@ -125,3 +125,19 @@
     padding: 3px;
     user-select: none;
 }
+
+.template-svg {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+    user-select: none;
+    pointer-events: none;
+    -webkit-user-drag: none;
+}
+
+.palette-template-item img,
+.palette-item img {
+    -webkit-user-drag: none;
+    user-drag: none;
+    pointer-events: none;
+}

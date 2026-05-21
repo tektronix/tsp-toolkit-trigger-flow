@@ -8,6 +8,20 @@ export interface IInitialPayload {
 export interface ICatalog {
   blocks: Record<string, IBlockDefinition>;
   trigger_events: Record<string, IEventDefinition>;
+  templates?: Record<string, ITemplate>;
+}
+
+export interface ITemplateBlock {
+  block_id: string;
+  type: string;
+  block_parameters: Record<string, string | number | boolean | null>;
+}
+
+export interface ITemplate {
+  name: string;
+  description: string;
+  icon: string;
+  blocks: ITemplateBlock[];
 }
 
 export interface IBlockDefinition {
@@ -86,6 +100,7 @@ export class InitialPayload {
 export class Catalog {
   blocks: Record<string, BlockDefinition> = {};
   trigger_events: Record<string, EventDefinition> = {};
+  templates: Record<string, ITemplate> = {};
 
   constructor(data: ICatalog) {
     for (const blockName of Object.keys(data.blocks)) {
@@ -96,6 +111,10 @@ export class Catalog {
       this.trigger_events[eventName] = new EventDefinition(
         data.trigger_events[eventName]
       );
+    }
+
+    if (data.templates) {
+      this.templates = { ...data.templates };
     }
   }
 }

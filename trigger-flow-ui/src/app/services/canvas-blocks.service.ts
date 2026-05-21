@@ -273,6 +273,14 @@ export class CanvasBlocksService {
     const svgPath = this.paletteDataService.getSVGPathByCatalogLabel(blockType);
     return this.changeSVGPath(svgPath || '');
   }
+
+  /**
+   * Public lookup that returns the palette-relative SVG path for a catalog
+   * label, used by template instantiation to resolve per-block icons.
+   */
+  getSVGPathForLabel(catalogLabel: string): string {
+    return this.paletteDataService.getSVGPathByCatalogLabel(catalogLabel) || '';
+  }
   changeSVGPath(svgPath: string): string {
     return svgPath.replace('palette/', 'canvas/');
   }

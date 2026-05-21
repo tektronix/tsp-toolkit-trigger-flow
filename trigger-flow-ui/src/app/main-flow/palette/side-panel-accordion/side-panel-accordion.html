@@ -37,9 +37,10 @@
             </ng-container>
             <ng-template #singleContent>
                 <ng-container *ngIf="templates() && templates().length > 0; else emptyTemplates">
-                    <div *ngFor="let template of templates()" class="palette-template-item">
-                        <div class="shape-icon" fExternalItem [fData]="template"
-                            [aria-label]='template.catalogLabel+"_"+"palette"'>
+                    <div *ngFor="let template of templates()" class="palette-template-item"
+                        fExternalItem [fData]="template"
+                        [aria-label]='template.catalogLabel+"_"+"palette"'>
+                        <div class="shape-icon">
                             <img [src]="template.svgPath" class="template-svg" />
                         </div>
                         <span class="template-label">{{ template.label }}</span>

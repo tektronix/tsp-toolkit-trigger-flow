@@ -777,6 +777,7 @@ templates:
           block_parameters:
             trigger_block_name: pulsed_sweep_counter_001
             branch_to_block_name: pulsed_sweep_source_action_001
+            target_count: 10
 
     pulsed_measure_sweep:
       name: "Pulsed Measure Sweep"
