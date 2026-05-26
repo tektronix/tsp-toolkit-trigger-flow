@@ -48,6 +48,7 @@
               [label]="getParameterDisplayName(param)"
               [options]="getBlockReferenceOptions(param)"
               [(ngModel)]="param.value"
+              [invalid]="isBlockReferenceUnset(param)"
               (selectedChange)="onParameterValueChange()"
             />
           } @else if (getControlType(param) === 'select') {

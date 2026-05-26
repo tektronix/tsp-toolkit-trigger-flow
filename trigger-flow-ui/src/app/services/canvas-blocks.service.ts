@@ -627,6 +627,47 @@ export class CanvasBlocksService {
   }
 
   /**
+   * When a user edits a block's `trigger_block_name` (e.g. "config list next 1" →
+   * "config list next 2"), any other block in the same trigger model that was pointing
+   * at the old name through a `BlockReference` parameter would otherwise be
+   * left with a dangling reference. This method walks the owning model and
+   * rewrites every such reference from `oldName` to `newName` so the canvas
+   * state stays consistent and the generated script keeps compiling.
+   *
+   * Scope rules:
+   * - Only the model that owns `renamedBlockId` is touched. Block names are
+   *   unique per model, so a block in a different model that happens to
+   *   share the old name must NOT be rewritten.
+   * - The renamed block itself is skipped — its `trigger_block_name` is
+   *   already the new value (that's what triggered this call); it's not a
+   *   reference TO the old name.
+   *
+   * Visual `FlowConnection`s are keyed by `block_id`, not by name, so they
+   * survive a rename automatically. Only the underlying parameter values
+   * need to be propagated.
+   */
+  propagateBlockRename(
+    renamedBlockId: string,
+    oldName: string,
+    newName: string,
+  ): void {
+    if (!oldName || !newName || oldName === newName) return;
+    const model = this.getModelForBlock(renamedBlockId);
+    if (!model) return;
+    for (const block of model.blocks) {
+      // Skip the renamed block itself — its `trigger_block_name` is the
+      // source of the change, not a reference to the old name.
+      if (block.block_id === renamedBlockId) continue;
+      for (const param of block.actual_parameters) {
+        if (!isBlockReferenceParam(param.type)) continue;
+        if (param.value != null && String(param.value) === oldName) {
+          param.value = newName;
+        }
+      }
+    }
+  }
+
+  /**
    * Returns valid `trigger_block_name` values that a block-reference parameter
    * on `blockId` can point to. Scoped to the block's owning trigger model and
    * excludes the block itself. For `reset_branch_count_block_name`, results

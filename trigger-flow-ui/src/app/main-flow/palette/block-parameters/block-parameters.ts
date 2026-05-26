@@ -76,6 +76,13 @@ export class BlockParameters {
   blockTypeSvgPath = '';
   actualParameters: ActualParameter[] = [];
   blockNotes = '';
+  /**
+   * Snapshot of the selected block's `trigger_block_name` value taken when
+   * the right panel last loaded it. Used by `onParameterValueChange` to
+   * detect renames and propagate them to any other block whose
+   * BlockReference parameter currently points at the old name.
+   */
+  private previousBlockName = '';
   triggerEvents: Record<string, EventDefinition> = {};
   channelListOptions: CheckboxOption[] = [];
   channelItemOptions: RadioOption[] = [];
@@ -116,7 +123,10 @@ export class BlockParameters {
         }
 
         this.actualParameters = canvasBlock.actual_parameters;
-        
+        // Snapshot the current name so a subsequent edit can be detected as a
+        // rename and propagated to referencing BlockReference param.
+        this.previousBlockName = this.readTriggerBlockName(this.actualParameters);
+
         // Resolve model context from the owning model
         const model = this.canvasBlocksService.getModelForBlock(this.selectedBlockId);
 
@@ -156,6 +166,15 @@ export class BlockParameters {
   // isToggleType(type: ParamTypeName): boolean {
   //   return type === 'SourceState';
   // }
+
+  /**
+   * Returns the current `trigger_block_name` value from a parameter list,
+   * or '' if the parameter is missing or unset.
+   */
+  private readTriggerBlockName(params: ActualParameter[]): string {
+    const param = params.find((p) => p.name === 'trigger_block_name');
+    return param?.value != null ? String(param.value) : '';
+  }
 
   getControlType(param: ActualParameter): ParamControlType {
     return resolveParamControlType({
@@ -209,6 +228,18 @@ export class BlockParameters {
       param.name,
     );
     return [BLOCK_REFERENCE_UNKNOWN_VALUE, ...names];
+  }
+
+  /**
+   * True when a block-reference parameter currently has the sentinel
+   * 'unknown' value. The template uses this to flag the dropdown as
+   * invalid (red border) so the user notices the unresolved selection.
+   */
+  isBlockReferenceUnset(param: ActualParameter): boolean {
+    return (
+      isBlockReferenceParam(param.type) &&
+      String(param.value ?? '') === BLOCK_REFERENCE_UNKNOWN_VALUE
+    );
   }
 
   private hasSelectableOptions(param: ActualParameter): boolean {
@@ -272,6 +303,28 @@ export class BlockParameters {
       this.actualParameters,
     );
     canvasBlock.actual_parameters = this.actualParameters;
+
+    // Detect a rename of `trigger_block_name` on the currently selected
+    // block and propagate it to every BlockReference parameter that still
+    // points at the old name within the same trigger model. (Block names
+    // are only unique within their owning model, so propagation must be
+    // scoped — that is enforced inside `propagateBlockRename`.) Must run
+    // BEFORE updateAndPrint so the regenerated script reflects the new
+    // name everywhere.
+    const currentName = this.readTriggerBlockName(this.actualParameters);
+    if (
+      this.previousBlockName &&
+      currentName &&
+      currentName !== this.previousBlockName
+    ) {
+      this.canvasBlocksService.propagateBlockRename(
+        canvasBlock.block_id,
+        this.previousBlockName,
+        currentName,
+      );
+    }
+    this.previousBlockName = currentName;
+
     this.canvasBlocksService.updateAndPrint();
     // If a block-reference parameter points at another block, request a
     // connection to that target.
