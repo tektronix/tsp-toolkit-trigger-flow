@@ -13,13 +13,12 @@ import { ActualParameter, EventDefinition, DelayListConfig } from '../../../mode
 import { Textbox } from '../../../custom-controls/textbox/textbox';
 import { InputNumeric } from '../../../custom-controls/input-numeric/input-numeric';
 import { Dropdown } from '../../../custom-controls/dropdown/dropdown';
-import { RadioButton } from '../../../custom-controls/radio-button/radio-button';
+// import { RadioButton } from '../../../custom-controls/radio-button/radio-button';
 import { MultilineTextbox } from '../../../custom-controls/multiline-textbox/multiline-textbox';
 import { FormsModule } from '@angular/forms';
 import { EventBlockComponent } from './event-block/event-block';
 import { SpecificEvent } from './specific-event/specific-event';
 import { TriggerFlowDataService } from '../../../services/triggerFlowDataService';
-// import { EventDefinition } from '../../../models/triggerBlock';
 import { Toggle } from '../../../custom-controls/toggle/toggle';
 import {
   CheckboxGroup,
@@ -29,11 +28,6 @@ import { RadioGroup, RadioOption } from '../../../custom-controls/radio-group/ra
 import { ModelResourceAllocationService } from '../../../services/model-resource-allocation.service';
 import { Checkbox } from '../../../custom-controls/checkbox/checkbox';
 import { DelayListModal, DelayListModalValue } from './delay-list-modal/delay-list-modal';
-
-// interface DelayListConfigValue {
-//   delay_count: number;
-//   delay_durations: number[];
-// }
 
 const CATEGORY_ICON_PATHS: Record<string, string> = {
   actions: 'assets/shapes/icons/TinyAction.svg',
@@ -49,7 +43,6 @@ const CATEGORY_ICON_PATHS: Record<string, string> = {
     Textbox,
     InputNumeric,
     Dropdown,
-    RadioButton,
     MultilineTextbox,
     Toggle,
     Checkbox,
@@ -138,23 +131,6 @@ export class BlockParameters {
     }
   }
 
-  // isNumberType(type: ParamTypeName): boolean {
-  //   // DelayTime is represented as a numeric value in catalog metadata.
-  //   return type === 'Number' || type === 'DelayTime';
-  // }
-
-  // isStringType(type: ParamTypeName): boolean {
-  //   return type === 'String';
-  // }
-
-  // isMultiLineStringType(type: ParamTypeName): boolean {
-  //   return type === 'MultiString';
-  // }
-
-  // isToggleType(type: ParamTypeName): boolean {
-  //   return type === 'SourceState';
-  // }
-
   getControlType(param: ActualParameter): ParamControlType {
     return resolveParamControlType({
       name: param.name,
@@ -239,6 +215,11 @@ export class BlockParameters {
     // Use a unique group name per parameter and selected block so radios
     // from different fields do not interfere with each other.
     return `param-${blockId}-${param.name}`;
+  }
+
+  onRadioSelectionChange(param: ActualParameter, value: string): void {
+    param.value = value;
+    this.onParameterValueChange();
   }
 
   onParameterValueChange(): void {
@@ -513,5 +494,14 @@ export class BlockParameters {
 
   closePanel(): void {
     //
+  }
+
+  // Coerce ParameterValue to string for controls that expect string-only values
+  // (RadioGroup, Dropdown, Textbox, etc.).
+  toStringValue(value: unknown): string {
+    if (value === null || value === undefined) {
+      return '';
+    }
+    return String(value);
   }
 }

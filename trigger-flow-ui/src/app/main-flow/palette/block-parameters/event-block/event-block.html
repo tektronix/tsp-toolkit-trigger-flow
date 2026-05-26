@@ -16,29 +16,26 @@
     <div class="event-row">
       <div class="event-type-selector">
         @if (isSingleSelection) {
-          <label>
-            <input
-              type="radio"
-              name="event-list-selection"
-              [checked]="isSelected(type)"
-              (change)="selectSingleEvent(type)"
-              [attr.aria-label]="'Radio-Event-' + type"
-              [attr.automationID]="'Radio-Event-' + type"
-            />
-            {{ type }}
-          </label>
+          <app-radio-button
+            [label]="type"
+            [name]="'event-list-selection'"
+            [value]="type"
+            [checked]="isSelected(type)"
+            (checkedChange)="selectSingleEvent($event)"
+            [attr.aria-label]="'Radio-Event-' + type"
+            [automationID]="'Radio-Event-' + type"
+          >
+          </app-radio-button>
         } @else {
-          <label>
-            <input
-              type="checkbox"
-              [checked]="isSelected(type)"
-              [disabled]="isEventTypeDisabled(type)"
-              (change)="toggleEvent(type)"
-              [attr.aria-label]="'Checkbox-Event-' + type"
-              [attr.automationID]="'Checkbox-Event-' + type"
-            />
-            {{ type }}
-          </label>
+          <app-checkbox
+            [label]="type"
+            [checked]="isSelected(type)"
+            [disabled]="isEventTypeDisabled(type)"
+            (checkedChange)="onEventCheckedChange(type, $event)"
+            [attr.aria-label]="'Checkbox-Event-' + type"
+            [automationID]="'Checkbox-Event-' + type"
+          >
+          </app-checkbox>
         }
       </div>
 

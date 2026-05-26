@@ -12,6 +12,8 @@ import {
   resolveParameterOptions,
   resolveParamControlType,
 } from '../../../../models/blockParameterHelper';
+import { Checkbox } from '../../../../custom-controls/checkbox/checkbox';
+import { RadioButton } from '../../../../custom-controls/radio-button/radio-button';
 
 interface EventParamView {
   name: string;
@@ -40,7 +42,7 @@ const EVENT_TYPE_ORDER = [
   'event_notify_n',
   'event_generator',
   'event_timer',
-  'event_tsplink',  
+  'event_tsplink',
   'event_at_limit',
 ];
 
@@ -69,7 +71,7 @@ const FALLBACK_EVENT_DEFINITIONS: Record<string, { parameters: EventParamView[] 
 
 @Component({
   selector: 'app-event-block',
-  imports: [Textbox, Dropdown],
+  imports: [Textbox, Dropdown, Checkbox, RadioButton],
   templateUrl: './event-block.html',
   styleUrl: './event-block.scss',
 })
@@ -248,6 +250,18 @@ export class EventBlockComponent implements OnChanges {
     }
 
     this.valueChange.emit();
+  }
+
+  onEventCheckedChange(type: string, checked: boolean): void {
+    const selected = this.isSelected(type);
+
+    if (checked && !selected) {
+      this.toggleEvent(type);
+    }
+
+    if (!checked && selected) {
+      this.toggleEvent(type);
+    }
   }
 
   selectSingleEvent(type: string) {
