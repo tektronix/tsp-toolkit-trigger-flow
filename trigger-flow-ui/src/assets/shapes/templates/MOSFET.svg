@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+  <g class="Icon=MOSFET, Color=Transparent, Size=24">
+    <path stroke="#979797" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2 11.5h8m0 7v-14" class="Vector 4"/>
+    <path stroke="#979797" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 2v4.5h-6v10h6v5" class="Vector 5"/>
+  </g>
+</svg>

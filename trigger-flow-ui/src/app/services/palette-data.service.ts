@@ -73,6 +73,9 @@ export class PaletteDataService {
     { type: 'Template', svgPath: 'assets/shapes/templates/DigitalIOTrigger.svg', catalogLabel: 'digital_io_trigger', label: 'Digital IO Trigger', isTemplate: true },
     { type: 'Template', svgPath: 'assets/shapes/templates/SimpleMeasureLoop.svg', catalogLabel: 'simple_measure_loop', label: 'Simple Measure Loop', isTemplate: true },
     { type: 'Template', svgPath: 'assets/shapes/templates/LoopUntilEvent.svg', catalogLabel: 'loop_until_event', label: 'Loop Until Event', isTemplate: true },
+    { type: 'Template', svgPath: 'assets/shapes/templates/WaitOnTriggerModel.svg', catalogLabel: 'wait_on_trigger_model', label: 'Wait On Trigger Model', isTemplate: true },
+    { type: 'Template', svgPath: 'assets/shapes/templates/MOSFET.svg', catalogLabel: 'mosfet_family_of_curves', label: 'MOSFET Family of Curves', isTemplate: true },
+    { type: 'Template', svgPath: 'assets/shapes/templates/LIVCurve.svg', catalogLabel: 'liv_curves', label: 'LIV Curves', isTemplate: true },
   ];
 
   // TODO: Add actual template and event data when available

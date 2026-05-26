@@ -17,11 +17,20 @@ export interface ITemplateBlock {
   block_parameters: Record<string, string | number | boolean | null>;
 }
 
+/**
+ * A group of template blocks that should be instantiated as a single trigger
+ * model (one canvas section). Templates may define multiple groups, in which
+ * case each group becomes its own section/model.
+ */
+export interface ITemplateBlockGroup {
+  blocks: ITemplateBlock[];
+}
+
 export interface ITemplate {
   name: string;
   description: string;
   icon: string;
-  blocks: ITemplateBlock[];
+  blocks: ITemplateBlockGroup[];
 }
 
 export interface IBlockDefinition {
