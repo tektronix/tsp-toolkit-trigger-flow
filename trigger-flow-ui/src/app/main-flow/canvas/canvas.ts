@@ -18,6 +18,8 @@ import { AngularSvgIconModule } from 'angular-svg-icon';
 import { CanvasBlocksService } from '../../services/canvas-blocks.service';
 import { TriggerFlowDataService } from '../../services/triggerFlowDataService';
 import { BlockErrorEntry } from '../../models/triggerFlowState';
+import { EventListItem, ParameterValue } from '../../models/triggerBlock';
+import { normalizeParameterValues } from '../../models/blockParameterHelper';
 import { EFMarkerType, FCanvasComponent, FFlowModule, FSelectionChangeEvent, FDragStartedEvent } from '@foblex/flow';
 import { ModelModalValue } from '../model-modal/model-modal';
 
@@ -431,10 +433,16 @@ export class Canvas implements AfterViewInit {
   /**
    * Instantiate a template (multiple pre-wired blocks) at the drop position.
    *
-   * Each template block carries a template-scoped `block_id` and may reference
-   * sibling blocks by that id in parameters like `branch_to_block_name`. On
-   * instantiation we generate fresh, unique runtime ids and rewrite those
-   * references so the resulting trigger model is self-consistent.
+   * The template's `blocks` is an array of groups, where each group corresponds
+   * to a single trigger model (= one canvas section). The first group is placed
+   * into `startingSection`; each subsequent group creates a new section so that
+   * the rule "one model per section" is preserved.
+   *
+   * Within a group, each block carries a template-scoped `block_id` and may
+   * reference sibling blocks (in the same group) by that id in parameters like
+   * `branch_to_block_name`. On instantiation we generate fresh, unique runtime
+   * ids and rewrite those references so the resulting trigger model is
+   * self-consistent. Cross-group references are not supported.
    *
    * Layout is a simple vertical stack starting at the drop position so the
    * resulting blocks fit the existing section layout without overlapping.
@@ -442,7 +450,7 @@ export class Canvas implements AfterViewInit {
   private createTemplateInSection(
     templateKey: string,
     dropRect: { x: number; y: number },
-    section: FlowSection,
+    startingSection: FlowSection,
   ): void {
     const catalog = this.triggerFlowDataService.catalog$();
     const template = catalog?.templates?.[templateKey];
@@ -450,115 +458,255 @@ export class Canvas implements AfterViewInit {
       console.warn(`Template "${templateKey}" not found in catalog`);
       return;
     }
-
-    // Vertical spacing between stacked template blocks. Roughly matches the
-    // visual height of a canvas node so blocks don't overlap.
     const VERTICAL_GAP = 120;
+    const SECTION_WIDTH = 400;
+
     const LINK_PARAM_NAMES = [
       'branch_to_block_name',
       'reference_block_name',
       'reset_branch_count_block_name',
     ];
 
-    // Map template-scoped block_id -> runtime block id and trigger_block_name
-    // so we can rewrite cross-block references after all blocks are created.
-    const idMap = new Map<string, { runtimeBlockId: string; triggerBlockName: string }>();
-    const createdBlockIds: string[] = [];
+    const groups = template.blocks.filter((g) => g?.blocks?.length);
+    if (groups.length === 0) {
+      console.warn(`Template "${templateKey}" has no block groups`);
+      return;
+    }
 
-    template.blocks.forEach((tmplBlock, index) => {
-      const blockCatalogLabel = tmplBlock.type;
-      const palettePath = this.canvasBlocksService.getSVGPathForLabel(blockCatalogLabel);
-      const svgPath = this.changeSVGPath(palettePath || '');
+    // Resolve a target section for each group; create new sections for groups
+    // beyond the first since each model must live in its own section.
+    const targetSections: FlowSection[] = [startingSection];
+    for (let i = 1; i < groups.length; i++) {
+      targetSections.push(this.createSectionForTemplateGroup(startingSection));
+    }
 
-      const runtimeBlockId = this.createUniqueNodeId();
-      const position = {
-        x: dropRect.x,
-        y: dropRect.y + index * VERTICAL_GAP,
-      };
+    // Node positions are absolute canvas coordinates, but each section is
+    // visually offset by `positionIndex * SECTION_WIDTH`. Compute the drop
+    // offset relative to the starting section so we can re-apply it inside
+    // each subsequent section's own x-origin (otherwise group-2 blocks would
+    // render on top of group-1's section).
+    const startingSectionX = (startingSection.positionIndex ?? 0) * SECTION_WIDTH;
+    const relativeDropX = dropRect.x - startingSectionX;
 
-      const newNode: FlowNode = {
-        blockId: runtimeBlockId,
-        sectionId: section.id,
-        position,
-        svgPath,
-        catalogLabel: blockCatalogLabel,
-        blockType: 'Template',
-        input: `input-${this.nodeCounter}`,
-        outputs: [`output-${this.nodeCounter}`],
-        color: '#FFFFFF',
-      };
+    const firstCreatedBlockIds: string[] = [];
 
+    // Mirror the recall flow: build all blocks + set every parameter (including
+    // link params) first, batch the per-section node publish into a single
+    // `sections.update`, then let `restoreConnections()` rebuild the connections
+    // from the link-param values — exactly like `loadSessionData` does.
+    groups.forEach((group, groupIndex) => {
+      const section = targetSections[groupIndex];
+      const sectionOriginX = (section.positionIndex ?? groupIndex) * SECTION_WIDTH;
+      const groupBaseX = sectionOriginX + relativeDropX;
+
+      // Map template-scoped block_id -> runtime block id and trigger_block_name
+      // so we can rewrite cross-block references after all blocks are created.
+      const idMap = new Map<string, { runtimeBlockId: string; triggerBlockName: string }>();
+      const createdBlockIds: string[] = [];
+      const newNodes: FlowNode[] = [];
+
+      group.blocks.forEach((tmplBlock, index) => {
+        const blockCatalogLabel = tmplBlock.type;
+        const palettePath = this.canvasBlocksService.getSVGPathForLabel(blockCatalogLabel);
+        const svgPath = this.changeSVGPath(palettePath || '');
+
+        const runtimeBlockId = this.createUniqueNodeId();
+        const position = {
+          x: groupBaseX,
+          y: dropRect.y + index * VERTICAL_GAP,
+        };
+
+        newNodes.push({
+          blockId: runtimeBlockId,
+          sectionId: section.id,
+          position,
+          svgPath,
+          catalogLabel: blockCatalogLabel,
+          blockType: 'Template',
+          input: `input-${this.nodeCounter}`,
+          outputs: [`output-${this.nodeCounter}`],
+          color: '#FFFFFF',
+        });
+
+        this.canvasBlocksService.addBlock(
+          runtimeBlockId,
+          blockCatalogLabel,
+          position,
+          section.modelName,
+          section.slotIndex,
+          section.nodeId,
+        );
+
+        // Record the runtime trigger_block_name addBlock assigned, so sibling
+        // template blocks (in the same group) that reference this one by its
+        // template block_id can be rewritten to point at the live name.
+        const created = this.canvasBlocksService.getBlockById(runtimeBlockId);
+        const templateTriggerName = tmplBlock.block_parameters?.['trigger_block_name'];
+        let triggerName: string;
+        if (typeof templateTriggerName === 'string' && templateTriggerName.length > 0) {
+          triggerName = this.canvasBlocksService.getUniqueBlockName(templateTriggerName);
+          this.canvasBlocksService.updateBlockParameterValue(
+            runtimeBlockId,
+            'trigger_block_name',
+            triggerName,
+          );
+        } else {
+          triggerName = String(
+            created?.actual_parameters.find((p) => p.name === 'trigger_block_name')?.value ??
+              created?.actual_parameters.find((p) => p.name === 'trigger_block_name')?.default ??
+              runtimeBlockId,
+          );
+        }
+        idMap.set(tmplBlock.block_id, {
+          runtimeBlockId,
+          triggerBlockName: triggerName,
+        });
+        createdBlockIds.push(runtimeBlockId);
+      });
+
+      // Apply parameter overrides from the template, rewriting cross-block
+      // references so they target the freshly assigned trigger_block_name.
+      // These link-param values are what `restoreConnections()` walks to
+      // rebuild the visual connections.
+      group.blocks.forEach((tmplBlock) => {
+        const mapped = idMap.get(tmplBlock.block_id);
+        if (!mapped) return;
+        const params = tmplBlock.block_parameters ?? {};
+
+        for (const [paramName, rawValue] of Object.entries(params)) {
+          if (rawValue === null || rawValue === undefined) continue;
+
+          // Skip trigger_block_name; addBlock already generated a unique one
+          // and overwriting it here would break the references we just resolved.
+          if (paramName === 'trigger_block_name') continue;
+
+          let value = rawValue as ParameterValue;
+
+          if (LINK_PARAM_NAMES.includes(paramName) && typeof value === 'string') {
+            const target = idMap.get(value);
+            if (target) {
+              value = target.triggerBlockName;
+            }
+          }
+
+          this.canvasBlocksService.updateBlockParameterValue(
+            mapped.runtimeBlockId,
+            paramName,
+            value,
+          );
+        }
+
+        this.initializeEventParameterDefaults(mapped.runtimeBlockId, section);
+      });
+
+      // Publish all nodes for this section in one `sections.update` (matches
+      // the recall flow's single `sections.set(buildSectionsFromModels())`).
       this.sections.update((current) =>
         current.map((item) =>
-          item.id === section.id ? { ...item, nodes: [...item.nodes, newNode] } : item,
+          item.id === section.id ? { ...item, nodes: [...item.nodes, ...newNodes] } : item,
         ),
       );
 
-      this.canvasBlocksService.addBlock(
-        runtimeBlockId,
-        blockCatalogLabel,
-        position,
-        section.modelName,
-        section.slotIndex,
-        section.nodeId,
-      );
-
-      // Record the runtime trigger_block_name addBlock assigned, so sibling
-      // template blocks that reference this one (by its template block_id)
-      // can be rewritten to point at the live name.
-      const created = this.canvasBlocksService.getBlockById(runtimeBlockId);
-      const triggerName = String(
-        created?.actual_parameters.find((p) => p.name === 'trigger_block_name')?.value ??
-          created?.actual_parameters.find((p) => p.name === 'trigger_block_name')?.default ??
-          runtimeBlockId,
-      );
-      idMap.set(tmplBlock.block_id, {
-        runtimeBlockId,
-        triggerBlockName: triggerName,
-      });
-      createdBlockIds.push(runtimeBlockId);
-    });
-
-    // Apply parameter overrides from the template, rewriting cross-block
-    // references so they target the freshly assigned trigger_block_name.
-    template.blocks.forEach((tmplBlock) => {
-      const mapped = idMap.get(tmplBlock.block_id);
-      if (!mapped) return;
-      const params = tmplBlock.block_parameters ?? {};
-
-      for (const [paramName, rawValue] of Object.entries(params)) {
-        if (rawValue === null || rawValue === undefined) continue;
-
-        // Skip trigger_block_name; addBlock already generated a unique one
-        // and overwriting it here would break the references we just resolved.
-        if (paramName === 'trigger_block_name') continue;
-
-        let value: string | number | null =
-          typeof rawValue === 'boolean' ? String(rawValue) : (rawValue as string | number);
-
-        if (LINK_PARAM_NAMES.includes(paramName) && typeof value === 'string') {
-          const target = idMap.get(value);
-          if (target) value = target.triggerBlockName;
-        }
-
-        this.canvasBlocksService.updateBlockParameterValue(mapped.runtimeBlockId, paramName, value);
+      if (groupIndex === 0) {
+        firstCreatedBlockIds.push(...createdBlockIds);
       }
     });
 
-    // Wire visual connections: link each block to the next as a default
-    // execution path, plus any explicit branch references from parameters.
-    for (let i = 0; i < createdBlockIds.length - 1; i++) {
-      const src = this.canvasBlocksService.getBlockById(createdBlockIds[i]);
-      const dst = this.canvasBlocksService.getBlockById(createdBlockIds[i + 1]);
-      if (src && dst) {
-        this.canvasBlocksService.addConnectionByBlockIds(src, dst);
-      }
-    }
-    // Branch/reference connections (e.g. counter -> first block loopback).
+    // Rebuild visual connections from the link-param values we just set —
+    // identical to the final step of `loadSessionData`.
     this.canvasBlocksService.restoreConnections();
 
-    if (createdBlockIds.length > 0) {
-      this.canvasBlocksService.selectBlock(createdBlockIds[0]);
+
+
+    if (firstCreatedBlockIds.length > 0) {
+      this.canvasBlocksService.selectBlock(firstCreatedBlockIds[0]);
+    }
+  }
+
+  /**
+   * Create a new section to host an additional trigger model from a template
+   * with more than one group.
+   */
+  private createSectionForTemplateGroup(reference: FlowSection): FlowSection {
+    const existing = this.sections();
+    const sectionId = `group-${existing.length + 1}`;
+    const modelName = this.generateUniqueModelName(`${reference.modelName}_`+`${existing.length + 1}`);
+    const nextPositionIndex =
+      existing.reduce((max, s) => Math.max(max, s.positionIndex ?? -1), -1) + 1;
+
+    const newSection: FlowSection = {
+      id: sectionId,
+      modelName,
+      slotIndex: reference.slotIndex,
+      nodeId: reference.nodeId,
+      nodes: [],
+      positionIndex: nextPositionIndex,
+    };
+
+    this.canvasBlocksService.sections.update((current) => [...current, newSection]);
+    return newSection;
+  }
+
+  private generateUniqueModelName(base: string): string {
+    const existing = new Set(this.sections().map((s) => s.modelName));
+    if (!existing.has(base)) return base;
+    let i = 2;
+    while (existing.has(`${base}${i}`)) i++;
+    return `${base}${i}`;
+  }
+
+  private initializeEventParameterDefaults(blockId: string, section: FlowSection): void {
+    const block = this.canvasBlocksService.getBlockById(blockId);
+    if (!block) return;
+
+    const triggerEvents = this.triggerFlowDataService.getTriggerEvents?.() ?? {};
+    const slotChannelList = this.triggerFlowDataService.getSlotChannelList?.() ?? null;
+
+    for (const param of block.actual_parameters) {
+      const paramType = param.type;
+      const isEventList = paramType === 'EventList';
+      const isEventItem = paramType === 'EventItem';
+      const isConcreteEvent =
+        typeof paramType === 'string' && paramType.startsWith('event_');
+
+      if (!isEventList && !isEventItem && !isConcreteEvent) continue;
+
+      const hasValue =
+        isEventList
+          ? Array.isArray(param.value) && param.value.length > 0
+          : param.value != null &&
+            typeof param.value === 'object' &&
+            'type' in (param.value as object);
+      if (hasValue) continue;
+
+      // For a concrete-typed param (e.g. event_notify_n) the event type is fixed.
+      // For EventItem/EventList pick the first known event type.
+      const eventType = isConcreteEvent
+        ? paramType
+        : Object.keys(triggerEvents)[0] ?? 'event_notify_n';
+
+      const defEntry = triggerEvents[eventType];
+      const paramsForType = defEntry?.parameters ?? [];
+
+      const rawParams: Record<string, string | number> = {};
+      if (paramsForType.some((p) => p.name === 'slot_index')) {
+        rawParams['slot_index'] = section.slotIndex;
+      }
+
+      const normalized = normalizeParameterValues(
+        paramsForType,
+        rawParams,
+        slotChannelList,
+        section.nodeId,
+        section.slotIndex,
+      );
+
+      const eventItem: EventListItem = { type: eventType, params: normalized };
+      this.canvasBlocksService.updateBlockParameterValue(
+        blockId,
+        param.name,
+        isEventList ? [eventItem] : eventItem,
+      );
     }
   }
 

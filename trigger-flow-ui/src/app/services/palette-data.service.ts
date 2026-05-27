@@ -78,15 +78,6 @@ export class PaletteDataService {
     { type: 'Template', svgPath: 'assets/shapes/templates/LIVCurve.svg', catalogLabel: 'liv_curves', label: 'LIV Curves', isTemplate: true },
   ];
 
-  // TODO: Add actual template and event data when available
-  private readonly events: ShapeDefinition[] = [];
-
-  // Fallback icon used when a template's catalog `icon` has no matching SVG
-  // shipped in assets. Templates from the backend only carry an icon key, so
-  // until matching assets exist we render a generic action glyph.
-  private static readonly TEMPLATE_FALLBACK_SVG =
-    'assets/shapes/palette/Action/Action-Measure.svg';
-
   private readonly catalogLabelToSvgPath = new Map<string, string>();
 
   private triggerFlowDataService = inject(TriggerFlowDataService);

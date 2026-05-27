@@ -14,7 +14,7 @@ export interface ICatalog {
 export interface ITemplateBlock {
   block_id: string;
   type: string;
-  block_parameters: Record<string, string | number | boolean | null>;
+  block_parameters: Record<string, ParameterValue>;
 }
 
 /**

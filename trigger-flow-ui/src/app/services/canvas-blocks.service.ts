@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { BehaviorSubject, Subject } from 'rxjs';
-import { Catalog, BlockDefinition, ActualParameter } from '../models/triggerBlock';
+import { Catalog, BlockDefinition, ActualParameter, ParameterValue } from '../models/triggerBlock';
 import { BlockErrorEntry, JsonValue, TriggerModel } from '../models/triggerFlowState';
 import { Websocket } from './websocket';
 import { TriggerFlowDataService } from './triggerFlowDataService';
@@ -632,7 +632,7 @@ export class CanvasBlocksService {
   updateBlockParameterValue(
     blockId: string,
     parameterName: string,
-    value: string | number | null,
+    value: ParameterValue,
   ): boolean {
     const block = this.getBlockById(blockId);
     if (!block) return false;
