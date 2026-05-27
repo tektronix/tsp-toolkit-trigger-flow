@@ -215,7 +215,7 @@ export class BlockParameters {
   }
 
   /**
-   * Options for a block-reference parameter dropdown. Always includes the
+   * Options for a block-reference parameter dropdown. Always include the
    * sentinel 'unknown' first, followed by every valid target block name in
    * the same trigger model (filtered per parameter — see service helper).
    */

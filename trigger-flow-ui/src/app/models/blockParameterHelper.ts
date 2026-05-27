@@ -54,7 +54,7 @@ export type ParamControlType =
   | 'block-reference'
   | 'unknown';
 
-// Parameter names whose value is the `trigger_block_name` of another block in
+// Parameter types whose value is the `trigger_block_name` of another block in
 // the same trigger model. Rendered as a dropdown of available block names.
 export const BLOCK_REFERENCE_PARAM_TYPE = 'BlockReference';
 

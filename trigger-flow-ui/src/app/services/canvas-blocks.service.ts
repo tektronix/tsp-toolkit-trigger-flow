@@ -428,7 +428,7 @@ export class CanvasBlocksService {
             for (const param of block.actual_parameters) {
               if (param.name === 'branch_to_block_name' || param.name === 'reference_block_name' || param.name === 'reset_branch_count_block_name') {
                 if (param.value === removedBlockName) {
-                  param.value = null;
+                  param.value = BLOCK_REFERENCE_UNKNOWN_VALUE;
                 }
               }
             }
