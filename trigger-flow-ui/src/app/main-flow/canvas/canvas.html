@@ -3,16 +3,18 @@
   fDraggable
   fConnectionDraggable
   [fCanvasMoveTrigger]="canvasMoveTrigger"
+  (fDragStarted)="onDragStarted($event)"
+  (fDragEnded)="onDragEnded()"
   (fSelectionChange)="onSelectionChange($event)"
   (fCreateNode)="onCreateNode($event)"
   (fMoveNodes)="onMoveNodes($event)"
   (fCreateConnection)="onCreateConnection($event)"
   [attr.aria-label]="'Trigger flow canvas'"
 >
+  <!-- <f-magnetic-lines [threshold]="100"/> -->
   <f-background>
     <f-rect-pattern/>
   </f-background>
-<!-- <f-line-alignment [fAlignThreshold]="100"></f-line-alignment> -->
   <f-canvas  fZoom>
     @for (section of sectionLayouts(); track section.id) {
       <div
@@ -23,20 +25,13 @@
         [fGroupSize]="section.size"
         [fGroupDraggingDisabled]="true"
         [fGroupSelectionDisabled]="true"
+        [attr.data-section-id]="section.id"
         [aria-label]="'Section-' + section.modelName"
       >
         <div class="section-title">
           <div class="title-left">
             <span class="title-chip title-chip-primary">{{ section.modelName }}</span>
             <span class="title-chip">{{section.nodeId}}.slot[{{section.slotIndex}}]</span>
-            <!--button
-              type="button"
-              class="title-btn"
-              [attr.aria-label]="'Model-Settings-' + section.modelName"
-              title="Model Settings"
-            >
-              <svg-icon src="assets/shapes/Icons/Pencil.svg" class="title-btn-icon"></svg-icon>
-            </button-->
           </div>
           <div class="title-right">
             <button
@@ -54,52 +49,58 @@
                 "
               ></svg-icon>
             </button>
-            <!-- <button type="button" class="title-btn">Button B</button> -->
           </div>
         </div>
         <div class="section-body"></div>
-      </div>
-    }
 
-    @for (node of sectionNodes(); track node.blockId) {
-      <div
-        fNode
-        fDragHandle
-        [fNodeParentId]="node.sectionId"
-        [fNodeId]="node.blockId"
-        [fNodePosition]="node.position"
-        class="node-wrapper"
-        (click)="onNodeClick(node.blockId)"
-        role="button"
-        tabindex="0"
-        [aria-label]="node.sectionId + '_' + node.catalogLabel"
-        (keydown.enter)="onNodeClick(node.blockId)"
-        [aria-label]="node.sectionId + '-' + node.catalogLabel"
-      >
-        <div class="node-content">
-          <svg-icon [src]="node.svgPath" class="node-svg" fDragHandle>
-          </svg-icon>
-          @if (hasInputConnector(node)) {
-            <div
-              fNodeInput
-              [fInputId]="node.blockId + '-in'"
-              [fInputConnectableSide]="getInputDirection(node)"
-              fInputMultiple="false"
-              class="input-connector input-connector--svg"
-              [style]="getInputStyle(node)"
+        @if (shouldShowInsertionIndicatorInSection(section.id)) {
+          <div
+            class="insert-indicator"
+            [style.top.px]="getInsertionIndicatorTop(section)"
+          ></div>
+        }
+
+        <!-- Nodes -->
+        @for (node of section.nodes; track node.blockId; let nodeIndex = $index) {
+          <div
+            fNode
+            fDragHandle
+            [fNodeParentId]="node.sectionId"
+            [fNodeId]="node.blockId"
+            [fNodePosition]="node.position"
+            class="node-wrapper"
+            (click)="onNodeClick(node.blockId)"
+            role="button"
+            tabindex="0"
+            [aria-label]="node.sectionId + '-' + node.catalogLabel"
+            (keydown.enter)="onNodeClick(node.blockId)"
+            [attr.data-block-id]="node.blockId"
+            [attr.data-section-id]="node.sectionId"
+          >
+            <div class="node-content">
+              <svg-icon [src]="node.svgPath" class="node-svg" fDragHandle>
+              </svg-icon>
+              @if (hasInputConnector(node)) {
+                <div
+                  fNodeInput
+                  [fInputId]="node.blockId + '-in'"
+                  [fInputConnectableSide]="getInputDirection(node)"
+                  fInputMultiple="false"
+                  class="input-connector input-connector--svg"
+                  [style]="getInputStyle(node)"
               [attr.aria-label]="node.catalogLabel + '-input'"
               [attr.automationID]="node.catalogLabel + '-input'"
-            ></div>
-          }
-          <div
-            fNodeOutput
-            [fOutputId]="node.blockId + '-out-right'"
-            [fOutputMultiple]="true"
-            fOutputConnectableSide="right"
-            class="output-connector connector-right"
+                ></div>
+              }
+              <div
+                fNodeOutput
+                [fOutputId]="node.blockId + '-out-right'"
+                [fOutputMultiple]="true"
+                fOutputConnectableSide="right"
+                class="output-connector connector-right"
             [attr.aria-label]="node.catalogLabel + '-output-right'"
             [attr.automationID]="node.catalogLabel + '-output-right'"
-          ></div>
+              ></div>
 
           <div
             fNodeOutput
