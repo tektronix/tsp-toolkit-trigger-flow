@@ -1,30 +1,76 @@
 script_template:
   preamble: |
-    -- Set up the instrument before running this script.
-    -- Define aliases here
+    -- IMPORTANT! Be sure to read these comments before running the script to ensure you
+    --            have properly set up your instrument and trigger model to avoid errors
+    --            when running the script. The comments below assume you are using a
+    --            MSMU-series module in a Tektronix MP5000 mainframe. If you are using
+    --            a MPSU-series module, the references to "smu" in the comments below should
+    --            be changed to "psu".
+
+    -- OPTIONAL: Define aliases here
     -- e.g. local smu = slot[SLOT_INDEX].smu[CHANNEL_INDEX]
 
     -- If your trigger model requires TSP-Linked instruments, be sure to initialize TSP-Link here
     -- tsplink.initialize()
 
+    -- Initialize any configlists that your trigger model(s) use.
+    -- slot[SLOT_INDEX].smu[CHANNEL_INDEX].configlist.create("CONFIG_LIST_NAME")
+    -- CHANGE INSTRUMENT SETTINGS
+    -- slot[SLOT_INDEX].smu[CHANNEL_INDEX].configlist.store("CONFIG_LIST_NAME")
+    -- CHANGE INSTRUMENT SETTINGS AGAIN (if needed)
+    -- slot[SLOT_INDEX].smu[CHANNEL_INDEX].configlist.store("CONFIG_LIST_NAME")
+    -- etc.
+
+    -- Initialize any sweeps that your trigger model(s) use. Make sure to update for any slots and channels that your
+    -- trigger model uses.
+    -- slot[SLOT_INDEX].smu[CHANNEL_INDEX].trigger.source.linearv(0, 10, 100) -- example linear voltage sweep from 0 to 10 V with 100 points
+    -- slot[SLOT_INDEX].smu[CHANNEL_INDEX].trigger.source.lineari(0, 0.10, 100) -- example linear current sweep from 0 to 100 mA with 100 points
+    -- slot[SLOT_INDEX].smu[CHANNEL_INDEX].trigger.source.listv({ 1, 5, 10, 2, 8, 16}) -- example list voltage sweep using an assortment of points
+    -- slot[SLOT_INDEX].smu[CHANNEL_INDEX].trigger.source.listi({ 0.01, 0.5, 0.10, 0.2, 0.8, 0.16}) -- example list current sweep using an assortment of points
+    -- slot[SLOT_INDEX].smu[CHANNEL_INDEX].trigger.source.logv(0, 10, 100) -- example logarithmic voltage sweep from 0 to 10 V with 100 points
+    -- slot[SLOT_INDEX].smu[CHANNEL_INDEX].trigger.source.logi(0, 0.10, 100) -- example logarithmic current sweep from 0 to 100 mA with 100 points
+
     -- Initialize and configure any reading buffers into which you wish to put your readings
-    -- e.g. local rb_i = slot[SLOT_INDEX].smu[CHANNEL_INDEX].makebuffer(1000000)
-    -- e.g. local rb_v = slot[SLOT_INDEX].smu[CHANNEL_INDEX].makebuffer(1000000)
+    -- local rb_i = slot[SLOT_INDEX].smu[CHANNEL_INDEX].makebuffer(1000000)
+    -- local rb_v = slot[SLOT_INDEX].smu[CHANNEL_INDEX].makebuffer(1000000)
 
     -- Use those reading buffers to put your measurements into when using measure blocks
-    -- e.g. slot[SLOT_INDEX].trigger.measure.iv(rb_i, rb_v)
+    -- slot[SLOT_INDEX].smu[CHANNEL_INDEX].trigger.measure.i(rb_i) -- measure current into rb_i
+    -- slot[SLOT_INDEX].smu[CHANNEL_INDEX].trigger.measure.v(rb_v) -- measure voltage into rb_v
+    -- slot[SLOT_INDEX].smu[CHANNEL_INDEX].trigger.measure.r(rb_r) -- measure resistance into rb_r
+    -- slot[SLOT_INDEX].smu[CHANNEL_INDEX].trigger.measure.p(rb_p) -- measure power into rb_p
+    -- slot[SLOT_INDEX].smu[CHANNEL_INDEX].trigger.measure.iv(rb_i, rb_v) -- measure current and voltage into rb_i and rb_v
     -- Alternatively, you could use defbuffers instead
-    -- e.g. slot[SLOT_INDEX].trigger.measure.iv(slot[SLOT_INDEX].smu[CHANNEL_INDEX].defbuffer1, slot[SLOT_INDEX].smu[CHANNEL_INDEX].defbuffer2)
+    -- slot[SLOT_INDEX].smu[CHANNEL_INDEX].trigger.measure.iv(slot[SLOT_INDEX].smu[CHANNEL_INDEX].defbuffer1, slot[SLOT_INDEX].smu[CHANNEL_INDEX].defbuffer2)
 
     {{> begin_sentinel}}
   postamble: |
     {{> end_sentinel}}
 
+    -- REQUIRED: Choose one of the options below to wait for your trigger model to complete before trying to access any
+    --           readings or data from the trigger model execution
+
+    -- Option 1: Use waitcomplete() to wait for all pending operations (including trigger models) to complete.
+    -- waitcomplete()
+
+    -- Option 2: Use a while loop to poll the status of each trigger model and print out the contents of the eventlog if
+    --           the trigger model is still running. This can be useful for debugging purposes to see the logevents as they
+    --           occur in real time. Be sure to add any additional trigger models to the condition of the while loop
+    --           separated by "or" if you have more than one trigger model.
+    -- while slot[SLOT_INDEX].trigger.model.state("TRIGGER_MODEL_NAME") == slot[SLOT_INDEX].trigger.model.STATE_RUNNING do
+    --     while true do
+    --         local eventNumber, message, severity, nodeId, timeSeconds, timeFractional = eventlog.next()
+    --         if eventNumber == 0 then break end
+    --         print(string.format("Event %d: %s | Severity: %s | Node: %d | Time: %f.%f", eventNumber, message, severity, nodeId, timeSeconds, timeFractional))
+    --     end
+    --     delay(0.1) -- add a small delay to avoid busy-waiting
+    -- end
+
     -- Process and/or print your data as needed after this point.
     -- e.g. printbuffer(startIndex, endIndex, buffername)
   contents: |
     -- The lines between "BEGIN GENERATED TRIGGER MODEL" and "END GENERATED TRIGGER MODEL"
-    -- are machine generated and will be replaced when the trigger model is edited in the
+    -- are auto-generated and will be replaced when the trigger model is edited in the
     -- TriggerFlow UI in TSP Toolkit. Any manual changes between these two comments will
     -- be lost.
 
@@ -37,14 +83,20 @@ script_template:
     {{> (lookup this "type") this.block_parameters slot_index=../slot_index node_id=../node_id trigger_model_name=../trigger_model_name}}
 
     {{/each}}
-    -- IMPORTANT: Don't forget to start your trigger model by
-    -- uncommenting the following line (after you complete the setup)
-    -- slot[{{this.slot_index}}].trigger.model.initiate("{{this.trigger_model_name}}")
+    -- IMPORTANT: Don't forget to set up the trigger model by configuring any config lists,
+    --            sweeps, reading buffers, etc. that would be used by the trigger model
+    slot[{{this.slot_index}}].trigger.model.initiate("{{this.trigger_model_name}}")
     {{/each}}
 
     -- do not remove the line below
-  begin_sentinel: '-- BEGIN GENERATED TRIGGER MODEL --'
-  end_sentinel: '-- END GENERATED TRIGGER MODEL --'
+  begin_sentinel: |
+    -----------------------------------
+    -- BEGIN GENERATED TRIGGER MODEL --
+    -----------------------------------
+  end_sentinel: |
+    -----------------------------------
+    -- END GENERATED TRIGGER MODEL --
+    -----------------------------------
 blocks:
   always:
     parameters:
