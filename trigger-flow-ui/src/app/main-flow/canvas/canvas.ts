@@ -118,6 +118,8 @@ export class Canvas implements AfterViewInit {
   selectedNodeIds = signal<string[]>([]);
   insertionIndicator = signal<InsertionIndicator | null>(null);
   private activeDraggedNodeId = signal<string | null>(null);
+  private isExternalDragActive = false;
+  private suppressMoveForNodeUntil = new Map<string, number>();
   canvasMoveTrigger = (event: MouseEvent | TouchEvent | WheelEvent): boolean => {
     if (!(event instanceof MouseEvent)) {
       return true;
@@ -149,8 +151,9 @@ export class Canvas implements AfterViewInit {
       data && typeof data === 'object' && 'fNodeIds' in data
         ? (data as { fNodeIds?: string[] }).fNodeIds
         : [];
-    const draggedNodeId = Array.isArray(nodeIds) ? nodeIds[0] : null;
-    this.activeDraggedNodeId.set(draggedNodeId ?? null);
+    const draggedNodeId = Array.isArray(nodeIds) && nodeIds.length > 0 ? nodeIds[0] : null;
+    this.activeDraggedNodeId.set(draggedNodeId);
+    this.isExternalDragActive = !draggedNodeId;
     this.insertionIndicator.set(null);
   }
 
@@ -158,16 +161,21 @@ export class Canvas implements AfterViewInit {
     const draggedNodeId = this.activeDraggedNodeId();
     const indicator = this.insertionIndicator();
 
+    if (draggedNodeId) {
+      this.suppressMoveForNodeUntil.set(draggedNodeId, Date.now() + 250);
+    }
+
     if (draggedNodeId && indicator) {
       this.reorderFromInsertionIndicator(draggedNodeId, indicator);
     } else if (draggedNodeId) {
       const sectionId = this.findSectionIdByNodeId(draggedNodeId);
       if (sectionId) {
-        this.reflowSection(sectionId);
+        this.scheduleSectionReflow(sectionId);
       }
     }
 
     this.activeDraggedNodeId.set(null);
+    this.isExternalDragActive = false;
     this.insertionIndicator.set(null);
   }
 
@@ -443,10 +451,18 @@ export class Canvas implements AfterViewInit {
       color: '#FFFFFF',
     };
 
+    const indicator = this.insertionIndicator();
     this.sections.update((current) =>
-      current.map((item) =>
-        item.id === targetSectionId ? { ...item, nodes: [...item.nodes, newNode] } : item,
-      ),
+      current.map((item) => {
+        if (item.id !== targetSectionId) return item;
+        const nodes = [...item.nodes];
+        const insertAt =
+          indicator && indicator.sectionId === targetSectionId
+            ? Math.max(0, Math.min(indicator.position, nodes.length))
+            : nodes.length;
+        nodes.splice(insertAt, 0, newNode);
+        return { ...item, nodes };
+      }),
     );
 
     // Keep data service in sync with visual node creation.
@@ -592,6 +608,7 @@ export class Canvas implements AfterViewInit {
     if (!event.fNodes || !event.fNodes.length || typeof event.fNodes[0] === 'string') return;
 
     const movedNodes = event.fNodes as { id: string; position: { x: number; y: number } }[];
+    const now = Date.now();
 
     const updates = new Map<string, { x: number; y: number }>(
       movedNodes.map((item) => [item.id, { x: item.position.x, y: item.position.y }]),
@@ -602,6 +619,13 @@ export class Canvas implements AfterViewInit {
         nodes: section.nodes.map((node): FlowNode => {
           const newPos = updates.get(node.blockId);
           if (newPos) {
+            const suppressUntil = this.suppressMoveForNodeUntil.get(node.blockId);
+            if (suppressUntil && now < suppressUntil) {
+              return node;
+            }
+            if (suppressUntil) {
+              this.suppressMoveForNodeUntil.delete(node.blockId);
+            }
             this.canvasBlocksService.updateBlockPosition(node.blockId, newPos);
             return { ...node, position: newPos };
           }
@@ -609,12 +633,17 @@ export class Canvas implements AfterViewInit {
         }),
       })),
     );
+
+    this.scheduleCanvasRedraw();
   }
 
   @HostListener('document:pointermove', ['$event'])
   onPointerMove(event: PointerEvent): void {
     const draggedNodeId = this.activeDraggedNodeId();
     if (!draggedNodeId) {
+      if (this.isExternalDragActive) {
+        this.updateInsertionIndicatorForExternalDrag(event);
+      }
       return;
     }
 
@@ -677,7 +706,7 @@ export class Canvas implements AfterViewInit {
         : targetPositionInRemaining;
 
     // Ensure the target position is not the same as dragged node's current position
-    if (targetPosition === null || targetPosition === draggedIndex || targetPosition === draggedIndex + 1) {
+    if (targetPosition === draggedIndex || targetPosition === draggedIndex + 1) {
       this.insertionIndicator.set(null);
       return;
     }
@@ -686,6 +715,35 @@ export class Canvas implements AfterViewInit {
       sectionId: draggedSectionId,
       position: targetPosition,
     });
+  }
+
+  private updateInsertionIndicatorForExternalDrag(event: PointerEvent): void {
+    for (const section of this.sections()) {
+      const sectionElement = this.getSectionElement(section.id);
+      if (!sectionElement) continue;
+
+      const sectionRect = sectionElement.getBoundingClientRect();
+      if (
+        event.clientX < sectionRect.left || event.clientX > sectionRect.right ||
+        event.clientY < sectionRect.top - 24 || event.clientY > sectionRect.bottom + 24
+      ) continue;
+
+      let targetPosition = 0;
+      for (const node of section.nodes) {
+        const el = this.getNodeElement(node.blockId);
+        if (!el) continue;
+        const rect = el.getBoundingClientRect();
+        if (event.clientY > rect.top + rect.height / 2) {
+          targetPosition += 1;
+        } else {
+          break;
+        }
+      }
+
+      this.insertionIndicator.set({ sectionId: section.id, position: targetPosition });
+      return;
+    }
+    this.insertionIndicator.set(null);
   }
 
   onDropToGroup(event: FlowCanvasEvent) {
@@ -713,7 +771,7 @@ export class Canvas implements AfterViewInit {
 
     const draggedIndex = section.nodes.findIndex((node) => node.blockId === draggedNodeId);
     if (draggedIndex < 0) {
-      this.reflowSection(indicator.sectionId);
+      this.scheduleSectionReflow(indicator.sectionId);
       return;
     }
 
@@ -733,7 +791,7 @@ export class Canvas implements AfterViewInit {
       current.map((item) => (item.id === section.id ? { ...item, nodes } : item)),
     );
 
-    this.reflowSection(section.id);
+    this.scheduleSectionReflow(section.id);
   }
 
   private getNodeElement(blockId: string): HTMLElement | null {
@@ -849,7 +907,6 @@ export class Canvas implements AfterViewInit {
     const blockCandidates = Array.from(
       nodeElement.querySelectorAll('.node-svg svg g[class$="Block"]'),
     ).filter((element): element is SVGGraphicsElement => element instanceof SVGGraphicsElement);
-    console.warn('Block candidates:', blockCandidates);
 
     if (svgRect.width <= 0 || blockCandidates.length === 0) {
       return null;
@@ -916,6 +973,24 @@ export class Canvas implements AfterViewInit {
     for (const node of nextNodes) {
       this.canvasBlocksService.updateBlockPosition(node.blockId, node.position);
     }
+
+    this.scheduleCanvasRedraw();
+  }
+
+  private scheduleCanvasRedraw(): void {
+    const canvas = this._canvas();
+    if (!canvas) return;
+
+    if (typeof window === 'undefined') {
+      canvas.redraw();
+      return;
+    }
+
+    queueMicrotask(() => {
+      window.requestAnimationFrame(() => {
+        canvas.redraw();
+      });
+    });
   }
 
   shouldShowInsertionIndicatorInSection(sectionId: string): boolean {
