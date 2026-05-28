@@ -5,8 +5,6 @@
   [fCanvasMoveTrigger]="canvasMoveTrigger"
   (fDragStarted)="onDragStarted($event)"
   (fDragEnded)="onDragEnded()"
-  (fDragStarted)="onDragStarted($event)"
-  (fDragEnded)="onDragEnded()"
   (fSelectionChange)="onSelectionChange($event)"
   (fCreateNode)="onCreateNode($event)"
   (fMoveNodes)="onMoveNodes($event)"
@@ -63,7 +61,7 @@
         }
 
         <!-- Nodes -->
-        @for (node of section.nodes; track node.blockId; let nodeIndex = $index) {
+        @for (node of section.nodes; track node.blockId) {
           <div
             fNode
             fDragHandle
@@ -90,8 +88,8 @@
                   fInputMultiple="false"
                   class="input-connector input-connector--svg"
                   [style]="getInputStyle(node)"
-              [attr.aria-label]="node.catalogLabel + '-input'"
-              [attr.automationID]="node.catalogLabel + '-input'"
+                  [attr.aria-label]="node.catalogLabel + '-input'"
+                  [attr.automationID]="node.catalogLabel + '-input'"
                 ></div>
               }
               <div
@@ -100,20 +98,22 @@
                 [fOutputMultiple]="true"
                 fOutputConnectableSide="right"
                 class="output-connector connector-right"
-            [attr.aria-label]="node.catalogLabel + '-output-right'"
-            [attr.automationID]="node.catalogLabel + '-output-right'"
+                [attr.aria-label]="node.catalogLabel + '-output-right'"
+                [attr.automationID]="node.catalogLabel + '-output-right'"
               ></div>
 
-          <div
-            fNodeOutput
-            [fOutputId]="node.blockId + '-out-left'"
-            [fOutputMultiple]="true"
-            fOutputConnectableSide="left"
-            class="output-connector connector-left"
-            [attr.aria-label]="node.catalogLabel + '-output-left'"
-            [attr.automationID]="node.catalogLabel + '-output-left'"
-          ></div>
-        </div>
+              <div
+                fNodeOutput
+                [fOutputId]="node.blockId + '-out-left'"
+                [fOutputMultiple]="true"
+                fOutputConnectableSide="left"
+                class="output-connector connector-left"
+                [attr.aria-label]="node.catalogLabel + '-output-left'"
+                [attr.automationID]="node.catalogLabel + '-output-left'"
+              ></div>
+            </div>
+          </div>
+        }
       </div>
     }
 

@@ -358,6 +358,9 @@ export class Canvas implements AfterViewInit {
         const parsed = this.parseConnectorPosition(svgText);
         this.connectorPositions.update((current) => ({ ...current, [svgPath]: parsed }));
         this.connectorLoadInFlight.delete(svgPath);
+        // Re-center blocks now that the SVG is injected in the DOM and
+        // g.Arrow / g.*Block elements are measurable.
+        this.reflowSectionsWithSvgPath(svgPath);
       },
       error: () => {
         this.connectorPositions.update((current) => ({ ...current, [svgPath]: null }));
@@ -456,8 +459,8 @@ export class Canvas implements AfterViewInit {
       section.nodeId,
     );
 
-    // Reflow after mount so real node dimensions can be used for centering.
-    queueMicrotask(() => this.reflowSection(targetSectionId));
+    // Reflow after mount/render so real SVG geometry can be measured for centering.
+    this.scheduleSectionReflow(targetSectionId);
 
     this.canvasBlocksService.selectBlock(newNode.blockId);
   }
@@ -745,12 +748,53 @@ export class Canvas implements AfterViewInit {
     );
   }
 
+  private reflowSectionsWithSvgPath(svgPath: string): void {
+    const affectedSectionIds = new Set<string>();
+    for (const section of this.sections()) {
+      if (section.nodes.some((node) => node.svgPath === svgPath)) {
+        affectedSectionIds.add(section.id);
+      }
+    }
+    // Defer until after angular-svg-icon has injected the SVG into the DOM.
+    for (const sectionId of affectedSectionIds) {
+      this.scheduleSectionReflow(sectionId);
+    }
+  }
+
+  private scheduleSectionReflow(sectionId: string): void {
+    if (typeof window === 'undefined') {
+      this.reflowSection(sectionId);
+      return;
+    }
+
+    // Two RAF ticks ensures both Angular template update and svg-icon DOM
+    // injection/paint have completed before we read SVG geometry.
+    queueMicrotask(() => {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          this.reflowSection(sectionId);
+        });
+      });
+    });
+  }
+
   private getMeasuredNodeSize(blockId: string): { width: number; height: number } {
     const element = this.getNodeElement(blockId);
     if (!element) {
       return {
         width: Canvas.DEFAULT_NODE_WIDTH,
         height: Canvas.DEFAULT_NODE_HEIGHT,
+      };
+    }
+
+    // Prefer offset metrics so sizing is stable regardless of canvas zoom
+    // (getBoundingClientRect is viewport-scaled and can collapse spacing).
+    const offsetWidth = element.offsetWidth;
+    const offsetHeight = element.offsetHeight;
+    if (offsetWidth > 0 && offsetHeight > 0) {
+      return {
+        width: offsetWidth,
+        height: offsetHeight,
       };
     }
 
@@ -763,7 +807,72 @@ export class Canvas implements AfterViewInit {
 
   private getCenteredXForNode(blockId: string): number {
     const nodeSize = this.getMeasuredNodeSize(blockId);
-    return Math.max(0, (Canvas.SECTION_WIDTH - nodeSize.width) / 2);
+    const defaultCenteredX = Math.max(0, (Canvas.SECTION_WIDTH - nodeSize.width) / 2);
+    if (!blockId) {
+      return defaultCenteredX;
+    }
+
+    const arrowCenterXPct = this.getArrowCenterXPctForNode(blockId);
+    if (arrowCenterXPct === null) {
+      return defaultCenteredX;
+    }
+
+    const sectionCenterX = Canvas.SECTION_WIDTH / 2;
+    const arrowCenterXWithinNode = (arrowCenterXPct / 100) * nodeSize.width;
+    const maxX = Math.max(0, Canvas.SECTION_WIDTH - nodeSize.width);
+    return Math.max(0, Math.min(maxX, sectionCenterX - arrowCenterXWithinNode));
+  }
+
+  private getArrowCenterXPctForNode(blockId: string): number | null {
+    const nodeElement = this.getNodeElement(blockId);
+    if (!nodeElement) {
+      return null;
+    }
+
+    const svgElement = nodeElement.querySelector('.node-svg svg');
+    if (!(svgElement instanceof SVGGraphicsElement)) {
+      return null;
+    }
+
+    const svgRect = svgElement.getBoundingClientRect();
+    const arrowElement = nodeElement.querySelector('.node-svg svg g.Arrow');
+    const arrowRect =
+      arrowElement instanceof SVGGraphicsElement ? arrowElement.getBoundingClientRect() : null;
+
+    if (arrowRect && svgRect.width > 0 && arrowRect.width > 0) {
+      const arrowCenterX = arrowRect.left + arrowRect.width / 2;
+      return ((arrowCenterX - svgRect.left) / svgRect.width) * 100;
+    }
+
+    // Fallback for blocks without g.Arrow: use the midpoint of the smallest
+    // g element whose class contains "Block" (e.g. g.BranchBlock).
+    const blockCandidates = Array.from(
+      nodeElement.querySelectorAll('.node-svg svg g[class$="Block"]'),
+    ).filter((element): element is SVGGraphicsElement => element instanceof SVGGraphicsElement);
+    console.warn('Block candidates:', blockCandidates);
+
+    if (svgRect.width <= 0 || blockCandidates.length === 0) {
+      return null;
+    }
+
+    let bestRect: DOMRect | null = null;
+    for (const candidate of blockCandidates) {
+      const candidateRect = candidate.getBoundingClientRect();
+      if (candidateRect.width <= 0) {
+        continue;
+      }
+
+      if (!bestRect || candidateRect.width < bestRect.width) {
+        bestRect = candidateRect;
+      }
+    }
+
+    if (!bestRect) {
+      return null;
+    }
+
+    const blockCenterX = bestRect.left + bestRect.width / 2;
+    return ((blockCenterX - svgRect.left) / svgRect.width) * 100;
   }
 
   private getNextStackPosition(section: FlowSection): { x: number; y: number } {
@@ -941,11 +1050,9 @@ export class Canvas implements AfterViewInit {
     }
 
     // Compact each affected section so blocks below deleted ones shift up.
-    queueMicrotask(() => {
-      for (const sectionId of affectedSectionIds) {
-        this.reflowSection(sectionId);
-      }
-    });
+    for (const sectionId of affectedSectionIds) {
+      this.scheduleSectionReflow(sectionId);
+    }
 
     this.selectedNodeIds.set([]);
     // Reset BlockParameters back to its "no block selected" state.
