@@ -22,6 +22,8 @@
               name="event-list-selection"
               [checked]="isSelected(type)"
               (change)="selectSingleEvent(type)"
+              [attr.aria-label]="'Radio-Event-' + type"
+              [attr.automationID]="'Radio-Event-' + type"
             />
             {{ type }}
           </label>
@@ -32,6 +34,8 @@
               [checked]="isSelected(type)"
               [disabled]="isEventTypeDisabled(type)"
               (change)="toggleEvent(type)"
+              [attr.aria-label]="'Checkbox-Event-' + type"
+              [attr.automationID]="'Checkbox-Event-' + type"
             />
             {{ type }}
           </label>
@@ -48,6 +52,7 @@
                 [selected]="getParamValue(type, param.name)"
                 [disabled]="!isSelected(type)"
                 (selectedChange)="updateParam(type, param.name, $event)"
+                [automationID]="'Dropdown-Event-' + type + '-' + param.name"
               />
             } @else if (getControlType(param) === 'number') {
               <app-dropdown
@@ -56,12 +61,15 @@
                 [selected]="getParamValue(type, param.name)"
                 [disabled]="!isSelected(type)"
                 (selectedChange)="updateParam(type, param.name, $event)"
+                [automationID]="'Dropdown-Event-' + type + '-' + param.name"
               />
             } @else {
               <app-textbox
                 [label]="param.name"
                 [disabled]="!isSelected(type)"
                 (inputChange)="updateParam(type, param.name, $event)"
+                [attr.aria-label]="param.name + ' for event ' + type"
+                [automationID]="'Textbox-Event-' + type + '-' + param.name"
               />
             }
           </div>
