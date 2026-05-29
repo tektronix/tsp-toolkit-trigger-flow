@@ -32,7 +32,9 @@
 
       @if (models.length === 0) {
       <div class="empty-state" automationID="Label-Empty-State" aria-label="No models added">
-        No models added yet.
+        <p>
+          No models added yet.
+        </p>
       </div>
       }
       @for (model of models; track model.id) {
