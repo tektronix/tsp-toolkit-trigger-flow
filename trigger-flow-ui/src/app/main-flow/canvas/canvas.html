@@ -81,6 +81,7 @@
         [fNodePosition]="node.position"
         class="node-wrapper"
         [class.node-wrapper--selected]="selectedBlockId() === node.blockId"
+        [style.--node-x]="node.position.x + 'px'"
         (click)="onNodeClick(node.blockId)"
         role="button"
         tabindex="0"

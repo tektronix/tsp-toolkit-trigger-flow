@@ -118,12 +118,20 @@ f-canvas {
 
 .node-wrapper {
   cursor: move;
+  position: relative;
 }
 
-.node-wrapper--selected {
-  outline: 2px solid var(--vscode-focusBorder, #0078d4);
-  outline-offset: 3px;
+.node-wrapper--selected::before {
+  content: '';
+  position: absolute;
+  left: calc(-1 * var(--node-x, 0px));
+  width: 400px;
+  top: -4px;
+  bottom: -4px;
+  border: 2px solid var(--vscode-focusBorder, #0078d4);
   border-radius: 4px;
+  pointer-events: none;
+  z-index: 10;
 }
 
 .node-content {
