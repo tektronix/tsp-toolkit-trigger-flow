@@ -83,6 +83,12 @@ export class BlockParameters {
    * BlockReference parameter currently points at the old name.
    */
   private previousBlockName = '';
+  /**
+   * Snapshot of the selected block's BlockReference parameter value taken
+   * when the right panel last loaded it. Used by `onParameterValueChange`
+   * to avoid redrawing the connection on every unrelated parameter edit.
+   */
+  private previousBranchReferenceValue = '';
   triggerEvents: Record<string, EventDefinition> = {};
   channelListOptions: CheckboxOption[] = [];
   channelItemOptions: RadioOption[] = [];
@@ -126,6 +132,12 @@ export class BlockParameters {
         // Snapshot the current name so a subsequent edit can be detected as a
         // rename and propagated to referencing BlockReference param.
         this.previousBlockName = this.readTriggerBlockName(this.actualParameters);
+        const branchParam = this.actualParameters.find((p) =>
+          isBlockReferenceParam(p.type),
+        );
+        this.previousBranchReferenceValue = branchParam?.value
+          ? String(branchParam.value)
+          : '';
 
         // Resolve model context from the owning model
         const model = this.canvasBlocksService.getModelForBlock(this.selectedBlockId);
@@ -336,13 +348,20 @@ export class BlockParameters {
       return;
     }
 
-    // A block-reference parameter can target at most one block, so always
-    // drop any previously drawn line into this block before evaluating the
-    // new value. This also covers the case where the user resets the value
-    // to 'unknown' (the line should disappear).
+    const sourceValue = sourceParam.value ? String(sourceParam.value) : '';
+    // Skip connection churn when the reference didn't change — otherwise an
+    // edit to any unrelated parameter would tear down and redraw the line.
+    if (sourceValue === this.previousBranchReferenceValue) {
+      return;
+    }
+    this.previousBranchReferenceValue = sourceValue;
+
+    // A block-reference parameter can target at most one block, so drop any
+    // previously drawn line into this block before evaluating the new value.
+    // This also covers the case where the user resets the value to 'unknown'
+    // (the line should disappear).
     this.canvasBlocksService.removeIncomingConnections(canvasBlock.block_id);
 
-    const sourceValue = sourceParam.value ? String(sourceParam.value) : '';
     if (sourceValue && sourceValue !== BLOCK_REFERENCE_UNKNOWN_VALUE) {
       // search for block with name same as sourceValue to connect with
       const targetBlock = this.canvasBlocksService.findBlockByName(sourceValue);
