@@ -120,6 +120,12 @@ f-canvas {
   cursor: move;
 }
 
+.node-wrapper--selected {
+  outline: 2px solid var(--vscode-focusBorder, #0078d4);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
 .node-content {
   display: none;
   /* width: 100%; */
