@@ -87,6 +87,8 @@
               fInputMultiple="false"
               class="input-connector input-connector--svg"
               [style]="getInputStyle(node)"
+              [attr.aria-label]="node.catalogLabel + '-input'"
+              [attr.automationID]="node.catalogLabel + '-input'"
             ></div>
           }
           <div
@@ -95,6 +97,8 @@
             [fOutputMultiple]="true"
             fOutputConnectableSide="right"
             class="output-connector connector-right"
+            [attr.aria-label]="node.catalogLabel + '-output-right'"
+            [attr.automationID]="node.catalogLabel + '-output-right'"
           ></div>
 
           <div
@@ -103,6 +107,8 @@
             [fOutputMultiple]="true"
             fOutputConnectableSide="left"
             class="output-connector connector-left"
+            [attr.aria-label]="node.catalogLabel + '-output-left'"
+            [attr.automationID]="node.catalogLabel + '-output-left'"
           ></div>
         </div>
       </div>
