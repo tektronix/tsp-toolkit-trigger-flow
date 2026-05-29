@@ -136,8 +136,8 @@ export class Canvas implements AfterViewInit {
 
   protected onDragStarted(event: FDragStartedEvent): void {
     console.log('Drag started:', event.fEventType, event.fData);
-  }  
-  
+  }
+
   /**
    * Pans the canvas so the section with the given id is brought into view at
    * the left edge of the viewport. No-op if the section or canvas is missing.
@@ -528,7 +528,7 @@ export class Canvas implements AfterViewInit {
             `Set reset_branch_count_block_name=${sourceValue} on input block ${inputBlockId}`,
           );
         }
-      this.canvasBlocksService.addConnectionByBlockIds(outputBlock, inputBlock);
+        this.canvasBlocksService.addConnectionByBlockIds(outputBlock, inputBlock);
       }
     }
   }

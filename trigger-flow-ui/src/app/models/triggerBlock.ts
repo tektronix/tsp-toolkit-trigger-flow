@@ -162,11 +162,11 @@ export class Parameter {
       : null;
     this.constraints = data.constraints
       ? Object.fromEntries(
-          Object.entries(data.constraints).map(([key, constraint]) => [
-            key,
-            new ParameterConstraint(constraint),
-          ]),
-        )
+        Object.entries(data.constraints).map(([key, constraint]) => [
+          key,
+          new ParameterConstraint(constraint),
+        ]),
+      )
       : null;
     this.default = data.default ?? null;
     this.range = data.range ? new ParameterRange(data.range) : null;
