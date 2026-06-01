@@ -6,6 +6,7 @@ import { Websocket } from './websocket';
 import { TriggerFlowDataService } from './triggerFlowDataService';
 import { FlowNode, FlowSection, FlowConnection } from '../main-flow/canvas/canvas';
 import { PaletteDataService } from './palette-data.service';
+import { LOOP_COUNTER_BLOCK_TYPE, BLOCK_REFERENCE_UNKNOWN_VALUE, isBlockReferenceParam } from '../models/blockParameterHelper';
 
 export interface CanvasBlock {
   block_id: string;
@@ -222,22 +223,17 @@ export class CanvasBlocksService {
 
 
   restoreConnections(): void {
-    // Walk every restored block and rebuild FlowConnections from the
-    // *_block_name parameters that reference another block's
+    // Walk every restored block and rebuild FlowConnections from any
+    // block-reference parameter that points at another block's
     // `trigger_block_name`.
-    const linkParamNames = [
-      'branch_to_block_name',
-      'reference_block_name',
-      'reset_branch_count_block_name',
-    ];
-
     for (const model of Object.values(this.models)) {
       for (const targetBlock of model.blocks) {
         for (const param of targetBlock.actual_parameters) {
-          if (!linkParamNames.includes(param.name)) continue;
+          if (!isBlockReferenceParam(param.type)) continue;
           if (param.value == null || param.value === '') continue;
 
           const sourceName = String(param.value);
+          if (sourceName === BLOCK_REFERENCE_UNKNOWN_VALUE) continue;
           const sourceBlock = this.findBlockByName(sourceName);
           if (!sourceBlock) continue;
           this.addConnectionByBlockIds(sourceBlock, targetBlock);
@@ -268,6 +264,19 @@ export class CanvasBlocksService {
     this.connections.update((current) => [...current, newConnection]);
     console.log('Connection added to array:', newConnection);
     console.log('Total connections:', this.connections().length);
+  }
+
+  /**
+   * Removes every connection whose target (input) is the given block. Used
+   * when a block-reference parameter is updated, since a single block-reference
+   * field can only point at one other block at a time — the previous line must
+   * be removed before the new one is drawn.
+   */
+  removeIncomingConnections(targetBlockId: string): void {
+    const fInputId = `${targetBlockId}-in`;
+    this.connections.update((current) =>
+      current.filter((c) => c.fInputId !== fInputId),
+    );
   }
   private getSVGPath(blockType: string): string {
     const svgPath = this.paletteDataService.getSVGPathByCatalogLabel(blockType);
@@ -427,7 +436,7 @@ export class CanvasBlocksService {
             for (const param of block.actual_parameters) {
               if (param.name === 'branch_to_block_name' || param.name === 'reference_block_name' || param.name === 'reset_branch_count_block_name') {
                 if (param.value === removedBlockName) {
-                  param.value = null;
+                  param.value = BLOCK_REFERENCE_UNKNOWN_VALUE;
                 }
               }
             }
@@ -623,6 +632,77 @@ export class CanvasBlocksService {
       if (block) return block;
     }
     return null;
+  }
+
+  /**
+   * When a user edits a block's `trigger_block_name` (e.g. "config list next 1" →
+   * "config list next 2"), any other block in the same trigger model that was pointing
+   * at the old name through a `BlockReference` parameter would otherwise be
+   * left with a dangling reference. This method walks the owning model and
+   * rewrites every such reference from `oldName` to `newName` so the canvas
+   * state stays consistent and the generated script keeps compiling.
+   *
+   * Scope rules:
+   * - Only the model that owns `renamedBlockId` is touched. Block names are
+   *   unique per model, so a block in a different model that happens to
+   *   share the old name must NOT be rewritten.
+   * - The renamed block itself is skipped — its `trigger_block_name` is
+   *   already the new value (that's what triggered this call); it's not a
+   *   reference TO the old name.
+   *
+   * Visual `FlowConnection`s are keyed by `block_id`, not by name, so they
+   * survive a rename automatically. Only the underlying parameter values
+   * need to be propagated.
+   */
+  propagateBlockRename(
+    renamedBlockId: string,
+    oldName: string,
+    newName: string,
+  ): void {
+    if (!oldName || !newName || oldName === newName) return;
+    const model = this.getModelForBlock(renamedBlockId);
+    if (!model) return;
+    for (const block of model.blocks) {
+      // Skip the renamed block itself — its `trigger_block_name` is the
+      // source of the change, not a reference to the old name.
+      if (block.block_id === renamedBlockId) continue;
+      for (const param of block.actual_parameters) {
+        if (!isBlockReferenceParam(param.type)) continue;
+        if (param.value != null && String(param.value) === oldName) {
+          param.value = newName;
+        }
+      }
+    }
+  }
+
+  /**
+   * Returns valid `trigger_block_name` values that a block-reference parameter
+   * on `blockId` can point to. Scoped to the block's owning trigger model and
+   * excludes the block itself. For `reset_branch_count_block_name`, results
+   * are further restricted to loop-counter blocks.
+   */
+  getBlockReferenceOptionsForBlock(
+    blockId: string,
+    paramName: string,
+  ): string[] {
+    const model = this.getModelForBlock(blockId);
+    if (!model) return [];
+
+    const restrictToLoopCounter = paramName === 'reset_branch_count_block_name';
+
+    const names: string[] = [];
+    for (const candidate of model.blocks) {
+      if (candidate.block_id === blockId) continue;
+      if (restrictToLoopCounter && candidate.type !== LOOP_COUNTER_BLOCK_TYPE) continue;
+      const nameParam = candidate.actual_parameters.find(
+        (p) => p.name === 'trigger_block_name',
+      );
+      const value = nameParam?.value;
+      if (value != null && String(value) !== '') {
+        names.push(String(value));
+      }
+    }
+    return names;
   }
 
   /**
