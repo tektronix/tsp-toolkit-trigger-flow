@@ -9,6 +9,20 @@ export interface TemplateInstantiationHelpers {
     createUniqueNodeId: () => string;
     getNodeCounter: () => number;
     changeSVGPath: (svgPath: string) => string;
+    /**
+     * Triggers an auto-snapping reflow on a section so that newly inserted
+     * template blocks are positioned correctly relative to existing blocks.
+     * Called once per affected section after insertion.
+     */
+    scheduleSectionReflow?: (sectionId: string) => void;
+}
+
+export interface TemplateInsertionTarget {
+    /**
+     * Index into the starting section's nodes array where the first group's
+     * blocks should be inserted. If omitted, blocks are appended.
+     */
+    insertionIndex?: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -25,6 +39,7 @@ export class TemplateInstantiationService {
         dropRect: { x: number; y: number },
         startingSection: FlowSection,
         helpers: TemplateInstantiationHelpers,
+        insertionTarget?: TemplateInsertionTarget,
     ): void {
         const catalog = this.triggerFlowDataService.catalog$();
         const template = catalog?.templates?.[templateKey];
@@ -56,6 +71,7 @@ export class TemplateInstantiationService {
         const relativeDropX = dropRect.x - startingSectionX;
 
         const firstCreatedBlockIds: string[] = [];
+        const affectedSectionIds = new Set<string>();
 
         groups.forEach((group, groupIndex) => {
             const section = targetSections[groupIndex];
@@ -153,10 +169,22 @@ export class TemplateInstantiationService {
             });
 
             this.sections.update((current) =>
-                current.map((item) =>
-                    item.id === section.id ? { ...item, nodes: [...item.nodes, ...newNodes] } : item,
-                ),
+                current.map((item) => {
+                    if (item.id !== section.id) return item;
+                    const nodes = [...item.nodes];
+                    // Only the first group honors the user's insertion indicator;
+                    // subsequent groups go into their own freshly-created sections
+                    // and are simply appended.
+                    const insertAt =
+                        groupIndex === 0 && insertionTarget?.insertionIndex !== undefined
+                            ? Math.max(0, Math.min(insertionTarget.insertionIndex, nodes.length))
+                            : nodes.length;
+                    nodes.splice(insertAt, 0, ...newNodes);
+                    return { ...item, nodes };
+                }),
             );
+
+            affectedSectionIds.add(section.id);
 
             if (groupIndex === 0) {
                 firstCreatedBlockIds.push(...createdBlockIds);
@@ -164,6 +192,14 @@ export class TemplateInstantiationService {
         });
 
         this.canvasBlocksService.restoreConnections();
+
+        // Reflow each affected section so template blocks obey auto-snapping
+        // (centered X, stacked Y with measured node sizes) just like single-block drops.
+        if (helpers.scheduleSectionReflow) {
+            for (const sectionId of affectedSectionIds) {
+                helpers.scheduleSectionReflow(sectionId);
+            }
+        }
 
         if (firstCreatedBlockIds.length > 0) {
             this.canvasBlocksService.selectBlock(firstCreatedBlockIds[0]);

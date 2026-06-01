@@ -182,7 +182,6 @@ export class Canvas implements AfterViewInit {
     this.activeDraggedNodeId.set(null);
     this.isExternalDragActive = false;
     this.insertionIndicator.set(null);
-    console.log('Drag started:', event.fEventType, event.fData);
   }
 
   /**
@@ -449,6 +448,9 @@ export class Canvas implements AfterViewInit {
     if (!section) return;
 
     if (event.data.isTemplate && event.data.catalogLabel) {
+      const indicator = this.insertionIndicator();
+      const insertionIndex =
+        indicator && indicator.sectionId === targetSectionId ? indicator.position : undefined;
       this.templateInstantiationService.instantiateTemplate(
         event.data.catalogLabel,
         event.rect,
@@ -457,8 +459,11 @@ export class Canvas implements AfterViewInit {
           createUniqueNodeId: () => this.createUniqueNodeId(),
           getNodeCounter: () => this.nodeCounter,
           changeSVGPath: (path) => this.changeSVGPath(path),
+          scheduleSectionReflow: (sectionId) => this.scheduleSectionReflow(sectionId),
         },
+        { insertionIndex },
       );
+      this.insertionIndicator.set(null);
       return;
     }
 
