@@ -17,6 +17,7 @@ import { HttpClient } from '@angular/common/http';
 import { AngularSvgIconModule } from 'angular-svg-icon';
 import { CanvasBlocksService } from '../../services/canvas-blocks.service';
 import { TriggerFlowDataService } from '../../services/triggerFlowDataService';
+import { TemplateInstantiationService } from '../../services/template-instantiation.service';
 import { BlockErrorEntry } from '../../models/triggerFlowState';
 import { EFMarkerType, FCanvasComponent, FFlowModule, FSelectionChangeEvent, FDragStartedEvent } from '@foblex/flow';
 import { ModelModalValue } from '../model-modal/model-modal';
@@ -42,6 +43,8 @@ interface CreateNodePayload {
   type?: string;
   svgPath: string;
   catalogLabel?: string;
+  /** Set by the palette when the user drags a Template instead of a block. */
+  isTemplate?: boolean;
 }
 
 interface FlowCanvasEvent {
@@ -90,6 +93,7 @@ export class Canvas implements AfterViewInit {
   private hostRef = inject(ElementRef<HTMLElement>);
   private canvasBlocksService = inject(CanvasBlocksService);
   private triggerFlowDataService = inject(TriggerFlowDataService);
+  private templateInstantiationService = inject(TemplateInstantiationService);
   private http = inject(HttpClient);
   private destroyRef = inject(DestroyRef);
   protected readonly eMarkerType = EFMarkerType;
@@ -105,6 +109,7 @@ export class Canvas implements AfterViewInit {
 
   canvasSize = signal(this.getCanvasSize());
   selectedNodeIds = signal<string[]>([]);
+  selectedBlockId = signal<string | null>(null);
   canvasMoveTrigger = (event: MouseEvent | TouchEvent | WheelEvent): boolean => {
     if (!(event instanceof MouseEvent)) {
       return true;
@@ -132,8 +137,8 @@ export class Canvas implements AfterViewInit {
 
   protected onDragStarted(event: FDragStartedEvent): void {
     console.log('Drag started:', event.fEventType, event.fData);
-  }  
-  
+  }
+
   /**
    * Pans the canvas so the section with the given id is brought into view at
    * the left edge of the viewport. No-op if the section or canvas is missing.
@@ -187,6 +192,12 @@ export class Canvas implements AfterViewInit {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(({ source, target }) => {
         this.canvasBlocksService.addConnectionByBlockIds(source, target);
+      });
+
+    this.canvasBlocksService.selectedBlock$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((blockId) => {
+        this.selectedBlockId.set(blockId);
       });
   }
 
@@ -388,6 +399,20 @@ export class Canvas implements AfterViewInit {
     const section = this.getSectionById(targetSectionId);
     if (!section) return;
 
+    if (event.data.isTemplate && event.data.catalogLabel) {
+      this.templateInstantiationService.instantiateTemplate(
+        event.data.catalogLabel,
+        event.rect,
+        section,
+        {
+          createUniqueNodeId: () => this.createUniqueNodeId(),
+          getNodeCounter: () => this.nodeCounter,
+          changeSVGPath: (path) => this.changeSVGPath(path),
+        },
+      );
+      return;
+    }
+
     const uniqueBlockId = this.createUniqueNodeId();
     const newSVGPath = this.changeSVGPath(event.data?.svgPath);
     const newNode: FlowNode = {
@@ -438,6 +463,7 @@ export class Canvas implements AfterViewInit {
 
   onNodeClick(blockId: string): void {
     this.canvasBlocksService.selectBlock(blockId);
+    this.selectedNodeIds.set([blockId]);
   }
 
   onCreateConnection(event: any) {
@@ -510,7 +536,7 @@ export class Canvas implements AfterViewInit {
             `Set reset_branch_count_block_name=${sourceValue} on input block ${inputBlockId}`,
           );
         }
-      this.canvasBlocksService.addConnectionByBlockIds(outputBlock, inputBlock);
+        this.canvasBlocksService.addConnectionByBlockIds(outputBlock, inputBlock);
       }
     }
   }
@@ -529,7 +555,13 @@ export class Canvas implements AfterViewInit {
   }
 
   onSelectionChange(event: FSelectionChangeEvent): void {
-    this.selectedNodeIds.set(event.fNodeIds ?? []);
+    const nodeIds = event.fNodeIds ?? [];
+    this.selectedNodeIds.set(nodeIds);
+    if (nodeIds.length > 0) {
+      this.canvasBlocksService.selectBlock(nodeIds[0]);
+      return;
+    }
+    this.canvasBlocksService.clearSelectedBlock();
   }
 
   onMoveNodes(event: FlowCanvasEvent) {

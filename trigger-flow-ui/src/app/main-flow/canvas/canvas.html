@@ -14,6 +14,17 @@
   </f-background>
 <!-- <f-line-alignment [fAlignThreshold]="100"></f-line-alignment> -->
   <f-canvas  fZoom>
+    @if (sectionLayouts().length === 0 ) {
+      <div [id]="'no-trigger-model-message'" class="message-node" fNode [fNodePosition]="{ x: 30, y: 30 }" [attr.aria-label]="'Empty-Canvas-Block'">
+        <p>
+          No trigger models exist.
+        </p>
+        <p>
+          Drag blocks from the left panel or create a model using the Model Settings
+          button to start building your TriggerFlow.
+        </p>
+      </div>
+    }
     @for (section of sectionLayouts(); track section.id) {
       <div
         class="section-group"
@@ -69,6 +80,8 @@
         [fNodeId]="node.blockId"
         [fNodePosition]="node.position"
         class="node-wrapper"
+        [class.node-wrapper--selected]="selectedBlockId() === node.blockId"
+        [style.--node-x]="node.position.x + 'px'"
         (click)="onNodeClick(node.blockId)"
         role="button"
         tabindex="0"
@@ -87,6 +100,8 @@
               fInputMultiple="false"
               class="input-connector input-connector--svg"
               [style]="getInputStyle(node)"
+              [attr.aria-label]="node.catalogLabel + '-input'"
+              [attr.automationID]="node.catalogLabel + '-input'"
             ></div>
           }
           <div
@@ -95,6 +110,8 @@
             [fOutputMultiple]="true"
             fOutputConnectableSide="right"
             class="output-connector connector-right"
+            [attr.aria-label]="node.catalogLabel + '-output-right'"
+            [attr.automationID]="node.catalogLabel + '-output-right'"
           ></div>
 
           <div
@@ -103,6 +120,8 @@
             [fOutputMultiple]="true"
             fOutputConnectableSide="left"
             class="output-connector connector-left"
+            [attr.aria-label]="node.catalogLabel + '-output-left'"
+            [attr.automationID]="node.catalogLabel + '-output-left'"
           ></div>
         </div>
       </div>
