@@ -17,6 +17,9 @@ export class SidePanelAccordion {
   // Get the complete groups structure from the service
   groups = computed(() => this.paletteDataService.getGroupsStructure());
 
+  // Templates rendered inside the 'Templates' (single) accordion section
+  templates = computed(() => this.paletteDataService.getTemplates());
+
   expanded: Set<number> = new Set<number>();
   blockExpanded: Set<number> = new Set<number>();
   

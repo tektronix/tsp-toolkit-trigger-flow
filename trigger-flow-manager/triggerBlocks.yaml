@@ -105,7 +105,7 @@ blocks:
         required: true
         default: Always
       - name: branch_to_block_name
-        type: string
+        type: BlockReference
         required: true
     syntax: >-
       slot[{{slot_index}}].trigger.model.addblock.branch.always("{{trigger_model_name}}",
@@ -121,7 +121,7 @@ blocks:
         required: true
         default: Loop Counter
       - name: branch_to_block_name
-        type: string
+        type: BlockReference
         required: true
       - name: target_count
         type: number
@@ -140,7 +140,7 @@ blocks:
         required: true
         default: Reset Branch Counter
       - name: reset_branch_count_block_name
-        type: string
+        type: BlockReference
         required: true
     syntax: >-
       slot[{{slot_index}}].trigger.model.addblock.reset.branch.counter("{{trigger_model_name}}",
@@ -156,7 +156,7 @@ blocks:
         required: true
         default: On Event
       - name: branch_to_block_name
-        type: string
+        type: BlockReference
         required: true
       - name: event_id
         type: EventItem
@@ -176,7 +176,7 @@ blocks:
         required: true
         default: Once
       - name: branch_to_block_name
-        type: string
+        type: BlockReference
         required: true
     syntax: >-
       slot[{{slot_index}}].trigger.model.addblock.branch.once("{{trigger_model_name}}",
@@ -192,7 +192,7 @@ blocks:
         required: true
         default: Once Excluded
       - name: branch_to_block_name
-        type: string
+        type: BlockReference
         required: true
     syntax: >-
       slot[{{slot_index}}].trigger.model.addblock.branch.onceexcluded("{{trigger_model_name}}",
@@ -278,7 +278,7 @@ blocks:
           min: 0.000001
           max: 1000000
       - name: reference_block_name
-        type: string
+        type: BlockReference
         required: false
       - name: list_config
         type: DelayListConfig
@@ -808,25 +808,432 @@ templates:
       description: "Creates a pulsed source sweep with constant timing and no measurements"
       icon: pulsed_sweep
       blocks:
-        - type: source action step
-          block_id: pulsed_sweep_source_action_001
-          block_parameters:
-            trigger_block_name: pulsed_sweep_source_action_001
-        - type: delay constant
-          block_id: pulsed_sweep_delay_constant_001
-          block_parameters:
-            trigger_block_name: pulsed_sweep_delay_constant_001
-        - type: source action bias
-          block_id: pulsed_sweep_source_action_bias_001
-          block_parameters:
-            trigger_block_name: pulsed_sweep_source_action_bias_001
-        - type: delay constant
-          block_id: pulsed_sweep_delay_constant_002
-          block_parameters:
-            trigger_block_name: pulsed_sweep_delay_constant_002
-        - type: counter
-          block_id: pulsed_sweep_counter_001
-          block_parameters:
-            trigger_block_name: pulsed_sweep_counter_001
-            branch_to_block_name: pulsed_sweep_source_action_001
+        - blocks:
+            - type: source action step
+              block_id: pulsed_sweep_source_action_001
+              block_parameters:
+                trigger_block_name: pulsed_sweep_source_action_001
+            - type: constant delay
+              block_id: pulsed_sweep_constant_delay_001
+              block_parameters:
+                trigger_block_name: pulsed_sweep_constant_delay_001
+            - type: source action bias
+              block_id: pulsed_sweep_source_action_bias_001
+              block_parameters:
+                trigger_block_name: pulsed_sweep_source_action_bias_001
+            - type: constant delay
+              block_id: pulsed_sweep_constant_delay_002
+              block_parameters:
+                trigger_block_name: pulsed_sweep_constant_delay_002
+            - type: < loop counter
+              block_id: pulsed_sweep_counter_001
+              block_parameters:
+                trigger_block_name: pulsed_sweep_counter_001
+                branch_to_block_name: pulsed_sweep_source_action_001
+                target_count: 10
 
+    pulsed_measure_sweep:
+      name: "Pulsed Measure Sweep"
+      description: "Creates a pulsed source sweep with constant timing and measurements at the top of the pulses"
+      icon: pulsed_measure_sweep
+      blocks:
+        - blocks:
+            - type: source action step
+              block_id: pulsed_measure_sweep_source_action_step_001
+              block_parameters:
+                trigger_block_name: pulsed_measure_sweep_source_action_step_001
+            - type: constant delay
+              block_id: pulsed_measure_sweep_constant_delay_001
+              block_parameters:
+                trigger_block_name: pulsed_measure_sweep_constant_delay_001
+            - type: measure
+              block_id: pulsed_measure_sweep_measure_001
+              block_parameters:
+                trigger_block_name: pulsed_measure_sweep_measure_001
+            - type: source action bias
+              block_id: pulsed_measure_sweep_source_action_bias_001
+              block_parameters:
+                trigger_block_name: pulsed_measure_sweep_source_action_bias_001
+            - type: constant delay
+              block_id: pulsed_measure_sweep_constant_delay_002
+              block_parameters:
+                trigger_block_name: pulsed_measure_sweep_constant_delay_002
+            - type: < loop counter
+              block_id: pulsed_measure_sweep_counter_001
+              block_parameters:
+                trigger_block_name: pulsed_measure_sweep_counter_001
+                branch_to_block_name: pulsed_measure_sweep_source_action_step_001
+
+    dc_sweep:
+      name: "DC Sweep"
+      description: "Creates a source sweep with constant timing"
+      icon: dc_sweep
+      blocks:
+        - blocks:
+            - type: source action step
+              block_id: dc_sweep_source_action_step_001
+              block_parameters:
+                trigger_block_name: dc_sweep_source_action_step_001
+            - type: constant delay
+              block_id: dc_sweep_constant_delay_001
+              block_parameters:
+                trigger_block_name: dc_sweep_constant_delay_001
+            - type: < loop counter
+              block_id: dc_sweep_counter_001
+              block_parameters:
+                trigger_block_name: dc_sweep_counter_001
+                branch_to_block_name: dc_sweep_source_action_step_001
+
+    dc_measure_sweep:
+      name: "DC Measure Sweep"
+      description: "Creates a DC source sweep with constant timing and measurements at each step"
+      icon: dc_measure_sweep
+      blocks:
+        - blocks:
+            - type: source action step
+              block_id: dc_measure_sweep_source_action_step_001
+              block_parameters:
+                trigger_block_name: dc_measure_sweep_source_action_step_001
+            - type: constant delay
+              block_id: dc_measure_sweep_constant_delay_001
+              block_parameters:
+                trigger_block_name: dc_measure_sweep_constant_delay_001
+            - type: measure
+              block_id: dc_measure_sweep_measure_001
+              block_parameters:
+                trigger_block_name: dc_measure_sweep_measure_001
+            - type: < loop counter
+              block_id: dc_measure_sweep_counter_001
+              block_parameters:
+                trigger_block_name: dc_measure_sweep_counter_001
+                branch_to_block_name: dc_measure_sweep_source_action_step_001
+
+    waveform_capture:
+      name: "Waveform Capture"
+      description: "Outputs a waveform and continuously measures it"
+      icon: waveform_capture
+      blocks:
+        - blocks:
+            - type: measure overlapped
+              block_id: waveform_capture_measure_overlapped_001
+              block_parameters:
+                trigger_block_name: waveform_capture_measure_overlapped_001
+            - type: source action step
+              block_id: waveform_capture_source_action_step_001
+              block_parameters:
+                trigger_block_name: waveform_capture_source_action_step_001
+            - type: constant delay
+              block_id: waveform_capture_constant_delay_001
+              block_parameters:
+                trigger_block_name: waveform_capture_constant_delay_001
+            - type: always
+              block_id: waveform_capture_always_001
+              block_parameters:
+                trigger_block_name: waveform_capture_always_001
+                branch_to_block_name: waveform_capture_source_action_step_001
+
+    config_list_load:
+      name: "Config List Load"
+      description: "Iterates through each available index in a configuration list and takes a measurement"
+      icon: config_list_load
+      blocks:
+        - blocks:
+            - type: config list next
+              block_id: config_list_load_config_list_next_001
+              block_parameters:
+                trigger_block_name: config_list_load_config_list_next_001
+            - type: measure
+              block_id: config_list_load_measure_001
+              block_parameters:
+                trigger_block_name: config_list_load_measure_001
+            - type: < loop counter
+              block_id: config_list_load_counter_001
+              block_parameters:
+                trigger_block_name: config_list_load_counter_001
+                branch_to_block_name: config_list_load_config_list_next_001
+
+    digital_io_trigger:
+      name: "Digital I/O Trigger"
+      description: "Waits for a trigger on a digital I/O line, then takes a measurement, sends and output trigger and repeats"
+      icon: digital_io_trigger
+      blocks:
+        - blocks:
+            - type: wait on event
+              block_id: digital_io_trigger_wait_on_event_001
+              block_parameters:
+                trigger_block_name: digital_io_trigger_wait_on_event_001
+            - type: constant delay
+              block_id: digital_io_trigger_constant_delay_001
+              block_parameters:
+                trigger_block_name: digital_io_trigger_constant_delay_001
+            - type: measure
+              block_id: digital_io_trigger_measure_001
+              block_parameters:
+                trigger_block_name: digital_io_trigger_measure_001
+            - type: notify
+              block_id: digital_io_trigger_notify_001
+              block_parameters:
+                trigger_block_name: digital_io_trigger_notify_001
+            - type: always
+              block_id: digital_io_trigger_always_001
+              block_parameters:
+                trigger_block_name: digital_io_trigger_always_001
+                branch_to_block_name: digital_io_trigger_wait_on_event_001
+
+    simple_measure_loop:
+      name: "Simple Measure Loop"
+      description: "Takes a certain number of measurements using a loop with constant timing"
+      icon: simple_measure_loop
+      blocks:
+        - blocks:
+            - type: measure
+              block_id: simple_measure_loop_measure_001
+              block_parameters:
+                trigger_block_name: simple_measure_loop_measure_001
+            - type: constant delay
+              block_id: simple_measure_loop_constant_delay_001
+              block_parameters:
+                trigger_block_name: simple_measure_loop_constant_delay_001
+            - type: < loop counter
+              block_id: simple_measure_loop_counter_001
+              block_parameters:
+                trigger_block_name: simple_measure_loop_counter_001
+                branch_to_block_name: simple_measure_loop_measure_001
+
+    loop_until_event:
+      name: "Loop Until Event"
+      description: "Takes measurements with constant timing until event is detected"
+      icon: loop_until_event
+      blocks:
+        - blocks:
+            - type: measure
+              block_id: loop_until_event_measure_001
+              block_parameters:
+                trigger_block_name: loop_until_event_measure_001
+            - type: constant delay
+              block_id: loop_until_event_constant_delay_001
+              block_parameters:
+                trigger_block_name: loop_until_event_constant_delay_001
+            - type: on event
+              block_id: loop_until_event_on_event_001
+              block_parameters:
+                trigger_block_name: loop_until_event_on_event_001
+                branch_to_block_name: loop_until_event_no_operation_001
+            - type: always
+              block_id: loop_until_event_always_001
+              block_parameters:
+                trigger_block_name: loop_until_event_always_001
+                branch_to_block_name: loop_until_event_measure_001
+            - type: no operation
+              block_id: loop_until_event_no_operation_001
+              block_parameters:
+                trigger_block_name: loop_until_event_no_operation_001
+
+    wait_on_trigger_model:
+      name: "Wait on Trigger Model"
+      description: "Creates two trigger models that wait on each other to alternate measurements"
+      icon: wait_on_trigger_model
+      blocks:
+        - blocks:
+            - type: measure
+              block_id: wait_on_trigger_model_measure_001
+              block_parameters:
+                trigger_block_name: wait_on_trigger_model_measure_001
+            - type: notify
+              block_id: wait_on_trigger_model_notify_001
+              block_parameters:
+                trigger_block_name: wait_on_trigger_model_notify_001
+            - type: wait on event
+              block_id: wait_on_trigger_model_wait_on_event_001
+              block_parameters:
+                trigger_block_name: wait_on_trigger_model_wait_on_event_001
+            - type: always
+              block_id: wait_on_trigger_model_always_001
+              block_parameters:
+                trigger_block_name: wait_on_trigger_model_always_001
+                branch_to_block_name: wait_on_trigger_model_measure_001
+        - blocks:
+            - type: wait on event
+              block_id: wait_on_trigger_model_wait_on_event_001
+              block_parameters:
+                trigger_block_name: wait_on_trigger_model_wait_on_event_001
+            - type: measure
+              block_id: wait_on_trigger_model_measure_001
+              block_parameters:
+                trigger_block_name: wait_on_trigger_model_measure_001
+            - type: notify
+              block_id: wait_on_trigger_model_notify_001
+              block_parameters:
+                trigger_block_name: wait_on_trigger_model_notify_001
+            - type: always
+              block_id: wait_on_trigger_model_always_001
+              block_parameters:
+                trigger_block_name: wait_on_trigger_model_always_001
+                branch_to_block_name: wait_on_trigger_model_wait_on_event_001
+
+    mosfet_family_of_curves:
+      name: "MOSFET Family of Curves"
+      description: "Creates two synchronized trigger models, one that steps on the gate of a MOSFET and one that sweeps on the drain to create a family of curves"
+      icon: mosfet_family_of_curves
+      blocks:
+        - blocks:
+            - type: wait on event
+              block_id: mosfet_family_of_curves_wait_on_event_001
+              block_parameters:
+                trigger_block_name: mosfet_family_of_curves_wait_on_event_001
+            - type: source action step
+              block_id: mosfet_family_of_curves_source_action_step_001
+              block_parameters:
+                trigger_block_name: mosfet_family_of_curves_source_action_step_001
+            - type: notify
+              block_id: mosfet_family_of_curves_notify_001
+              block_parameters:
+                trigger_block_name: mosfet_family_of_curves_notify_001
+            - type: wait on event
+              block_id: mosfet_family_of_curves_wait_on_event_002
+              block_parameters:
+                trigger_block_name: mosfet_family_of_curves_wait_on_event_002
+            - type: measure
+              block_id: mosfet_family_of_curves_measure_001
+              block_parameters:
+                trigger_block_name: mosfet_family_of_curves_measure_001
+            - type: notify
+              block_id: mosfet_family_of_curves_notify_002
+              block_parameters:
+                trigger_block_name: mosfet_family_of_curves_notify_002
+            - type: < loop counter
+              block_id: mosfet_family_of_curves_loop_counter_001
+              block_parameters:
+                trigger_block_name: mosfet_family_of_curves_loop_counter_001
+                branch_to_block_name: mosfet_family_of_curves_wait_on_event_002
+            - type: wait on event
+              block_id: mosfet_family_of_curves_wait_on_event_003
+              block_parameters:
+                trigger_block_name: mosfet_family_of_curves_wait_on_event_003
+            - type: < loop counter
+              block_id: mosfet_family_of_curves_loop_counter_002
+              block_parameters:
+                trigger_block_name: mosfet_family_of_curves_loop_counter_002
+                branch_to_block_name: mosfet_family_of_curves_wait_on_event_001
+        - blocks:
+            - type: notify
+              block_id: mosfet_family_of_curves_notify_001
+              block_parameters:
+                trigger_block_name: mosfet_family_of_curves_notify_001
+            - type: wait on event
+              block_id: mosfet_family_of_curves_wait_on_event_001
+              block_parameters:
+                trigger_block_name: mosfet_family_of_curves_wait_on_event_001
+            - type: source action step
+              block_id: mosfet_family_of_curves_source_action_step_001
+              block_parameters:
+                trigger_block_name: mosfet_family_of_curves_source_action_step_001
+            - type: notify
+              block_id: mosfet_family_of_curves_notify_002
+              block_parameters:
+                trigger_block_name: mosfet_family_of_curves_notify_002
+            - type: measure
+              block_id: mosfet_family_of_curves_measure_001
+              block_parameters:
+                trigger_block_name: mosfet_family_of_curves_measure_001
+            - type: wait on event
+              block_id: mosfet_family_of_curves_wait_on_event_002
+              block_parameters:
+                trigger_block_name: mosfet_family_of_curves_wait_on_event_002
+            - type: < loop counter
+              block_id: mosfet_family_of_curves_loop_counter_001
+              block_parameters:
+                trigger_block_name: mosfet_family_of_curves_loop_counter_001
+                branch_to_block_name: mosfet_family_of_curves_source_action_step_001
+            - type: notify
+              block_id: mosfet_family_of_curves_notify_003
+              block_parameters:
+                trigger_block_name: mosfet_family_of_curves_notify_003
+            - type: < loop counter
+              block_id: mosfet_family_of_curves_loop_counter_002
+              block_parameters:
+                trigger_block_name: mosfet_family_of_curves_loop_counter_002
+                branch_to_block_name: mosfet_family_of_curves_notify_001
+
+    liv_curves:
+      name: "LIV Curves"
+      description: "Creates two synchronized trigger models, one that sweeps on an LED or laser diode and one that measures current output on a photodiode"
+      icon: liv_curves
+      blocks:
+        - blocks:
+            - type: notify
+              block_id: liv_curves_notify_001
+              block_parameters:
+                trigger_block_name: liv_curves_notify_001
+            - type: wait on event
+              block_id: liv_curves_wait_on_event_001
+              block_parameters:
+                trigger_block_name: liv_curves_wait_on_event_001
+            - type: source action step
+              block_id: liv_curves_source_action_step_001
+              block_parameters:
+                trigger_block_name: liv_curves_source_action_step_001
+            - type: constant delay
+              block_id: liv_curves_constant_delay_001
+              block_parameters:
+                trigger_block_name: liv_curves_constant_delay_001
+            - type: notify
+              block_id: liv_curves_notify_002
+              block_parameters:
+                trigger_block_name: liv_curves_notify_002
+            - type: measure
+              block_id: liv_curves_measure_001
+              block_parameters:
+                trigger_block_name: liv_curves_measure_001
+            - type: wait on event
+              block_id: liv_curves_wait_on_event_002
+              block_parameters:
+                trigger_block_name: liv_curves_wait_on_event_002
+            - type: < loop counter
+              block_id: liv_curves_loop_counter_001
+              block_parameters:
+                trigger_block_name: liv_curves_loop_counter_001
+                branch_to_block_name: liv_curves_source_action_step_001
+            - type: notify
+              block_id: liv_curves_notify_003
+              block_parameters:
+                trigger_block_name: liv_curves_notify_003
+        - blocks:
+            - type: wait on event
+              block_id: liv_curves_wait_on_event_001
+              block_parameters:
+                trigger_block_name: liv_curves_wait_on_event_001
+            - type: source action step
+              block_id: liv_curves_source_action_step_001
+              block_parameters:
+                trigger_block_name: liv_curves_source_action_step_001
+            - type: notify
+              block_id: liv_curves_notify_001
+              block_parameters:
+                trigger_block_name: liv_curves_notify_001
+            - type: wait on event
+              block_id: liv_curves_wait_on_event_002
+              block_parameters:
+                trigger_block_name: liv_curves_wait_on_event_002
+            - type: constant delay
+              block_id: liv_curves_constant_delay_001
+              block_parameters:
+                trigger_block_name: liv_curves_constant_delay_001
+            - type: measure
+              block_id: liv_curves_measure_001
+              block_parameters:
+                trigger_block_name: liv_curves_measure_001
+            - type: notify
+              block_id: liv_curves_notify_002
+              block_parameters:
+                trigger_block_name: liv_curves_notify_002
+            - type: < loop counter
+              block_id: liv_curves_loop_counter_001
+              block_parameters:
+                trigger_block_name: liv_curves_loop_counter_001
+                branch_to_block_name: liv_curves_wait_on_event_002
+            - type: wait on event
+              block_id: liv_curves_wait_on_event_003
+              block_parameters:
+                trigger_block_name: liv_curves_wait_on_event_003   
+        
