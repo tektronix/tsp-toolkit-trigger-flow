@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+  <g class="Icon=Config List Load, Color=Transparent, Size=24">
+    <g class="TF - Config List Load">
+      <g class="Row 3">
+        <circle cx="2" cy="6" r="1" fill="#979797" class="Ellipse"/>
+        <path stroke="#979797" stroke-linecap="round" stroke-width="1.5" d="M7 6h15" class="Line"/>
+      </g>
+    </g>
+    <g class="TF - Config List Load">
+      <g class="Row 3">
+        <circle cx="2" cy="12" r="1" fill="#979797" class="Ellipse"/>
+        <path stroke="#979797" stroke-linecap="round" stroke-width="1.5" d="M7 12h15" class="Line"/>
+      </g>
+    </g>
+    <g class="TF - Config List Load">
+      <g class="Row 3">
+        <circle cx="2" cy="18" r="1" fill="#979797" class="Ellipse"/>
+        <path stroke="#979797" stroke-linecap="round" stroke-width="1.5" d="M7 18h15" class="Line"/>
+      </g>
+    </g>
+  </g>
+</svg>

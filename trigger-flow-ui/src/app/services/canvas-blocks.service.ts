@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { BehaviorSubject, Subject } from 'rxjs';
-import { Catalog, BlockDefinition, ActualParameter } from '../models/triggerBlock';
+import { Catalog, BlockDefinition, ActualParameter, ParameterValue } from '../models/triggerBlock';
 import { BlockErrorEntry, JsonValue, TriggerModel } from '../models/triggerFlowState';
 import { Websocket } from './websocket';
 import { TriggerFlowDataService } from './triggerFlowDataService';
@@ -39,7 +39,7 @@ export class CanvasBlocksService {
   private paletteDataService = inject(PaletteDataService);
   // public, readable signal
   readonly sections = signal<FlowSection[]>([]);
-   // public, readable signal
+  // public, readable signal
   readonly connections = signal<FlowConnection[]>([]);
   private blockNamesSet = new Map<string, number>();
 
@@ -136,7 +136,7 @@ export class CanvasBlocksService {
     });
   }
 
-   private createFallbackBlockDefinition(): BlockDefinition {
+  private createFallbackBlockDefinition(): BlockDefinition {
     return {
       parameters: [],
       syntax: '',
@@ -145,81 +145,81 @@ export class CanvasBlocksService {
     } as BlockDefinition;
   }
 
-   private update(data: CanvasBlocksData): void {
-      this.canvasBlocksSubject.next(data);
-    }
+  private update(data: CanvasBlocksData): void {
+    this.canvasBlocksSubject.next(data);
+  }
 
   /**
      * Set the data for the trigger model of this canvas
      * @param models The list of models to set the local model to.
      */
-    setBlockData(models: Record<string, TriggerModel>): void {
-      console.log('setBlockData:', models);
+  setBlockData(models: Record<string, TriggerModel>): void {
+    console.log('setBlockData:', models);
 
-      // Reset so recall replaces (not merges with) any previous session.
-      this.models = {};
+    // Reset so recall replaces (not merges with) any previous session.
+    this.models = {};
 
-      const nextModels: Record<
-        string,
-        {
-          trigger_model_name: string;
-          node_id: string;
-          slot_index: number;
-          blocks: CanvasBlock[];
-        }
-      > = {};
-
-      for (const [name, model] of Object.entries(models)) {
-        const blocks = model.blocks
-          .map((item) => {
-            const blockData =
-              this.findBlockInCatalog(item.type, this.triggerFlowDataService.getCatalog()) ??
-              this.createFallbackBlockDefinition();
-
-            const canvasBlock: CanvasBlock = {
-              block_id: item.block_id,
-              type: item.type,
-              blockData,
-              block_position: item.block_position,
-              incoming: item.incoming,
-              outgoing: item.outgoing,
-              block_error: item.block_error,
-              actual_parameters: blockData.parameters.map((param) => {
-                const actual = new ActualParameter(param);
-                const paramValue = item.block_parameters[param.name];
-                if (param.name === 'trigger_block_name' && typeof paramValue === 'string') {
-                  const serializedNameRegex = /^(.*?)(?:\s\d+)?$/; // captures base name without trailing number
-                  const match = paramValue.match(serializedNameRegex);
-                  if (match) {
-                    const baseName = match[1];
-                    let count = this.blockNamesSet.get(baseName) || 0;
-                    count += 1;
-                    this.blockNamesSet.set(baseName, count);
-                    actual.value = `${baseName} ${count}`;
-                  }
-                }
-                if (paramValue !== null && paramValue !== undefined) {
-                  actual.value = paramValue as any;
-                }
-                return actual;
-              }),
-              notes: '',
-            };
-            return canvasBlock;
-          })
-          .filter((item): item is CanvasBlock => item !== null);
-
-        nextModels[name] = {
-          trigger_model_name: model.trigger_model_name,
-          slot_index: model.slot_index,
-          node_id: model.node_id,
-          blocks,
-        };
+    const nextModels: Record<
+      string,
+      {
+        trigger_model_name: string;
+        node_id: string;
+        slot_index: number;
+        blocks: CanvasBlock[];
       }
+    > = {};
 
-      this.models = nextModels;
-      this.update(this.getCanvasData());
+    for (const [name, model] of Object.entries(models)) {
+      const blocks = model.blocks
+        .map((item) => {
+          const blockData =
+            this.findBlockInCatalog(item.type, this.triggerFlowDataService.getCatalog()) ??
+            this.createFallbackBlockDefinition();
+
+          const canvasBlock: CanvasBlock = {
+            block_id: item.block_id,
+            type: item.type,
+            blockData,
+            block_position: item.block_position,
+            incoming: item.incoming,
+            outgoing: item.outgoing,
+            block_error: item.block_error,
+            actual_parameters: blockData.parameters.map((param) => {
+              const actual = new ActualParameter(param);
+              const paramValue = item.block_parameters[param.name];
+              if (param.name === 'trigger_block_name' && typeof paramValue === 'string') {
+                const serializedNameRegex = /^(.*?)(?:\s\d+)?$/; // captures base name without trailing number
+                const match = paramValue.match(serializedNameRegex);
+                if (match) {
+                  const baseName = match[1];
+                  let count = this.blockNamesSet.get(baseName) || 0;
+                  count += 1;
+                  this.blockNamesSet.set(baseName, count);
+                  actual.value = `${baseName} ${count}`;
+                }
+              }
+              if (paramValue !== null && paramValue !== undefined) {
+                actual.value = paramValue as any;
+              }
+              return actual;
+            }),
+            notes: '',
+          };
+          return canvasBlock;
+        })
+        .filter((item): item is CanvasBlock => item !== null);
+
+      nextModels[name] = {
+        trigger_model_name: model.trigger_model_name,
+        slot_index: model.slot_index,
+        node_id: model.node_id,
+        blocks,
+      };
     }
+
+    this.models = nextModels;
+    this.update(this.getCanvasData());
+  }
 
 
   restoreConnections(): void {
@@ -281,6 +281,14 @@ export class CanvasBlocksService {
   private getSVGPath(blockType: string): string {
     const svgPath = this.paletteDataService.getSVGPathByCatalogLabel(blockType);
     return this.changeSVGPath(svgPath || '');
+  }
+
+  /**
+   * Public lookup that returns the palette-relative SVG path for a catalog
+   * label, used by template instantiation to resolve per-block icons.
+   */
+  getSVGPathForLabel(catalogLabel: string): string {
+    return this.paletteDataService.getSVGPathByCatalogLabel(catalogLabel) || '';
   }
   changeSVGPath(svgPath: string): string {
     return svgPath.replace('palette/', 'canvas/');
@@ -704,7 +712,7 @@ export class CanvasBlocksService {
   updateBlockParameterValue(
     blockId: string,
     parameterName: string,
-    value: string | number | null,
+    value: ParameterValue,
   ): boolean {
     const block = this.getBlockById(blockId);
     if (!block) return false;
