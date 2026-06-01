@@ -33,6 +33,12 @@ export class Dropdown implements ControlValueAccessor, OnInit {
   @Input() selected: string | undefined;
   @Input() options: string[] = [];
   @Input() disabled = false;
+  /**
+   * When true, the dropdown renders with a red border to indicate the
+   * current selection is not acceptable (e.g. a required block-reference
+   * still set to 'unknown').
+   */
+  @Input() invalid = false;
   @Output() selectedChange = new EventEmitter<string>();
 
   private onChange: ((value: string) => void) | undefined;
