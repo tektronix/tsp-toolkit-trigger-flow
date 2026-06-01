@@ -109,6 +109,7 @@ export class Canvas implements AfterViewInit {
 
   canvasSize = signal(this.getCanvasSize());
   selectedNodeIds = signal<string[]>([]);
+  selectedBlockId = signal<string | null>(null);
   canvasMoveTrigger = (event: MouseEvent | TouchEvent | WheelEvent): boolean => {
     if (!(event instanceof MouseEvent)) {
       return true;
@@ -191,6 +192,12 @@ export class Canvas implements AfterViewInit {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(({ source, target }) => {
         this.canvasBlocksService.addConnectionByBlockIds(source, target);
+      });
+
+    this.canvasBlocksService.selectedBlock$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((blockId) => {
+        this.selectedBlockId.set(blockId);
       });
   }
 
@@ -456,6 +463,7 @@ export class Canvas implements AfterViewInit {
 
   onNodeClick(blockId: string): void {
     this.canvasBlocksService.selectBlock(blockId);
+    this.selectedNodeIds.set([blockId]);
   }
 
   onCreateConnection(event: any) {
@@ -547,7 +555,13 @@ export class Canvas implements AfterViewInit {
   }
 
   onSelectionChange(event: FSelectionChangeEvent): void {
-    this.selectedNodeIds.set(event.fNodeIds ?? []);
+    const nodeIds = event.fNodeIds ?? [];
+    this.selectedNodeIds.set(nodeIds);
+    if (nodeIds.length > 0) {
+      this.canvasBlocksService.selectBlock(nodeIds[0]);
+      return;
+    }
+    this.canvasBlocksService.clearSelectedBlock();
   }
 
   onMoveNodes(event: FlowCanvasEvent) {
