@@ -8,6 +8,11 @@ pub struct BlockPosition {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TemplateBlockGroup {
+    pub blocks: Vec<TriggerModelTemplateBlock>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TriggerModelTemplateBlock {
     pub block_id: String,
     #[serde(rename = "type")]
