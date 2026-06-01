@@ -8,6 +8,29 @@ export interface IInitialPayload {
 export interface ICatalog {
   blocks: Record<string, IBlockDefinition>;
   trigger_events: Record<string, IEventDefinition>;
+  templates?: Record<string, ITemplate>;
+}
+
+export interface ITemplateBlock {
+  block_id: string;
+  type: string;
+  block_parameters: Record<string, ParameterValue>;
+}
+
+/**
+ * A group of template blocks that should be instantiated as a single trigger
+ * model (one canvas section). Templates may define multiple groups, in which
+ * case each group becomes its own section/model.
+ */
+export interface ITemplateBlockGroup {
+  blocks: ITemplateBlock[];
+}
+
+export interface ITemplate {
+  name: string;
+  description: string;
+  icon: string;
+  blocks: ITemplateBlockGroup[];
 }
 
 export interface IBlockDefinition {
@@ -86,6 +109,7 @@ export class InitialPayload {
 export class Catalog {
   blocks: Record<string, BlockDefinition> = {};
   trigger_events: Record<string, EventDefinition> = {};
+  templates: Record<string, ITemplate> = {};
 
   constructor(data: ICatalog) {
     for (const blockName of Object.keys(data.blocks)) {
@@ -96,6 +120,10 @@ export class Catalog {
       this.trigger_events[eventName] = new EventDefinition(
         data.trigger_events[eventName]
       );
+    }
+
+    if (data.templates) {
+      this.templates = { ...data.templates };
     }
   }
 }
@@ -134,11 +162,11 @@ export class Parameter {
       : null;
     this.constraints = data.constraints
       ? Object.fromEntries(
-          Object.entries(data.constraints).map(([key, constraint]) => [
-            key,
-            new ParameterConstraint(constraint),
-          ]),
-        )
+        Object.entries(data.constraints).map(([key, constraint]) => [
+          key,
+          new ParameterConstraint(constraint),
+        ]),
+      )
       : null;
     this.default = data.default ?? null;
     this.range = data.range ? new ParameterRange(data.range) : null;
