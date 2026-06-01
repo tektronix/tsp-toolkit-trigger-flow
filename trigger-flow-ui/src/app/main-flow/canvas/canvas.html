@@ -16,6 +16,17 @@
     <f-rect-pattern/>
   </f-background>
   <f-canvas  fZoom>
+    @if (sectionLayouts().length === 0 ) {
+      <div [id]="'no-trigger-model-message'" class="message-node" fNode [fNodePosition]="{ x: 30, y: 30 }" [attr.aria-label]="'Empty-Canvas-Block'">
+        <p>
+          No trigger models exist.
+        </p>
+        <p>
+          Drag blocks from the left panel or create a model using the Model Settings
+          button to start building your TriggerFlow.
+        </p>
+      </div>
+    }
     @for (section of sectionLayouts(); track section.id) {
       <div
         class="section-group"
@@ -54,6 +65,38 @@
         <div class="section-body"></div>
 
         @if (shouldShowInsertionIndicatorInSection(section.id)) {
+    @for (node of sectionNodes(); track node.blockId) {
+      <div
+        fNode
+        fDragHandle
+        [fNodeParentId]="node.sectionId"
+        [fNodeId]="node.blockId"
+        [fNodePosition]="node.position"
+        class="node-wrapper"
+        [class.node-wrapper--selected]="selectedBlockId() === node.blockId"
+        [style.--node-x]="node.position.x + 'px'"
+        (click)="onNodeClick(node.blockId)"
+        role="button"
+        tabindex="0"
+        [aria-label]="node.sectionId + '_' + node.catalogLabel"
+        (keydown.enter)="onNodeClick(node.blockId)"
+        [aria-label]="node.sectionId + '-' + node.catalogLabel"
+      >
+        <div class="node-content">
+          <svg-icon [src]="node.svgPath" class="node-svg" fDragHandle>
+          </svg-icon>
+          @if (hasInputConnector(node)) {
+            <div
+              fNodeInput
+              [fInputId]="node.blockId + '-in'"
+              [fInputConnectableSide]="getInputDirection(node)"
+              fInputMultiple="false"
+              class="input-connector input-connector--svg"
+              [style]="getInputStyle(node)"
+              [attr.aria-label]="node.catalogLabel + '-input'"
+              [attr.automationID]="node.catalogLabel + '-input'"
+            ></div>
+          }
           <div
             class="insert-indicator"
             [style.top.px]="getInsertionIndicatorTop(section)"

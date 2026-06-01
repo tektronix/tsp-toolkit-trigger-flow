@@ -122,6 +122,19 @@ f-canvas {
   position: relative;
 }
 
+.node-wrapper--selected::before {
+  content: '';
+  position: absolute;
+  left: calc(-1 * var(--node-x, 0px));
+  width: 400px;
+  top: -4px;
+  bottom: -4px;
+  border: 2px solid var(--vscode-focusBorder, #0078d4);
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 10;
+}
+
 .node-content {
   display: none;
   /* width: 100%; */
@@ -334,6 +347,17 @@ f-canvas {
   ::ng-deep .connection-arrow-marker path {
     fill: CanvasText;
   }
+}
+
+.message-node {
+  width: 300px;
+  height: fit-content;
+  fill: var(--vscode-inputValidation-warningForeground, magenta);
+  background: var(--vscode-inputValidation-warningBackground, magenta);
+  border: 1px solid var(--vscode-inputValidation-warningBorder, magenta);
+  border-radius: 5px;
+  text-align: center;
+  margin: 3px;
 }
 
 /* .f-node-input:hover,
