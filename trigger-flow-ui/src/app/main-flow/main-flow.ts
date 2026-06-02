@@ -245,7 +245,7 @@ export class MainFlow {
   onDeleteModel(item: ModelSettingsItem): void {
     console.warn('Delete model:', item);
     this.canvasBlocksService.removeModel(item.modelName);
-    this.modelSettingsList = this.modelSettingsList.filter((model) => model.id !== item.id);
+    this.modelSettingsList = this.modelSettingsList.filter((model) => model.modelName !== item.modelName);
   }
 
   onEditModel(item: ModelSettingsItem): void {
