@@ -8,18 +8,19 @@ import {
   ParamControlType,
   resolveParamControlType,
   shouldShowBlockParameter,
+  isBlockReferenceParam,
+  BLOCK_REFERENCE_UNKNOWN_VALUE,
 } from '../../../models/blockParameterHelper';
 import { ActualParameter, EventDefinition, DelayListConfig } from '../../../models/triggerBlock';
 import { Textbox } from '../../../custom-controls/textbox/textbox';
 import { InputNumeric } from '../../../custom-controls/input-numeric/input-numeric';
 import { Dropdown } from '../../../custom-controls/dropdown/dropdown';
-import { RadioButton } from '../../../custom-controls/radio-button/radio-button';
+// import { RadioButton } from '../../../custom-controls/radio-button/radio-button';
 import { MultilineTextbox } from '../../../custom-controls/multiline-textbox/multiline-textbox';
 import { FormsModule } from '@angular/forms';
 import { EventBlockComponent } from './event-block/event-block';
 import { SpecificEvent } from './specific-event/specific-event';
 import { TriggerFlowDataService } from '../../../services/triggerFlowDataService';
-// import { EventDefinition } from '../../../models/triggerBlock';
 import { Toggle } from '../../../custom-controls/toggle/toggle';
 import {
   CheckboxGroup,
@@ -29,11 +30,6 @@ import { RadioGroup, RadioOption } from '../../../custom-controls/radio-group/ra
 import { ModelResourceAllocationService } from '../../../services/model-resource-allocation.service';
 import { Checkbox } from '../../../custom-controls/checkbox/checkbox';
 import { DelayListModal, DelayListModalValue } from './delay-list-modal/delay-list-modal';
-
-// interface DelayListConfigValue {
-//   delay_count: number;
-//   delay_durations: number[];
-// }
 
 const CATEGORY_ICON_PATHS: Record<string, string> = {
   actions: 'assets/shapes/icons/TinyAction.svg',
@@ -49,7 +45,6 @@ const CATEGORY_ICON_PATHS: Record<string, string> = {
     Textbox,
     InputNumeric,
     Dropdown,
-    RadioButton,
     MultilineTextbox,
     Toggle,
     Checkbox,
@@ -74,6 +69,19 @@ export class BlockParameters {
   blockTypeSvgPath = '';
   actualParameters: ActualParameter[] = [];
   blockNotes = '';
+  /**
+   * Snapshot of the selected block's `trigger_block_name` value taken when
+   * the right panel last loaded it. Used by `onParameterValueChange` to
+   * detect renames and propagate them to any other block whose
+   * BlockReference parameter currently points at the old name.
+   */
+  private previousBlockName = '';
+  /**
+   * Snapshot of the selected block's BlockReference parameter value taken
+   * when the right panel last loaded it. Used by `onParameterValueChange`
+   * to avoid redrawing the connection on every unrelated parameter edit.
+   */
+  private previousBranchReferenceValue = '';
   triggerEvents: Record<string, EventDefinition> = {};
   channelListOptions: CheckboxOption[] = [];
   channelItemOptions: RadioOption[] = [];
@@ -114,7 +122,16 @@ export class BlockParameters {
         }
 
         this.actualParameters = canvasBlock.actual_parameters;
-        
+        // Snapshot the current name so a subsequent edit can be detected as a
+        // rename and propagated to referencing BlockReference param.
+        this.previousBlockName = this.readTriggerBlockName(this.actualParameters);
+        const branchParam = this.actualParameters.find((p) =>
+          isBlockReferenceParam(p.type),
+        );
+        this.previousBranchReferenceValue = branchParam?.value
+          ? String(branchParam.value)
+          : '';
+
         // Resolve model context from the owning model
         const model = this.canvasBlocksService.getModelForBlock(this.selectedBlockId);
 
@@ -137,23 +154,15 @@ export class BlockParameters {
       }
     }
   }
-
-  // isNumberType(type: ParamTypeName): boolean {
-  //   // DelayTime is represented as a numeric value in catalog metadata.
-  //   return type === 'Number' || type === 'DelayTime';
-  // }
-
-  // isStringType(type: ParamTypeName): boolean {
-  //   return type === 'String';
-  // }
-
-  // isMultiLineStringType(type: ParamTypeName): boolean {
-  //   return type === 'MultiString';
-  // }
-
-  // isToggleType(type: ParamTypeName): boolean {
-  //   return type === 'SourceState';
-  // }
+  
+  /**
+   * Returns the current `trigger_block_name` value from a parameter list,
+   * or '' if the parameter is missing or unset.
+   */
+  private readTriggerBlockName(params: ActualParameter[]): string {
+    const param = params.find((p) => p.name === 'trigger_block_name');
+    return param?.value != null ? String(param.value) : '';
+  }
 
   getControlType(param: ActualParameter): ParamControlType {
     return resolveParamControlType({
@@ -191,6 +200,34 @@ export class BlockParameters {
 
     // We use option.value for binding so the payload matches backend expectations.
     return param.options.map((option) => option.value);
+  }
+
+  /**
+   * Options for a block-reference parameter dropdown. Always include the
+   * sentinel 'unknown' first, followed by every valid target block name in
+   * the same trigger model (filtered per parameter — see service helper).
+   */
+  getBlockReferenceOptions(param: ActualParameter): string[] {
+    if (!this.selectedBlockId) {
+      return [];
+    }
+    const names = this.canvasBlocksService.getBlockReferenceOptionsForBlock(
+      this.selectedBlockId,
+      param.name,
+    );
+    return [BLOCK_REFERENCE_UNKNOWN_VALUE, ...names];
+  }
+
+  /**
+   * True when a block-reference parameter currently has the sentinel
+   * 'unknown' value. The template uses this to flag the dropdown as
+   * invalid (red border) so the user notices the unresolved selection.
+   */
+  isBlockReferenceUnset(param: ActualParameter): boolean {
+    return (
+      isBlockReferenceParam(param.type) &&
+      String(param.value ?? '') === BLOCK_REFERENCE_UNKNOWN_VALUE
+    );
   }
 
   private hasSelectableOptions(param: ActualParameter): boolean {
@@ -241,6 +278,11 @@ export class BlockParameters {
     return `param-${blockId}-${param.name}`;
   }
 
+  onRadioSelectionChange(param: ActualParameter, value: string): void {
+    param.value = value;
+    this.onParameterValueChange();
+  }
+
   onParameterValueChange(): void {
     if (!this.selectedBlockId) return;
 
@@ -254,14 +296,54 @@ export class BlockParameters {
       this.actualParameters,
     );
     canvasBlock.actual_parameters = this.actualParameters;
-    this.canvasBlocksService.updateAndPrint();
-    // check if its required to create connection between blocks based on parameter changes
-    const sourceParam = canvasBlock.actual_parameters.find(
-      (p) => p.name === 'branch_to_block_name' || p.name === 'reference_block_name' || p.name === 'reset_branch_count_block_name',
-    );
-    const sourceValue = sourceParam?.value ? String(sourceParam.value) : '';
 
-    if (sourceValue) {
+    // Detect a rename of `trigger_block_name` on the currently selected
+    // block and propagate it to every BlockReference parameter that still
+    // points at the old name within the same trigger model. (Block names
+    // are only unique within their owning model, so propagation must be
+    // scoped — that is enforced inside `propagateBlockRename`.) Must run
+    // BEFORE updateAndPrint so the regenerated script reflects the new
+    // name everywhere.
+    const currentName = this.readTriggerBlockName(this.actualParameters);
+    if (
+      this.previousBlockName &&
+      currentName &&
+      currentName !== this.previousBlockName
+    ) {
+      this.canvasBlocksService.propagateBlockRename(
+        canvasBlock.block_id,
+        this.previousBlockName,
+        currentName,
+      );
+    }
+    this.previousBlockName = currentName;
+
+    this.canvasBlocksService.updateAndPrint();
+    // If a block-reference parameter points at another block, request a
+    // connection to that target.
+    const sourceParam = canvasBlock.actual_parameters.find((p) =>
+      isBlockReferenceParam(p.type),
+    );
+
+    if (!sourceParam) {
+      return;
+    }
+
+    const sourceValue = sourceParam.value ? String(sourceParam.value) : '';
+    // Skip connection churn when the reference didn't change — otherwise an
+    // edit to any unrelated parameter would tear down and redraw the line.
+    if (sourceValue === this.previousBranchReferenceValue) {
+      return;
+    }
+    this.previousBranchReferenceValue = sourceValue;
+
+    // A block-reference parameter can target at most one block, so drop any
+    // previously drawn line into this block before evaluating the new value.
+    // This also covers the case where the user resets the value to 'unknown'
+    // (the line should disappear).
+    this.canvasBlocksService.removeIncomingConnections(canvasBlock.block_id);
+
+    if (sourceValue && sourceValue !== BLOCK_REFERENCE_UNKNOWN_VALUE) {
       // search for block with name same as sourceValue to connect with
       const targetBlock = this.canvasBlocksService.findBlockByName(sourceValue);
       if (targetBlock) {
@@ -513,5 +595,14 @@ export class BlockParameters {
 
   closePanel(): void {
     //
+  }
+
+  // Coerce ParameterValue to string for controls that expect string-only values
+  // (RadioGroup, Dropdown, Textbox, etc.).
+  toStringValue(value: unknown): string {
+    if (value === null || value === undefined) {
+      return '';
+    }
+    return String(value);
   }
 }
