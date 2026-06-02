@@ -2,7 +2,7 @@
   <section class="tf-modal" role="dialog" aria-modal="true" [attr.aria-label]="'New-Model-Settings'">
     <header class="tf-modal__header">
       <h2>New Model</h2>
-      <button type="button" class="icon-btn" (click)="onClose()" >
+      <button type="button" class="icon-btn" (click)="onClose()" automationID="Button-Close-Model-Settings">
         <img class="icon-img" src="assets/shapes/Icons/X.svg" alt="Close" [attr.aria-label]="'Close-Model-Settings'"/>
       </button>
     </header>
@@ -29,7 +29,7 @@
         label="Slot"
         [options]="slotOptionsAsString"
         [(ngModel)]="slotValue"
-        automationID ="'Model-Slot-Selection'">
+        automationID ="Model-Slot-Selection">
       </app-dropdown>
 
         <!-- <app-dropdown
@@ -56,13 +56,14 @@
         <!-- <div class="tf-modal__divider"></div> -->
 
       <div class="tf-modal__footer-icons">
-        <button type="button" class="icon-btn" (click)="onDelete()" >
+        <button type="button" class="icon-btn" (click)="onDelete()" automationID="Button-Delete-Model-Settings">
           <img class="icon-img" src="assets/shapes/Icons/Trash.svg" alt="Delete" [attr.aria-label]="'Delete-Model-Settings'" />
         </button>
       <button
-        [attr.aria-label]="'Close-Model-Settings'"
+        [attr.aria-label]="'Create-Model-Settings'"
         class="action-btn"
         (click)="onClose()"
+        automationID="Button-Create-Model-Settings"
       >
         Create
       </button>
