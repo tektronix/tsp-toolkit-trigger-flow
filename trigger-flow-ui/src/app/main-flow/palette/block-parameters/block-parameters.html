@@ -35,13 +35,13 @@
               (valueChange)="onParameterValueChange()"
             />
           } @else if (getControlType(param) === 'radio') {
-            <app-radio-button
+            <app-radio-group
               [label]="param.name"
-              automationID="{{ 'param-' + param.name }}"
-              [options]="getSelectOptions(param)"
+              [automationID]="'param-' + param.name"
               [name]="getRadioGroupName(param)"
-              [(ngModel)]="param.value"
-              (radioChange)="onParameterValueChange()"
+              [options]="getSelectOptions(param)"
+              [selectedValue]="toStringValue(param.value)"
+              (selectionChange)="onRadioSelectionChange(param, $event)"
             />
           } @else if (getControlType(param) === 'block-reference') {
             <app-dropdown
@@ -71,7 +71,7 @@
               [label]="getParameterDisplayName(param)"
               [name]="getRadioGroupName(param)"
               [options]="channelItemOptions"
-              [selectedValue]="getChannelItemSelected(param)"
+              [selectedValue]="toStringValue(getChannelItemSelected(param))"
               (selectionChange)="onChannelItemChange(param, $event)"
             />
           } @else if (getControlType(param) === 'source-output-state') {

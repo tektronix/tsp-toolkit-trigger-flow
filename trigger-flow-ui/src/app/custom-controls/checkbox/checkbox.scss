@@ -1,6 +1,6 @@
 .checkbox-container {
   display: flex;
-  margin-bottom: 1rem;
+  margin-bottom: 12px;//1rem;
 }
 
 .checkbox-label {
@@ -9,32 +9,96 @@
   gap: 0.5rem;
   cursor: pointer;
   user-select: none;
+  color: var(--vscode-foreground);
+  font-size: var(--vscode-font-size, 13px);
+  line-height: var(--vscode-line-height, 18px);
 }
 
+// VS Code-style checkbox
 .checkbox-input {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
   width: 1rem;
   height: 1rem;
+  margin: 0;
   cursor: pointer;
-  accent-color: var(--vscode-button-background);
+
+  background-color: var(--vscode-checkbox-background);
+  border: 1px solid var(--vscode-checkbox-border);
+
+  border-radius: 3px;
+
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+/* Hover */
+.checkbox-input:hover {
+  border-color: var(--vscode-focusBorder);
+}
+
+.checkbox-input:checked {
+  background-color: var(--vscode-checkbox-selectBackground, var(--vscode-checkbox-background));
+  border-color: var(--vscode-checkbox-selectBorder, var(--vscode-checkbox-border));
+}
+
+.checkbox-input:checked::after {
+  content: '';
+
+  position: absolute;
+  top: 50%;
+  left: 50%;
+
+  width: 4px;
+  height: 8px;
+
+  border: solid var(--vscode-checkbox-foreground, var(--vscode-foreground));
+  border-width: 0 2px 2px 0;
+
+  // Rotate first, then offset by half its size to center it.
+  // Slight -1px nudge on Y compensates for the rotated bounding box.
+  transform: translate(-50%, -60%) rotate(45deg);
+}
+
+// .checkbox-input:checked::before {
+//   color: var(--vscode-editor-foreground);
+// }
+
+// .checkbox-input:hover {
+//   filter: brightness(1.05);
+// }
+
+.checkbox-input:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
 }
 
 .checkbox-input:disabled {
   cursor: not-allowed;
-  opacity: 0.6;
+  opacity: 0.5;
 }
 
 .checkbox-text {
-  font-size: 0.875rem;
-  font-weight: var(--vscode-font-weight);
-  color: var(--vscode-editor-foreground);
+  font-size: var(--vscode-font-size, 13px);
+  font-weight: var(--vscode-font-weight, 500);
+  //color: var(--vscode-editor-foreground);
+  color: var(--vscode-foreground);
+  //font-size: var(--vscode-font-size, 13px);
+  //font-weight: 400;
 }
 
 .checkbox-label:has(.checkbox-input:disabled) {
   cursor: not-allowed;
-  opacity: 0.6;
+  opacity: 0.5;
 }
 
-.checkbox-input:focus {
-  outline: 1px solid var(--vscode-button-background);
-  outline-offset: 0;
-}
+// .checkbox-input:focus {
+//   outline: 1px solid var(--vscode-button-background);
+//   outline-offset: 0;
+// }

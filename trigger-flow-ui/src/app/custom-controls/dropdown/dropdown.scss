@@ -6,8 +6,8 @@
 }
 
 .dropdown label {
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-size: var(--vscode-font-size, 13px);
+  font-weight: var(--vscode-font-weight, 500);
   color: var(--vscode-editor-foreground);
 }
 
@@ -15,7 +15,8 @@
   padding: 4px;
   border: 1px solid var(--vscode-editorWidget-border);
   border-radius: 5px;
-  font-size: 0.875rem;
+  font-size: var(--vscode-font-size, 13px);
+  font-weight: var(--vscode-font-weight, 500);
   background-color: var(--vscode-input-background);
   color: var(--vscode-input-foreground);
   cursor: pointer;
