@@ -222,7 +222,8 @@ export class ActualParameter {
   default: string | number | null;
   range: ParameterRange | null;
   constraints: Record<string, ParameterConstraint> | null;
-  value: ParameterValue;  // User-edited or default-initialized value  
+  value: ParameterValue;  // User-edited or default-initialized value
+  required: boolean | null;
 
   constructor(parameter: Parameter) {
     this.name = parameter.name;
@@ -231,6 +232,7 @@ export class ActualParameter {
     this.default = parameter.default;
     this.range = parameter.range;
     this.constraints = parameter.constraints;
+    this.required = parameter.required;
     // Initialize value from default when block is added
     // this.value = parameter.default;
     if (this.type === 'EventList') {
