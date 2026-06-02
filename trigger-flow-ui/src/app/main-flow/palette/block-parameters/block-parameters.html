@@ -43,6 +43,15 @@
               [selectedValue]="toStringValue(param.value)"
               (selectionChange)="onRadioSelectionChange(param, $event)"
             />
+          } @else if (getControlType(param) === 'block-reference') {
+            <app-dropdown
+              [label]="getParameterDisplayName(param)"
+              [options]="getBlockReferenceOptions(param)"
+              [(ngModel)]="param.value"
+              [invalid]="isBlockReferenceUnset(param)"
+              (selectedChange)="onParameterValueChange()"
+              automationID="input-{{ param.name }}"
+            />
           } @else if (getControlType(param) === 'select') {
             <app-dropdown
               [label]="param.name"
