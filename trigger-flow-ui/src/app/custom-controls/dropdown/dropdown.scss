@@ -37,3 +37,12 @@
   opacity: 0.6;
   border-color: var(--vscode-editorWidget-border);
 }
+
+.dropdown.invalid select {
+  border-color: var(--vscode-inputValidation-errorBorder, #be1100);
+}
+
+.dropdown.invalid select:focus {
+  border-color: var(--vscode-inputValidation-errorBorder, #be1100);
+  box-shadow: 0 0 0 3px rgba(190, 17, 0, 0.15);
+}
