@@ -364,7 +364,7 @@ pub(crate) mod script_tests {
             script_template: ScriptTemplate {
                 preamble: "-- Preamble Text\n{{> begin_sentinel}}".to_string(),
                 postamble: "{{> end_sentinel}}\n\n-- Postamble Text".to_string(),
-                contents: r##"{{#each models}}
+                contents: r#"{{#each models}}
 -- {{this.trigger_model_name}}
 slot[{{this.slot_index}}].trigger.model.create("{{this.trigger_model_name}}")
 {{#each this.blocks}}
@@ -373,7 +373,7 @@ slot[{{this.slot_index}}].trigger.model.create("{{this.trigger_model_name}}")
 {{/each}}
 -- slot[{{this.slot_index}}].trigger.model.initiate("{{this.trigger_model_name}}")
 {{/each}}
-"##
+"#
                 .to_string(),
                 begin_sentinel: "-- BEGIN GENERATED TRIGGER MODEL --".to_string(),
                 end_sentinel: "-- END GENERATED TRIGGER MODEL --".to_string(),

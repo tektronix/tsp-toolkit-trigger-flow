@@ -20,7 +20,7 @@
                         </div>
                         <div class="accordion-shapes" *ngIf="blockExpanded.has(j)">
                             <ng-container *ngIf="sub.shapes && sub.shapes.length > 0; else subgroupContent">
-                                <div *ngFor="let shape of sub.shapes" class="palette-item">
+                                <div *ngFor="let shape of sub.shapes" class="palette-item" style="display: flex">
                                     <div class="shape-icon" fExternalItem [fData]="shape"
                                         [aria-label]='shape.catalogLabel+"_"+"palette"'>
                                         <img [src]="shape.svgPath" class="shape-svg" />
@@ -38,6 +38,7 @@
             <ng-template #singleContent>
                 <ng-container *ngIf="templates() && templates().length > 0; else emptyTemplates">
                     <div *ngFor="let template of templates()" class="palette-template-item"
+                        style="display: flex"
                         fExternalItem [fData]="template"
                         [aria-label]='template.catalogLabel+"_"+"palette"'>
                         <div class="shape-icon">

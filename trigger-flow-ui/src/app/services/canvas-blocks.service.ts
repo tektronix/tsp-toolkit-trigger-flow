@@ -773,6 +773,10 @@ export class CanvasBlocksService {
     this.selectedBlockSubject.next(nodeId);
   }
 
+  getSelectedBlockId(): string | null {
+    return this.selectedBlockSubject.getValue();
+  }
+
   clearSelectedBlock(): void {
     this.selectedBlockSubject.next(null);
   }
