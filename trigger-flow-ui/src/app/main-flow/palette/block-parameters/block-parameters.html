@@ -33,15 +33,25 @@
               [eventDefinition]="getEventDefinition(param)"
               [blockId]="selectedBlockId"
               (valueChange)="onParameterValueChange()"
+              [attr.aria-label]="'event-' + param.name + '-dropdown'"
             />
           } @else if (getControlType(param) === 'radio') {
-            <app-radio-button
+            <app-radio-group
               [label]="param.name"
-              automationID="{{ 'param-' + param.name }}"
-              [options]="getSelectOptions(param)"
+              [automationID]="'param-' + param.name"
               [name]="getRadioGroupName(param)"
+              [options]="getSelectOptions(param)"
+              [selectedValue]="toStringValue(param.value)"
+              (selectionChange)="onRadioSelectionChange(param, $event)"
+            />
+          } @else if (getControlType(param) === 'block-reference') {
+            <app-dropdown
+              [label]="getParameterDisplayName(param)"
+              [options]="getBlockReferenceOptions(param)"
               [(ngModel)]="param.value"
-              (radioChange)="onParameterValueChange()"
+              [invalid]="isBlockReferenceUnset(param)"
+              (selectedChange)="onParameterValueChange()"
+              automationID="input-{{ param.name }}"
             />
           } @else if (getControlType(param) === 'select') {
             <app-dropdown
@@ -62,7 +72,7 @@
               [label]="getParameterDisplayName(param)"
               [name]="getRadioGroupName(param)"
               [options]="channelItemOptions"
-              [selectedValue]="getChannelItemSelected(param)"
+              [selectedValue]="toStringValue(getChannelItemSelected(param))"
               (selectionChange)="onChannelItemChange(param, $event)"
             />
           } @else if (getControlType(param) === 'source-output-state') {
@@ -74,11 +84,13 @@
                   [options]="getSourceOutputStateChannelOptions()"
                   [selected]="getSourceOutputChannel(param)"
                   (selectedChange)="onSourceOutputChannelChange(param, $event)"
+                  automationID="{{ param.name + '-channel dropdown' }}"
                 />
                 <app-dropdown
                   label="State"
                   [options]="getSourceOutputStateValueOptions()"
                   [selected]="getSourceOutputStateValue(param)"
+                  automationID="{{ param.name + '-state dropdown'  }}"
                   (selectedChange)="onSourceOutputStateValueChange(param, $event)"
                 />
               </div>
@@ -108,6 +120,7 @@
               [rows]="5"
               [maxLength]="31"
               (inputChange)="onParameterValueChange()"
+              automationID="{{ param.name }}-notes"
             />
           } @else if (getControlType(param) === 'text') {
             <app-textbox
@@ -142,6 +155,7 @@
         [rows]="5"
         [(ngModel)]="blockNotes"
         (inputChange)="onBlockNotesChange()"
+        automationID="block-notes"
       />
 
       <app-delay-list-modal
