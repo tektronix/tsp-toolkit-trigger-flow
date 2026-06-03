@@ -1,13 +1,13 @@
 <div class="dropdown">
   <label for="dropdown">{{ label }}</label>
   <select
-    [attr.aria-label]="automationID"
+    [attr.aria-label]="label + ' dropdown'"
     [value]="selected"
     (change)="onSelectionChanged($event)"
     [disabled]="disabled"
   >
     @for (option of options; track option) {
-      <option [value]="option" [selected]="option === selected">
+      <option [value]="option" [selected]="option === selected" [attr.automationID]="'option' + '-' + option" [attr.aria-label]="'option-' + option">
         {{ option }}
       </option>
     }
