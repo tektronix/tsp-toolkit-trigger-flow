@@ -1,4 +1,5 @@
-import { Component, ViewChild, inject } from '@angular/core';
+import { Component, ViewChild, inject, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
@@ -51,6 +52,19 @@ export class MainFlow {
 
   private readonly triggerFlowDataService = inject(TriggerFlowDataService);
   private readonly canvasBlocksService = inject(CanvasBlocksService);
+  private readonly destroyRef = inject(DestroyRef);
+
+  constructor() {
+    // Auto-expand the parameters panel whenever a block becomes selected
+    // (either by user click or by being newly created on the canvas).
+    this.canvasBlocksService.selectedBlock$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((blockId) => {
+        if (blockId && this.parametersCollapsed) {
+          this.parametersCollapsed = false;
+        }
+      });
+  }
 
   toggleSidebar(): void {
     this.sidebarCollapsed = !this.sidebarCollapsed;
