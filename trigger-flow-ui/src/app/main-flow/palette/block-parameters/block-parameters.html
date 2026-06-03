@@ -121,15 +121,15 @@
                 <!-- Checkbox toggles list_config on/off; Edit opens the modal for sweep value details. -->
                 <app-checkbox
                  [class.required]="param.required"
-                 class="delay-list-checkbox" 
-                 label="List" 
+                 class="delay-list-checkbox"
+                 label="List"
                  [checked]="isDelayListEnabled()"
-                 (checkedChange)="onDelayListCheckedChange($event)" 
+                 (checkedChange)="onDelayListCheckedChange($event)"
                 />
                 @if (isDelayListEnabled()) {
-                  <button 
-                    type="button" 
-                    class="delay-list-configure-btn" 
+                  <button
+                    type="button"
+                    class="delay-list-configure-btn"
                     (click)="openDelayListModal()"
                   >
                     Edit
@@ -166,8 +166,6 @@
           }
         }
       }
-      <h3 class="block-name">{{ blockName }}</h3>
-    </div>
 
       <app-multiline-textbox
         label="Notes"
