@@ -33,6 +33,7 @@
               [eventDefinition]="getEventDefinition(param)"
               [blockId]="selectedBlockId"
               (valueChange)="onParameterValueChange()"
+              [attr.aria-label]="'event-' + param.name + '-dropdown'"
             />
           } @else if (getControlType(param) === 'radio') {
             <app-radio-group
@@ -83,11 +84,13 @@
                   [options]="getSourceOutputStateChannelOptions()"
                   [selected]="getSourceOutputChannel(param)"
                   (selectedChange)="onSourceOutputChannelChange(param, $event)"
+                  automationID="{{ param.name + '-channel dropdown' }}"
                 />
                 <app-dropdown
                   label="State"
                   [options]="getSourceOutputStateValueOptions()"
                   [selected]="getSourceOutputStateValue(param)"
+                  automationID="{{ param.name + '-state dropdown'  }}"
                   (selectedChange)="onSourceOutputStateValueChange(param, $event)"
                 />
               </div>
@@ -117,6 +120,7 @@
               [rows]="5"
               [maxLength]="31"
               (inputChange)="onParameterValueChange()"
+              automationID="{{ param.name }}-notes"
             />
           } @else if (getControlType(param) === 'text') {
             <app-textbox
@@ -151,6 +155,7 @@
         [rows]="5"
         [(ngModel)]="blockNotes"
         (inputChange)="onBlockNotesChange()"
+        automationID="block-notes"
       />
 
       <app-delay-list-modal
