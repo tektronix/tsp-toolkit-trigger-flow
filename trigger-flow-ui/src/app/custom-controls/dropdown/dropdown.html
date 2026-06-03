@@ -1,4 +1,4 @@
-<div class="dropdown">
+<div class="dropdown" [class.invalid]="invalid">
   <label for="dropdown">{{ label }}</label>
   <select
     [attr.aria-label]="label + ' dropdown'"
