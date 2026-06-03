@@ -343,6 +343,18 @@ export class Canvas implements AfterViewInit {
     const pos = this.connectorPositions()[node.svgPath];
     if (pos === undefined) {
       this.loadConnectorPosition(node.svgPath);
+      // Keep input connectable while SVG connector metadata loads.
+      return true;
+    }
+    // Even SVGs without an explicit Connector group get a side fallback
+    // input so users can complete a connection from either direction.
+    return true;
+  }
+
+  hasSvgInputConnector(node: FlowNode): boolean {
+    const pos = this.connectorPositions()[node.svgPath];
+    if (pos === undefined) {
+      this.loadConnectorPosition(node.svgPath);
       return false;
     }
     return pos !== null;
@@ -359,7 +371,11 @@ export class Canvas implements AfterViewInit {
    */
   getInputStyle(node: FlowNode): Record<string, string> {
     const pos = this.connectorPositions()[node.svgPath];
-    if (!pos) return {};
+    if (!pos) {
+      return this.getInputDirection(node) === 'left'
+        ? { left: '0%', top: '40%' }
+        : { left: '100%', top: '40%' };
+    }
     return {
       left: `${pos.xPct}%`,
       top: `${pos.yPct}%`,
@@ -551,12 +567,36 @@ export class Canvas implements AfterViewInit {
         ? this.canvasBlocksService.getBlockById(inputBlockId)
         : null;
 
-      // Wire the connection in the data model:
-      //  1. Read `trigger_block_name` from the output (source) block.
-      //  2. If the input (target) block has a `branch_to_block_name` parameter, set it there.
-      //  3. Otherwise, if the input (target) block has `reference_block_name`, set it there.
+      // Resolve semantic direction independent of drag start side:
+      // the "referencing" block is whichever endpoint owns a supported
+      // block-reference parameter, and the opposite endpoint is the source.
       if (outputBlock && inputBlock && outputBlockId && inputBlockId) {
-        const triggerBlockName = outputBlock.actual_parameters.find(
+        const outputParamName = this.getLinkParamName(outputBlock);
+        const inputParamName = this.getLinkParamName(inputBlock);
+
+        const targetFromOutput =
+          !!outputParamName &&
+          (!inputParamName ||
+            this.getLinkParamPriority(outputParamName) <=
+              this.getLinkParamPriority(inputParamName));
+
+        const targetBlock = targetFromOutput
+          ? outputParamName
+            ? outputBlock
+            : null
+          : inputParamName
+            ? inputBlock
+            : null;
+        const targetBlockId = targetBlock === outputBlock ? outputBlockId : targetBlock === inputBlock ? inputBlockId : null;
+        const parameterName = targetBlock === outputBlock ? outputParamName : targetBlock === inputBlock ? inputParamName : null;
+        const sourceBlock = targetBlock === outputBlock ? inputBlock : outputBlock;
+
+        if (!targetBlock || !targetBlockId || !parameterName) {
+          console.warn('Connection ignored: neither endpoint supports a block-reference parameter.');
+          return;
+        }
+
+        const triggerBlockName = sourceBlock.actual_parameters.find(
           (p) => p.name === 'trigger_block_name',
         )?.value;
 
@@ -564,50 +604,52 @@ export class Canvas implements AfterViewInit {
         const sourceValue =
           triggerBlockName !== undefined && triggerBlockName !== null
             ? String(triggerBlockName)
-            : outputBlock.block_id;
+            : sourceBlock.block_id;
 
-        const inputHasBranch = inputBlock.actual_parameters.some(
-          (p) => p.name === 'branch_to_block_name',
+        this.canvasBlocksService.removeIncomingConnections(targetBlockId);
+        this.canvasBlocksService.updateBlockParameterValue(
+          targetBlockId,
+          parameterName,
+          sourceValue,
         );
-        const inputHasReference = inputBlock.actual_parameters.some(
-          (p) => p.name === 'reference_block_name',
+        console.log(
+          `Set ${parameterName}=${sourceValue} on block ${targetBlockId}`,
         );
 
-        const inputHasResetBranchCounter = inputBlock.actual_parameters.some(
-          (p) => p.name === 'reset_branch_count_block_name',
-        );
-
-        if (inputHasBranch) {
-          this.canvasBlocksService.updateBlockParameterValue(
-            inputBlockId,
-            'branch_to_block_name',
-            sourceValue,
-          );
-          console.log(
-            `Set branch_to_block_name=${sourceValue} on input block ${inputBlockId}`,
-          );
-        } else if (inputHasReference) {
-          this.canvasBlocksService.updateBlockParameterValue(
-            inputBlockId,
-            'reference_block_name',
-            sourceValue,
-          );
-          console.log(
-            `Set reference_block_name=${sourceValue} on input block ${inputBlockId}`,
-          );
-        }
-        else if (inputHasResetBranchCounter) {
-          this.canvasBlocksService.updateBlockParameterValue(
-            inputBlockId,
-            'reset_branch_count_block_name',
-            sourceValue,
-          );
-          console.log(
-            `Set reset_branch_count_block_name=${sourceValue} on input block ${inputBlockId}`,
-          );
-        }
-        this.canvasBlocksService.addConnectionByBlockIds(outputBlock, inputBlock);
+        // Always persist the visual line in canonical data direction:
+        // source (referenced block) -> target (referencing block).
+        this.canvasBlocksService.addConnectionByBlockIds(sourceBlock, targetBlock);
       }
+    }
+  }
+
+  private getLinkParamName(block: {
+    actual_parameters: { name: string }[];
+  }): 'branch_to_block_name' | 'reference_block_name' | 'reset_branch_count_block_name' | null {
+    if (block.actual_parameters.some((p) => p.name === 'branch_to_block_name')) {
+      return 'branch_to_block_name';
+    }
+    if (block.actual_parameters.some((p) => p.name === 'reference_block_name')) {
+      return 'reference_block_name';
+    }
+    if (block.actual_parameters.some((p) => p.name === 'reset_branch_count_block_name')) {
+      return 'reset_branch_count_block_name';
+    }
+    return null;
+  }
+
+  private getLinkParamPriority(
+    paramName: 'branch_to_block_name' | 'reference_block_name' | 'reset_branch_count_block_name',
+  ): number {
+    switch (paramName) {
+      case 'branch_to_block_name':
+        return 0;
+      case 'reference_block_name':
+        return 1;
+      case 'reset_branch_count_block_name':
+        return 2;
+      default:
+        return Number.MAX_SAFE_INTEGER;
     }
   }
 

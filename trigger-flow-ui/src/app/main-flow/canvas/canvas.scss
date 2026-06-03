@@ -314,7 +314,8 @@ f-canvas {
    Uses VS Code theme tokens with fallbacks so the arrow stays visible in
    light, dark, and high-contrast themes. `currentColor` on the marker path
    inherits this color. */
-::ng-deep f-connection {
+::ng-deep f-connection,
+::ng-deep f-connection-for-create {
   color: var(--vscode-editor-foreground, var(--vscode-foreground, #95c5ad));
   pointer-events: none;
 
@@ -339,9 +340,16 @@ f-canvas {
   }
 }
 
+/* Preview (in-progress) connection should be line-only: suppress markers
+   without affecting finalized connection arrows. */
+::ng-deep f-connection-for-create svg[fMarker] {
+  display: none !important;
+}
+
 /* High-contrast theme: force a stronger contrast color */
 @media (forced-colors: active) {
-  ::ng-deep f-connection {
+  ::ng-deep f-connection,
+  ::ng-deep f-connection-for-create {
     color: CanvasText;
   }
   ::ng-deep .connection-arrow-marker path {
