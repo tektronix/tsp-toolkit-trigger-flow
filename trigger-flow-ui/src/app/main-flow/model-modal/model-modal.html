@@ -50,7 +50,7 @@
         [(ngModel)]="notes"
         automationID ="Input-Model-Notes">
       </app-multiline-textbox>
-      
+
         <!-- dedicated divider under notes -->
         <div class="tf-modal__divider tf-modal__divider--notes"></div>
         <!-- <div class="tf-modal__divider"></div> -->
@@ -60,6 +60,7 @@
           <img class="icon-img" src="assets/shapes/Icons/Trash.svg" alt="Delete" [attr.aria-label]="'Delete-Model-Settings'" />
         </button>
       <button
+        title="Create Trigger Model"
         [attr.aria-label]="'Create-Model-Settings'"
         class="action-btn"
         (click)="onClose()"

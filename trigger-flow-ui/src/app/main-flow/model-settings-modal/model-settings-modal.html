@@ -87,7 +87,7 @@
     <!-- FOOTER -->
     <div class="footer">
 
-      <button type="button" class="add-model-btn" [disabled]="isAddDisabled"
+      <button type="button" class="add-model-btn action-btn" [disabled]="isAddDisabled"
         [class.add-model-btn-disabled]="isAddDisabled" (click)="!isAddDisabled && addModel.emit()"
         [attr.automationID]="'Button-Add-Model'" [attr.aria-label]="'Add-Model'"
         [title]="isAddDisabled ? 'Maximum number of models reached' : 'Add a new model'">
