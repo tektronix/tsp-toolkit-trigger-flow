@@ -12,6 +12,12 @@
 //   border-top: 1px solid var(--vscode-editorWidget-border, var(--vscode-widget-border, var(--vscode-contrastBorder, #5a5a5a)));
 }
 
+.event-block-label {
+  font-size: var(--vscode-font-size, 13px);
+  font-weight: var(--vscode-font-weight, 500);
+  color: var(--vscode-foreground);
+}
+
 .event-block h4,
 .event-block p {
   margin: 0;

@@ -1,6 +1,5 @@
-import { Optional } from "@angular/core";
 import { ISlotChannelList, SlotChannelList } from "./slotChannelModel";
-import { Catalog, ICatalog } from "./triggerBlock";
+import { Catalog } from "./triggerBlock";
 
 export type JsonValue =
   | string
