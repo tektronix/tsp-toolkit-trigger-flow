@@ -17,6 +17,7 @@ import { HttpClient } from '@angular/common/http';
 import { AngularSvgIconModule } from 'angular-svg-icon';
 import { CanvasBlocksService } from '../../services/canvas-blocks.service';
 import { TriggerFlowDataService } from '../../services/triggerFlowDataService';
+import { TemplateInstantiationService } from '../../services/template-instantiation.service';
 import { BlockErrorEntry } from '../../models/triggerFlowState';
 import { EFMarkerType, FCanvasComponent, FFlowModule, FSelectionChangeEvent, FDragStartedEvent } from '@foblex/flow';
 import { ModelModalValue } from '../model-modal/model-modal';
@@ -42,6 +43,8 @@ interface CreateNodePayload {
   type?: string;
   svgPath: string;
   catalogLabel?: string;
+  /** Set by the palette when the user drags a Template instead of a block. */
+  isTemplate?: boolean;
 }
 
 interface FlowCanvasEvent {
@@ -77,6 +80,11 @@ interface ModelModalRequest {
   notes: string;
 }
 
+interface InsertionIndicator {
+  sectionId: string;
+  position: number; // index where the block would be inserted
+}
+
 @Component({
   selector: 'app-canvas',
   imports: [FFlowModule, CommonModule, AngularSvgIconModule],
@@ -86,10 +94,17 @@ interface ModelModalRequest {
 export class Canvas implements AfterViewInit {
   private static readonly INTERACTIVE_PAN_BLOCKERS =
     'button, input, textarea, select, option, label, a, [role="button"], [contenteditable="true"]';
+  private static readonly SECTION_WIDTH = 400;
+  private static readonly SECTION_HEADER_HEIGHT = 42;
+  private static readonly SECTION_TOP_PADDING = Canvas.SECTION_HEADER_HEIGHT + 16;
+  private static readonly STACK_GAP = 12;
+  private static readonly DEFAULT_NODE_WIDTH = 160;
+  private static readonly DEFAULT_NODE_HEIGHT = 88;
 
   private hostRef = inject(ElementRef<HTMLElement>);
   private canvasBlocksService = inject(CanvasBlocksService);
   private triggerFlowDataService = inject(TriggerFlowDataService);
+  private templateInstantiationService = inject(TemplateInstantiationService);
   private http = inject(HttpClient);
   private destroyRef = inject(DestroyRef);
   protected readonly eMarkerType = EFMarkerType;
@@ -105,6 +120,11 @@ export class Canvas implements AfterViewInit {
 
   canvasSize = signal(this.getCanvasSize());
   selectedNodeIds = signal<string[]>([]);
+  insertionIndicator = signal<InsertionIndicator | null>(null);
+  private activeDraggedNodeId = signal<string | null>(null);
+  private isExternalDragActive = false;
+  private suppressMoveForNodeUntil = new Map<string, number>();
+  selectedBlockId = signal<string | null>(null);
   canvasMoveTrigger = (event: MouseEvent | TouchEvent | WheelEvent): boolean => {
     if (!(event instanceof MouseEvent)) {
       return true;
@@ -131,9 +151,39 @@ export class Canvas implements AfterViewInit {
   };
 
   protected onDragStarted(event: FDragStartedEvent): void {
-    console.log('Drag started:', event.fEventType, event.fData);
-  }  
-  
+    const data = event.data ?? event.fData;
+    const nodeIds =
+      data && typeof data === 'object' && 'fNodeIds' in data
+        ? (data as { fNodeIds?: string[] }).fNodeIds
+        : [];
+    const draggedNodeId = Array.isArray(nodeIds) && nodeIds.length > 0 ? nodeIds[0] : null;
+    this.activeDraggedNodeId.set(draggedNodeId);
+    this.isExternalDragActive = !draggedNodeId;
+    this.insertionIndicator.set(null);
+  }
+
+  protected onDragEnded(): void {
+    const draggedNodeId = this.activeDraggedNodeId();
+    const indicator = this.insertionIndicator();
+
+    if (draggedNodeId) {
+      this.suppressMoveForNodeUntil.set(draggedNodeId, Date.now() + 250);
+    }
+
+    if (draggedNodeId && indicator) {
+      this.reorderFromInsertionIndicator(draggedNodeId, indicator);
+    } else if (draggedNodeId) {
+      const sectionId = this.findSectionIdByNodeId(draggedNodeId);
+      if (sectionId) {
+        this.scheduleSectionReflow(sectionId);
+      }
+    }
+
+    this.activeDraggedNodeId.set(null);
+    this.isExternalDragActive = false;
+    this.insertionIndicator.set(null);
+  }
+
   /**
    * Pans the canvas so the section with the given id is brought into view at
    * the left edge of the viewport. No-op if the section or canvas is missing.
@@ -144,7 +194,7 @@ export class Canvas implements AfterViewInit {
     const layout = this.sectionLayouts().find((s) => s.id === sectionId);
     if (!layout) return;
     const current = canvas.getPosition();
-    canvas.setPosition({ x: -layout.position.x, y: current.y });
+    canvas.position.apply({ x: -layout.position.x, y: current.y });
     canvas.redraw();
   }
 
@@ -162,7 +212,7 @@ export class Canvas implements AfterViewInit {
   sectionLayouts = computed<LaidOutSection[]>(() => {
     const size = this.canvasSize();
 
-    const sectionWidth = 400; // virtual width per section
+    const sectionWidth = Canvas.SECTION_WIDTH; // virtual width per section
     const sectionHeight = Math.max(size.height, 2000); // virtual vertical space
 
     return this.sections().map((section, index) => ({
@@ -187,6 +237,12 @@ export class Canvas implements AfterViewInit {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(({ source, target }) => {
         this.canvasBlocksService.addConnectionByBlockIds(source, target);
+      });
+
+    this.canvasBlocksService.selectedBlock$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((blockId) => {
+        this.selectedBlockId.set(blockId);
       });
   }
 
@@ -321,6 +377,9 @@ export class Canvas implements AfterViewInit {
         const parsed = this.parseConnectorPosition(svgText);
         this.connectorPositions.update((current) => ({ ...current, [svgPath]: parsed }));
         this.connectorLoadInFlight.delete(svgPath);
+        // Re-center blocks now that the SVG is injected in the DOM and
+        // g.Arrow / g.*Block elements are measurable.
+        this.reflowSectionsWithSvgPath(svgPath);
       },
       error: () => {
         this.connectorPositions.update((current) => ({ ...current, [svgPath]: null }));
@@ -388,12 +447,33 @@ export class Canvas implements AfterViewInit {
     const section = this.getSectionById(targetSectionId);
     if (!section) return;
 
+    if (event.data.isTemplate && event.data.catalogLabel) {
+      const indicator = this.insertionIndicator();
+      const insertionIndex =
+        indicator && indicator.sectionId === targetSectionId ? indicator.position : undefined;
+      this.templateInstantiationService.instantiateTemplate(
+        event.data.catalogLabel,
+        event.rect,
+        section,
+        {
+          createUniqueNodeId: () => this.createUniqueNodeId(),
+          getNodeCounter: () => this.nodeCounter,
+          changeSVGPath: (path) => this.changeSVGPath(path),
+          scheduleSectionReflow: (sectionId) => this.scheduleSectionReflow(sectionId),
+        },
+        { insertionIndex },
+      );
+      this.insertionIndicator.set(null);
+      return;
+    }
+
     const uniqueBlockId = this.createUniqueNodeId();
     const newSVGPath = this.changeSVGPath(event.data?.svgPath);
+    const stackedPosition = this.getNextStackPosition(section);
     const newNode: FlowNode = {
       blockId: uniqueBlockId,
       sectionId: targetSectionId,
-      position: { x: event.rect.x, y: event.rect.y },
+      position: stackedPosition,
       svgPath: newSVGPath,
       catalogLabel: event.data?.catalogLabel,
       blockType: event.data?.type,
@@ -402,10 +482,18 @@ export class Canvas implements AfterViewInit {
       color: '#FFFFFF',
     };
 
+    const indicator = this.insertionIndicator();
     this.sections.update((current) =>
-      current.map((item) =>
-        item.id === targetSectionId ? { ...item, nodes: [...item.nodes, newNode] } : item,
-      ),
+      current.map((item) => {
+        if (item.id !== targetSectionId) return item;
+        const nodes = [...item.nodes];
+        const insertAt =
+          indicator && indicator.sectionId === targetSectionId
+            ? Math.max(0, Math.min(indicator.position, nodes.length))
+            : nodes.length;
+        nodes.splice(insertAt, 0, newNode);
+        return { ...item, nodes };
+      }),
     );
 
     // Keep data service in sync with visual node creation.
@@ -417,6 +505,9 @@ export class Canvas implements AfterViewInit {
       section.slotIndex,
       section.nodeId,
     );
+
+    // Reflow after mount/render so real SVG geometry can be measured for centering.
+    this.scheduleSectionReflow(targetSectionId);
 
     this.canvasBlocksService.selectBlock(newNode.blockId);
   }
@@ -437,10 +528,15 @@ export class Canvas implements AfterViewInit {
   }
 
   onNodeClick(blockId: string): void {
+    this.selectedNodeIds.set([blockId]);
     this.canvasBlocksService.selectBlock(blockId);
+    this.selectedNodeIds.set([blockId]);
   }
 
-  onCreateConnection(event: any) {
+  onCreateConnection(event: {
+    fOutputId?: string;
+    fInputId?: string;
+  }) {
     console.log('🔗 CONNECTION CREATED! Event details:', event);
     console.log('Connection data:', JSON.stringify(event, null, 2));
 
@@ -510,7 +606,7 @@ export class Canvas implements AfterViewInit {
             `Set reset_branch_count_block_name=${sourceValue} on input block ${inputBlockId}`,
           );
         }
-      this.canvasBlocksService.addConnectionByBlockIds(outputBlock, inputBlock);
+        this.canvasBlocksService.addConnectionByBlockIds(outputBlock, inputBlock);
       }
     }
   }
@@ -529,7 +625,13 @@ export class Canvas implements AfterViewInit {
   }
 
   onSelectionChange(event: FSelectionChangeEvent): void {
-    this.selectedNodeIds.set(event.fNodeIds ?? []);
+    const nodeIds = event.fNodeIds ?? [];
+    this.selectedNodeIds.set(nodeIds);
+    if (nodeIds.length > 0) {
+      this.canvasBlocksService.selectBlock(nodeIds[0]);
+      return;
+    }
+    this.canvasBlocksService.clearSelectedBlock();
   }
 
   onMoveNodes(event: FlowCanvasEvent) {
@@ -537,6 +639,7 @@ export class Canvas implements AfterViewInit {
     if (!event.fNodes || !event.fNodes.length || typeof event.fNodes[0] === 'string') return;
 
     const movedNodes = event.fNodes as { id: string; position: { x: number; y: number } }[];
+    const now = Date.now();
 
     const updates = new Map<string, { x: number; y: number }>(
       movedNodes.map((item) => [item.id, { x: item.position.x, y: item.position.y }]),
@@ -547,6 +650,13 @@ export class Canvas implements AfterViewInit {
         nodes: section.nodes.map((node): FlowNode => {
           const newPos = updates.get(node.blockId);
           if (newPos) {
+            const suppressUntil = this.suppressMoveForNodeUntil.get(node.blockId);
+            if (suppressUntil && now < suppressUntil) {
+              return node;
+            }
+            if (suppressUntil) {
+              this.suppressMoveForNodeUntil.delete(node.blockId);
+            }
             this.canvasBlocksService.updateBlockPosition(node.blockId, newPos);
             return { ...node, position: newPos };
           }
@@ -554,6 +664,117 @@ export class Canvas implements AfterViewInit {
         }),
       })),
     );
+
+    this.scheduleCanvasRedraw();
+  }
+
+  @HostListener('document:pointermove', ['$event'])
+  onPointerMove(event: PointerEvent): void {
+    const draggedNodeId = this.activeDraggedNodeId();
+    if (!draggedNodeId) {
+      if (this.isExternalDragActive) {
+        this.updateInsertionIndicatorForExternalDrag(event);
+      }
+      return;
+    }
+
+    const draggedSectionId = this.findSectionIdByNodeId(draggedNodeId);
+    if (!draggedSectionId) {
+      this.insertionIndicator.set(null);
+      return;
+    }
+
+    const section = this.getSectionById(draggedSectionId);
+    if (!section || section.nodes.length === 0) {
+      this.insertionIndicator.set(null);
+      return;
+    }
+
+    const sectionElement = this.getSectionElement(draggedSectionId);
+    if (!sectionElement) {
+      this.insertionIndicator.set(null);
+      return;
+    }
+
+    const sectionRect = sectionElement.getBoundingClientRect();
+    const withinSectionX =
+      event.clientX >= sectionRect.left && event.clientX <= sectionRect.right;
+    const withinSectionY =
+      event.clientY >= sectionRect.top - 24 && event.clientY <= sectionRect.bottom + 24;
+
+    if (!withinSectionX || !withinSectionY) {
+      this.insertionIndicator.set(null);
+      return;
+    }
+
+    const draggedIndex = section.nodes.findIndex((node) => node.blockId === draggedNodeId);
+    if (draggedIndex < 0) {
+      this.insertionIndicator.set(null);
+      return;
+    }
+
+    const remainingNodes = section.nodes.filter((node) => node.blockId !== draggedNodeId);
+    let targetPositionInRemaining = 0;
+
+    for (const node of remainingNodes) {
+      const element = this.getNodeElement(node.blockId);
+      if (!element) {
+        continue;
+      }
+
+      const rect = element.getBoundingClientRect();
+      const midpoint = rect.top + rect.height / 2;
+      if (event.clientY > midpoint) {
+        targetPositionInRemaining += 1;
+      } else {
+        break;
+      }
+    }
+
+    const targetPosition =
+      draggedIndex <= targetPositionInRemaining
+        ? targetPositionInRemaining + 1
+        : targetPositionInRemaining;
+
+    // Ensure the target position is not the same as dragged node's current position
+    if (targetPosition === draggedIndex || targetPosition === draggedIndex + 1) {
+      this.insertionIndicator.set(null);
+      return;
+    }
+
+    this.insertionIndicator.set({
+      sectionId: draggedSectionId,
+      position: targetPosition,
+    });
+  }
+
+  private updateInsertionIndicatorForExternalDrag(event: PointerEvent): void {
+    for (const section of this.sections()) {
+      const sectionElement = this.getSectionElement(section.id);
+      if (!sectionElement) continue;
+
+      const sectionRect = sectionElement.getBoundingClientRect();
+      if (
+        event.clientX < sectionRect.left || event.clientX > sectionRect.right ||
+        event.clientY < sectionRect.top - 24 || event.clientY > sectionRect.bottom + 24
+      ) continue;
+
+      let targetPosition = 0;
+      for (const node of section.nodes) {
+        const el = this.getNodeElement(node.blockId);
+        if (!el) continue;
+        const rect = el.getBoundingClientRect();
+        if (event.clientY > rect.top + rect.height / 2) {
+          targetPosition += 1;
+        } else {
+          break;
+        }
+      }
+
+      this.insertionIndicator.set({ sectionId: section.id, position: targetPosition });
+      return;
+    }
+    this.insertionIndicator.set(null);
   }
 
   onDropToGroup(event: FlowCanvasEvent) {
@@ -563,6 +784,273 @@ export class Canvas implements AfterViewInit {
 
   private getSectionById(sectionId: string): FlowSection | undefined {
     return this.sections().find((section) => section.id === sectionId);
+  }
+
+  private findSectionIdByNodeId(blockId: string): string | null {
+    const section = this.sections().find((item) =>
+      item.nodes.some((node) => node.blockId === blockId),
+    );
+    return section?.id ?? null;
+  }
+
+  private reorderFromInsertionIndicator(
+    draggedNodeId: string,
+    indicator: InsertionIndicator,
+  ): void {
+    const section = this.getSectionById(indicator.sectionId);
+    if (!section) return;
+
+    const draggedIndex = section.nodes.findIndex((node) => node.blockId === draggedNodeId);
+    if (draggedIndex < 0) {
+      this.scheduleSectionReflow(indicator.sectionId);
+      return;
+    }
+
+    const nodes = [...section.nodes];
+    const [draggedNode] = nodes.splice(draggedIndex, 1);
+
+    // Adjust insert index if we removed the node before the target position
+    let insertIndex = indicator.position;
+    if (draggedIndex < insertIndex) {
+      insertIndex -= 1;
+    }
+
+    insertIndex = Math.max(0, Math.min(insertIndex, nodes.length));
+    nodes.splice(insertIndex, 0, draggedNode);
+
+    this.sections.update((current) =>
+      current.map((item) => (item.id === section.id ? { ...item, nodes } : item)),
+    );
+
+    this.scheduleSectionReflow(section.id);
+  }
+
+  private getNodeElement(blockId: string): HTMLElement | null {
+    return this.hostRef.nativeElement.querySelector(
+      `.node-wrapper[data-block-id="${blockId}"]`,
+    );
+  }
+
+  private getSectionElement(sectionId: string): HTMLElement | null {
+    return this.hostRef.nativeElement.querySelector(
+      `.section-group[data-section-id="${sectionId}"]`,
+    );
+  }
+
+  private reflowSectionsWithSvgPath(svgPath: string): void {
+    const affectedSectionIds = new Set<string>();
+    for (const section of this.sections()) {
+      if (section.nodes.some((node) => node.svgPath === svgPath)) {
+        affectedSectionIds.add(section.id);
+      }
+    }
+    // Defer until after angular-svg-icon has injected the SVG into the DOM.
+    for (const sectionId of affectedSectionIds) {
+      this.scheduleSectionReflow(sectionId);
+    }
+  }
+
+  private scheduleSectionReflow(sectionId: string): void {
+    if (typeof window === 'undefined') {
+      this.reflowSection(sectionId);
+      return;
+    }
+
+    // Two RAF ticks ensures both Angular template update and svg-icon DOM
+    // injection/paint have completed before we read SVG geometry.
+    queueMicrotask(() => {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          this.reflowSection(sectionId);
+        });
+      });
+    });
+  }
+
+  private getMeasuredNodeSize(blockId: string): { width: number; height: number } {
+    const element = this.getNodeElement(blockId);
+    if (!element) {
+      return {
+        width: Canvas.DEFAULT_NODE_WIDTH,
+        height: Canvas.DEFAULT_NODE_HEIGHT,
+      };
+    }
+
+    // Prefer offset metrics so sizing is stable regardless of canvas zoom
+    // (getBoundingClientRect is viewport-scaled and can collapse spacing).
+    const offsetWidth = element.offsetWidth;
+    const offsetHeight = element.offsetHeight;
+    if (offsetWidth > 0 && offsetHeight > 0) {
+      return {
+        width: offsetWidth,
+        height: offsetHeight,
+      };
+    }
+
+    const rect = element.getBoundingClientRect();
+    return {
+      width: rect.width || Canvas.DEFAULT_NODE_WIDTH,
+      height: rect.height || Canvas.DEFAULT_NODE_HEIGHT,
+    };
+  }
+
+  private getCenteredXForNode(blockId: string): number {
+    const nodeSize = this.getMeasuredNodeSize(blockId);
+    const defaultCenteredX = Math.max(0, (Canvas.SECTION_WIDTH - nodeSize.width) / 2);
+    if (!blockId) {
+      return defaultCenteredX;
+    }
+
+    const arrowCenterXPct = this.getArrowCenterXPctForNode(blockId);
+    if (arrowCenterXPct === null) {
+      return defaultCenteredX;
+    }
+
+    const sectionCenterX = Canvas.SECTION_WIDTH / 2;
+    const arrowCenterXWithinNode = (arrowCenterXPct / 100) * nodeSize.width;
+    const maxX = Math.max(0, Canvas.SECTION_WIDTH - nodeSize.width);
+    return Math.max(0, Math.min(maxX, sectionCenterX - arrowCenterXWithinNode));
+  }
+
+  private getArrowCenterXPctForNode(blockId: string): number | null {
+    const nodeElement = this.getNodeElement(blockId);
+    if (!nodeElement) {
+      return null;
+    }
+
+    const svgElement = nodeElement.querySelector('.node-svg svg');
+    if (!(svgElement instanceof SVGGraphicsElement)) {
+      return null;
+    }
+
+    const svgRect = svgElement.getBoundingClientRect();
+    const arrowElement = nodeElement.querySelector('.node-svg svg g.Arrow');
+    const arrowRect =
+      arrowElement instanceof SVGGraphicsElement ? arrowElement.getBoundingClientRect() : null;
+
+    if (arrowRect && svgRect.width > 0 && arrowRect.width > 0) {
+      const arrowCenterX = arrowRect.left + arrowRect.width / 2;
+      return ((arrowCenterX - svgRect.left) / svgRect.width) * 100;
+    }
+
+    // Fallback for blocks without g.Arrow: use the midpoint of the smallest
+    // g element whose class contains "Block" (e.g. g.BranchBlock).
+    const blockCandidates = Array.from(
+      nodeElement.querySelectorAll('.node-svg svg g[class$="Block"]'),
+    ).filter((element): element is SVGGraphicsElement => element instanceof SVGGraphicsElement);
+
+    if (svgRect.width <= 0 || blockCandidates.length === 0) {
+      return null;
+    }
+
+    let bestRect: DOMRect | null = null;
+    for (const candidate of blockCandidates) {
+      const candidateRect = candidate.getBoundingClientRect();
+      if (candidateRect.width <= 0) {
+        continue;
+      }
+
+      if (!bestRect || candidateRect.width < bestRect.width) {
+        bestRect = candidateRect;
+      }
+    }
+
+    if (!bestRect) {
+      return null;
+    }
+
+    const blockCenterX = bestRect.left + bestRect.width / 2;
+    return ((blockCenterX - svgRect.left) / svgRect.width) * 100;
+  }
+
+  private getNextStackPosition(section: FlowSection): { x: number; y: number } {
+    if (!section.nodes.length) {
+      return {
+        x: this.getCenteredXForNode(''),
+        y: Canvas.SECTION_TOP_PADDING,
+      };
+    }
+
+    const lastNode = section.nodes[section.nodes.length - 1];
+    const lastSize = this.getMeasuredNodeSize(lastNode.blockId);
+    return {
+      x: this.getCenteredXForNode(lastNode.blockId),
+      y: lastNode.position.y + lastSize.height + Canvas.STACK_GAP,
+    };
+  }
+
+  private reflowSection(sectionId: string): void {
+    const section = this.getSectionById(sectionId);
+    if (!section) return;
+
+    let currentY = Canvas.SECTION_TOP_PADDING;
+    const nextNodes = section.nodes.map((node) => {
+      const { height } = this.getMeasuredNodeSize(node.blockId);
+      const position = {
+        x: this.getCenteredXForNode(node.blockId),
+        y: currentY,
+      };
+      currentY += height + Canvas.STACK_GAP;
+      return {
+        ...node,
+        position,
+      };
+    });
+
+    this.sections.update((current) =>
+      current.map((item) => (item.id === sectionId ? { ...item, nodes: nextNodes } : item)),
+    );
+
+    for (const node of nextNodes) {
+      this.canvasBlocksService.updateBlockPosition(node.blockId, node.position);
+    }
+
+    this.scheduleCanvasRedraw();
+  }
+
+  private scheduleCanvasRedraw(): void {
+    const canvas = this._canvas();
+    if (!canvas) return;
+
+    if (typeof window === 'undefined') {
+      canvas.redraw();
+      return;
+    }
+
+    queueMicrotask(() => {
+      window.requestAnimationFrame(() => {
+        canvas.redraw();
+      });
+    });
+  }
+
+  shouldShowInsertionIndicatorInSection(sectionId: string): boolean {
+    const indicator = this.insertionIndicator();
+    return indicator !== null && indicator.sectionId === sectionId;
+  }
+
+  getInsertionIndicatorTop(section: FlowSection): number {
+    const indicator = this.insertionIndicator();
+    if (!indicator || indicator.sectionId !== section.id || section.nodes.length === 0) {
+      return Canvas.SECTION_TOP_PADDING;
+    }
+
+    const position = Math.max(0, Math.min(indicator.position, section.nodes.length));
+
+    if (position === 0) {
+      const firstNode = section.nodes[0];
+      return Math.max(Canvas.SECTION_TOP_PADDING, firstNode.position.y - Canvas.STACK_GAP / 2);
+    }
+
+    if (position >= section.nodes.length) {
+      const lastNode = section.nodes[section.nodes.length - 1];
+      const { height } = this.getMeasuredNodeSize(lastNode.blockId);
+      return lastNode.position.y + height + Canvas.STACK_GAP / 2;
+    }
+
+    const previousNode = section.nodes[position - 1];
+    const { height } = this.getMeasuredNodeSize(previousNode.blockId);
+    return previousNode.position.y + height + Canvas.STACK_GAP / 2;
   }
 
   private resolveTargetSectionId(targetId?: string): string {
@@ -599,7 +1087,15 @@ export class Canvas implements AfterViewInit {
       return;
     }
 
-    const nodeIds = this.selectedNodeIds();
+    const selectedFromCanvas = this.selectedNodeIds();
+    const selectedFromService = this.canvasBlocksService.getSelectedBlockId();
+    const nodeIds =
+      selectedFromCanvas.length > 0
+        ? selectedFromCanvas
+        : selectedFromService && this.sectionNodes().some((node) => node.blockId === selectedFromService)
+          ? [selectedFromService]
+          : [];
+
     if (!nodeIds.length) {
       return;
     }
@@ -629,6 +1125,13 @@ export class Canvas implements AfterViewInit {
 
   private deleteNodes(nodeIds: string[]): void {
     const toDelete = new Set(nodeIds);
+    const affectedSectionIds = new Set<string>();
+
+    for (const section of this.sections()) {
+      if (section.nodes.some((node) => toDelete.has(node.blockId))) {
+        affectedSectionIds.add(section.id);
+      }
+    }
 
     this.sections.update((sections) =>
       sections.map((section) => ({
@@ -650,6 +1153,11 @@ export class Canvas implements AfterViewInit {
 
     for (const id of nodeIds) {
       this.canvasBlocksService.removeBlock(id);
+    }
+
+    // Compact each affected section so blocks below deleted ones shift up.
+    for (const sectionId of affectedSectionIds) {
+      this.scheduleSectionReflow(sectionId);
     }
 
     this.selectedNodeIds.set([]);

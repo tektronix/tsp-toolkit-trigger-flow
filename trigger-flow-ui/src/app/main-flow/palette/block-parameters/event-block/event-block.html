@@ -1,5 +1,5 @@
 <div class="event-block">
-  <h4>Event</h4>
+  <span class="event-block-label">Event</span>
   <p>
     <i>
       @if (isSingleSelection) {
@@ -16,25 +16,26 @@
     <div class="event-row">
       <div class="event-type-selector">
         @if (isSingleSelection) {
-          <label>
-            <input
-              type="radio"
-              name="event-list-selection"
-              [checked]="isSelected(type)"
-              (change)="selectSingleEvent(type)"
-            />
-            {{ type }}
-          </label>
+          <app-radio-button
+            [label]="type"
+            [name]="'event-list-selection'"
+            [value]="type"
+            [checked]="isSelected(type)"
+            (checkedChange)="selectSingleEvent($event)"
+            [attr.aria-label]="'Radio-Event-' + type"
+            [automationID]="'Radio-Event-' + type"
+          >
+          </app-radio-button>
         } @else {
-          <label>
-            <input
-              type="checkbox"
-              [checked]="isSelected(type)"
-              [disabled]="isEventTypeDisabled(type)"
-              (change)="toggleEvent(type)"
-            />
-            {{ type }}
-          </label>
+          <app-checkbox
+            [label]="type"
+            [checked]="isSelected(type)"
+            [disabled]="isEventTypeDisabled(type)"
+            (checkedChange)="onEventCheckedChange(type, $event)"
+            [attr.aria-label]="'Checkbox-Event-' + type"
+            [automationID]="'Checkbox-Event-' + type"
+          >
+          </app-checkbox>
         }
       </div>
 
@@ -48,6 +49,7 @@
                 [selected]="getParamValue(type, param.name)"
                 [disabled]="!isSelected(type)"
                 (selectedChange)="updateParam(type, param.name, $event)"
+                [automationID]="'Dropdown-Event-' + type + '-' + param.name"
               />
             } @else if (getControlType(param) === 'number') {
               <app-dropdown
@@ -56,12 +58,15 @@
                 [selected]="getParamValue(type, param.name)"
                 [disabled]="!isSelected(type)"
                 (selectedChange)="updateParam(type, param.name, $event)"
+                [automationID]="'Dropdown-Event-' + type + '-' + param.name"
               />
             } @else {
               <app-textbox
                 [label]="param.name"
                 [disabled]="!isSelected(type)"
                 (inputChange)="updateParam(type, param.name, $event)"
+                [attr.aria-label]="param.name + ' for event ' + type"
+                [automationID]="'Textbox-Event-' + type + '-' + param.name"
               />
             }
           </div>
