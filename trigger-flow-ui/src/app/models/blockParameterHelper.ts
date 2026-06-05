@@ -51,7 +51,24 @@ export type ParamControlType =
   | 'channel-item'
   | 'channel-index'
   | 'source-output-state'
+  | 'block-reference'
   | 'unknown';
+
+// Parameter types whose value is the `trigger_block_name` of another block in
+// the same trigger model. Rendered as a dropdown of available block names.
+export const BLOCK_REFERENCE_PARAM_TYPE = 'BlockReference';
+
+// Default value used when a block-reference parameter has no target chosen
+// yet (e.g. immediately after the block is dropped onto the canvas).
+export const BLOCK_REFERENCE_UNKNOWN_VALUE = 'unknown';
+
+// Block type whose blocks are the only valid targets for
+// `reset_branch_count_block_name` (resets the counter on a loop-counter block).
+export const LOOP_COUNTER_BLOCK_TYPE = '< loop counter';
+
+export function isBlockReferenceParam(type: string | undefined): boolean {
+  return type === BLOCK_REFERENCE_PARAM_TYPE;
+}
 
 interface ControlRuleContext {
   name: string;
@@ -101,6 +118,7 @@ const PARAM_TYPE_TO_CONTROL: Record<string, ParamControlType> = {
   EventItem: 'custom',
   EventList: 'custom',
   MultiString: 'multiline',
+  BlockReference: 'block-reference',
 };
 
 export function resolveParamControlType(context: ControlRuleContext): ParamControlType {
@@ -146,6 +164,10 @@ export function resolveParamControlType(context: ControlRuleContext): ParamContr
 
   if (mapped === 'source-output-state') {
     return 'source-output-state';
+  }
+
+  if (mapped === 'block-reference') {
+    return 'block-reference';
   }
 
   if (mapped === 'select') {

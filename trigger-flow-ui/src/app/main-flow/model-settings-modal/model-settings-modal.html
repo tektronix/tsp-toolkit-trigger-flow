@@ -1,102 +1,102 @@
 @if (open) {
-  <div class="modal-overlay" (click)="onOverlayClick($event)">
+<div class="modal-overlay" (click)="onOverlayClick($event)">
 
-    <div class="modal-container">
+  <div class="modal-container" role="dialog" aria-modal="true" [attr.aria-label]="'Model-Settings'"
+    automationID="Dialog-Model-Settings">
 
-      <!-- HEADER -->
-      <div class="modal-header">
+    <!-- HEADER -->
+    <div class="modal-header" role="dialog" aria-modal="true" aria-label="Models dialog">
 
-        <div class="modal-title">
-            MODELS
+      <div class="modal-title">
+        MODELS
 
-            <span
-                class="model-count"
-                [class.model-count-limit]="isAddDisabled"
-            >
-                {{ models.length }}/{{ maxModels }}
-            </span>
-        </div>
-
-        <button
-          type="button"
-          class="icon-btn"
-          (click)="close.emit()"
-        >
-          <svg-icon src="assets/shapes/Icons/X.svg"></svg-icon>
-        </button>
-
-        <!-- dedicated divider under header -->
-        <!-- <div class="modal__divider tf-modal__divider--header"></div> -->
+        <span class="model-count" [class.model-count-limit]="isAddDisabled" automationID="Label-Model-Count"
+          [attr.aria-label]="'Model-Count-' + models.length + '-of-' + maxModels">
+          {{ models.length }}/{{ maxModels }}
+        </span>
       </div>
 
+      <button type="button" class="icon-btn" automationID="Button-Close-Model-Settings" (click)="close.emit()">
+        <svg-icon src="assets/shapes/Icons/X.svg" [attr.aria-label]="'Close-Model-Settings'"></svg-icon>
+      </button>
+
       <!-- dedicated divider under header -->
-      <div class="header-divider"></div>
+      <!-- <div class="modal__divider tf-modal__divider--header"></div> -->
+    </div>
 
-      <!-- LIST -->
-      <div class="model-list">
+    <!-- dedicated divider under header -->
+    <div class="header-divider"></div>
 
-        @for (model of models; track model.id) {
+    <!-- LIST -->
+    <div class="model-list" automationID="List-Models" [attr.aria-label]="'Models-List'">
 
-          <div class="model-row">
+      @if (models.length === 0) {
+      <div class="empty-state" automationID="Label-Empty-State" aria-label="No models added">
+        <p>
+          No models added yet.
+        </p>
+      </div>
+      }
+      @for (model of models; track model.id) {
 
-            <!-- LEFT -->
-            <div class="model-info">
+      <div class="model-row" [attr.automationID]="'Row-Model-' + model.id"
+        [attr.aria-label]="'Model-' + model.modelName">
 
-              <div class="model-name">
-                {{ model.modelName }}
-              </div>
+        <!-- LEFT -->
+        <div class="model-info">
 
-              <div class="model-details">
-                NODE: {{ model.nodeId }}
-                &nbsp;&nbsp;
-                SLOT: {{ model.slotIndex }}
-              </div>
+          <div class="model-name" [attr.automationID]="'Label-Model-Name-' + model.id">
+            {{ model.modelName }}
+          </div>
 
-              <!--button
+          <div class="model-details" [attr.automationID]="'Label-Model-Details-' + model.id">
+            NODE: {{ model.nodeId }}
+            &nbsp;&nbsp;
+            SLOT: {{ model.slotIndex }}
+          </div>
+
+          <!--button
                 type="button"
                 class="icon-btn"
+                [attr.aria-label]="'Edit-Model-' + model.modelName"
+                automationID="Button-Edit-Model-{{ model.modelName }}"
                 (click)="editModel.emit(model)"
               >
                 <svg-icon src="assets/shapes/Icons/Pencil.svg"></svg-icon>
               </button-->
 
-            </div>
+        </div>
 
-            <!-- RIGHT -->
-            <div class="model-actions">
+        <!-- RIGHT -->
+        <div class="model-actions">
 
-              <button
-                type="button"
-                class="icon-btn"
-                (click)="deleteModel.emit(model)"
-              >
-                <svg-icon src="assets/shapes/Icons/Trash.svg"></svg-icon>
-              </button>
+          <button type="button" class="icon-btn" (click)="deleteModel.emit(model)"
+            [attr.automationID]="'Button-Delete-Model-' + model.id">
+            <svg-icon src="assets/shapes/Icons/Trash.svg"
+              [attr.aria-label]="'Delete-Model-' + model.modelName"></svg-icon>
+          </button>
 
-            </div>
-
-          </div>
-
-        }
+        </div>
 
       </div>
 
-      <!-- FOOTER -->
-      <div class="footer">
+      }
 
-        <button
-          type="button"
-          class="add-model-btn"
-          [disabled]="isAddDisabled"
-          [class.add-model-btn-disabled]="isAddDisabled"
-          (click)="!isAddDisabled && addModel.emit()"
-        >
-          + Add Model
-        </button>
+    </div>
 
-      </div>
+    <!-- FOOTER -->
+    <div class="footer">
+
+      <button type="button" class="add-model-btn action-btn" [disabled]="isAddDisabled"
+        [class.add-model-btn-disabled]="isAddDisabled" (click)="!isAddDisabled && addModel.emit()"
+        [attr.automationID]="'Button-Add-Model'" [attr.aria-label]="'Add-Model'"
+        [title]="isAddDisabled ? 'Maximum number of models reached' : 'Add a new model'">
+        + Add Model
+      </button>
 
     </div>
 
   </div>
+
+</div>
 }
