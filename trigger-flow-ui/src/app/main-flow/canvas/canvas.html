@@ -61,7 +61,7 @@
               </svg-icon>
               @if (hasInputConnector(node)) {
               <div fNodeInput [fInputId]="node.blockId + '-in'" [fInputConnectableSide]="getInputDirection(node)"
-                fInputMultiple="false" class="input-connector input-connector--svg" [style]="getInputStyle(node)"
+                fInputMultiple="false" class="input-connector" [class.input-connector--svg]="hasSvgInputConnector(node)" [style]="getInputStyle(node)"
                 [attr.aria-label]="node.catalogLabel + '-input'" [attr.automationID]="node.catalogLabel + '-input'">
               </div>
               }

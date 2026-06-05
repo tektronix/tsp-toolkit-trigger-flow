@@ -125,11 +125,9 @@ export class BlockParameters {
         // Snapshot the current name so a subsequent edit can be detected as a
         // rename and propagated to referencing BlockReference param.
         this.previousBlockName = this.readTriggerBlockName(this.actualParameters);
-        const branchParam = this.actualParameters.find((p) =>
-          isBlockReferenceParam(p.type),
-        );
-        this.previousBranchReferenceValue = branchParam?.value
-          ? String(branchParam.value)
+        const linkParam = this.getPrimaryBlockReferenceParam(this.actualParameters);
+        this.previousBranchReferenceValue = linkParam?.value
+          ? String(linkParam.value)
           : '';
 
         // Resolve model context from the owning model
@@ -154,7 +152,7 @@ export class BlockParameters {
       }
     }
   }
-  
+
   /**
    * Returns the current `trigger_block_name` value from a parameter list,
    * or '' if the parameter is missing or unset.
@@ -162,6 +160,27 @@ export class BlockParameters {
   private readTriggerBlockName(params: ActualParameter[]): string {
     const param = params.find((p) => p.name === 'trigger_block_name');
     return param?.value != null ? String(param.value) : '';
+  }
+
+  /**
+   * Returns the block-reference parameter that should drive the canvas link
+   * for this block. Prefer branch links, then generic reference, then reset.
+   */
+  private getPrimaryBlockReferenceParam(params: ActualParameter[]): ActualParameter | null {
+    const preferredNames = [
+      'branch_to_block_name',
+      'reference_block_name',
+      'reset_branch_count_block_name',
+    ];
+
+    for (const name of preferredNames) {
+      const match = params.find(
+        (p) => p.name === name && isBlockReferenceParam(p.type),
+      );
+      if (match) return match;
+    }
+
+    return params.find((p) => isBlockReferenceParam(p.type)) ?? null;
   }
 
   getControlType(param: ActualParameter): ParamControlType {
@@ -321,8 +340,8 @@ export class BlockParameters {
     this.canvasBlocksService.updateAndPrint();
     // If a block-reference parameter points at another block, request a
     // connection to that target.
-    const sourceParam = canvasBlock.actual_parameters.find((p) =>
-      isBlockReferenceParam(p.type),
+    const sourceParam = this.getPrimaryBlockReferenceParam(
+      canvasBlock.actual_parameters,
     );
 
     if (!sourceParam) {
@@ -330,11 +349,6 @@ export class BlockParameters {
     }
 
     const sourceValue = sourceParam.value ? String(sourceParam.value) : '';
-    // Skip connection churn when the reference didn't change — otherwise an
-    // edit to any unrelated parameter would tear down and redraw the line.
-    if (sourceValue === this.previousBranchReferenceValue) {
-      return;
-    }
     this.previousBranchReferenceValue = sourceValue;
 
     // A block-reference parameter can target at most one block, so drop any
@@ -548,7 +562,7 @@ export class BlockParameters {
     return {
       delay_count: 1,
       delay_durations: [fallback],
-      // delay_durations: [1], // default to 1s if no existing delay_time value, or if it's invalid    
+      // delay_durations: [1], // default to 1s if no existing delay_time value, or if it's invalid
     };
   }
 
