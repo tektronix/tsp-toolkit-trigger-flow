@@ -671,35 +671,6 @@ export class Canvas implements AfterViewInit {
         console.log(
           `Set ${parameterName}=${sourceValue} on block ${targetBlockId}`,
         );
-
-        const inputHasResetBranchCounter = inputBlock.actual_parameters.some(
-          (p) => p.name === 'reset_branch_count_block_name',
-        );
-
-        if (inputHasBranch) {
-          this.canvasBlocksService.updateBlockParameterValue(
-            inputBlockId,
-            'branch_to_block_name',
-            sourceValue,
-          );
-          console.log(`Set branch_to_block_name=${sourceValue} on input block ${inputBlockId}`);
-        } else if (inputHasReference) {
-          this.canvasBlocksService.updateBlockParameterValue(
-            inputBlockId,
-            'reference_block_name',
-            sourceValue,
-          );
-          console.log(`Set reference_block_name=${sourceValue} on input block ${inputBlockId}`);
-        } else if (inputHasResetBranchCounter) {
-          this.canvasBlocksService.updateBlockParameterValue(
-            inputBlockId,
-            'reset_branch_count_block_name',
-            sourceValue,
-          );
-          console.log(
-            `Set reset_branch_count_block_name=${sourceValue} on input block ${inputBlockId}`,
-          );
-        }
         // Always persist the visual line in canonical data direction:
         // source (referenced block) -> target (referencing block).
         this.canvasBlocksService.addConnectionByBlockIds(sourceBlock, targetBlock);
