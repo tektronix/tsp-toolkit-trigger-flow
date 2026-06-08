@@ -1,21 +1,27 @@
 <div class="event-block">
-  <h4>Event</h4>
-  <p>
-    <i>
-      @if (isSingleSelection) {
-        (select one)
-      } @else {
-        (select max 4)
-      }
-    </i>
-  </p>
+@if (isSingleSelection) {
+      <div class="event-title-row">
+        <div class="event-title">Event</div>
+      </div>
+      <div class="event-hint">(select one)</div>
+    } @else {
+      <div class="event-title-row">
+        <div class="event-title">Event</div>
+        <span class="event-count" [class.event-count-limit]="isAddDisabled"
+          automationID="Label-Event-Count"
+          [attr.aria-label]="'Event-Count-' + selectedEvents.length + '-of-' + MAX_EVENTS">
+          {{ selectedEvents.length }}/{{ MAX_EVENTS }}
+        </span>
+      </div>
+      <div class="event-hint">(up to {{ MAX_EVENTS }} maximum)</div>
+    }
+  
   <div class="event-divider event-divider--header"></div>
 
-  @for (type of eventTypes; track type) {
-
-    <div class="event-row">
-      <div class="event-type-selector">
-        @if (isSingleSelection) {
+  @if (isSingleSelection) {
+    @for (type of eventTypes; track type; let last = $last) {
+      <div class="event-row event-row--single" [class.event-row--last]="last">
+        <div class="event-type-selector">
           <app-radio-button
             [label]="type"
             [name]="'event-list-selection'"
@@ -26,53 +32,82 @@
             [automationID]="'Radio-Event-' + type"
           >
           </app-radio-button>
-        } @else {
-          <app-checkbox
-            [label]="type"
-            [checked]="isSelected(type)"
-            [disabled]="isEventTypeDisabled(type)"
-            (checkedChange)="onEventCheckedChange(type, $event)"
-            [attr.aria-label]="'Checkbox-Event-' + type"
-            [automationID]="'Checkbox-Event-' + type"
-          >
-          </app-checkbox>
-        }
-      </div>
+        </div>
 
-      <div class="event-config">
-        @for (param of getParamsForType(type); track param.name) {
-          <div class="event-param-control">
-            @if (getControlType(param) === 'select') {
-              <app-dropdown
-                [label]="param.name"
-                [options]="getOptions(type, param)"
-                [selected]="getParamValue(type, param.name)"
-                [disabled]="!isSelected(type)"
-                (selectedChange)="updateParam(type, param.name, $event)"
-                [automationID]="'Dropdown-Event-' + type + '-' + param.name"
-              />
-            } @else if (getControlType(param) === 'number') {
-              <app-dropdown
-                [label]="param.name"
-                [options]="getOptions(type, param)"
-                [selected]="getParamValue(type, param.name)"
-                [disabled]="!isSelected(type)"
-                (selectedChange)="updateParam(type, param.name, $event)"
-                [automationID]="'Dropdown-Event-' + type + '-' + param.name"
-              />
-            } @else {
-              <app-textbox
-                [label]="param.name"
-                [disabled]="!isSelected(type)"
-                (inputChange)="updateParam(type, param.name, $event)"
-                [attr.aria-label]="param.name + ' for event ' + type"
-                [automationID]="'Textbox-Event-' + type + '-' + param.name"
-              />
-            }
-          </div>
-        }
+        <div class="event-config">
+          @for (param of getParamsForType(type); track param.name) {
+            <div class="event-param-control">
+              @if (getControlType(param) === 'select' || getControlType(param) === 'number') {
+                <app-dropdown
+                  [label]="param.name"
+                  [options]="getOptions(type, param)"
+                  [selected]="getParamValue(type, param.name)"
+                  [disabled]="!isSelected(type)"
+                  (selectedChange)="updateParam(type, param.name, $event)"
+                  [automationID]="'Dropdown-Event-' + type + '-' + param.name"
+                />
+              } @else {
+                <app-textbox
+                  [label]="param.name"
+                  [disabled]="!isSelected(type)"
+                  (inputChange)="updateParam(type, param.name, $event)"
+                  [attr.aria-label]="param.name + ' for event ' + type"
+                  [automationID]="'Textbox-Event-' + type + '-' + param.name"
+                />
+              }
+            </div>
+          }
+        </div>
       </div>
-    </div>
+    }
+  } @else {
+    @for (row of eventRows; track $index; let i = $index, last = $last) {
+      <div class="event-row event-row--multi" [class.event-row--last]="last">
+        <div class="event-type-selector event-type-selector--dropdown"
+             [class.event-type-placeholder-selected]="!row.event">
+          <app-dropdown
+            [options]="eventTypeDropdownOptions"
+            [selected]="row.event ? row.event.type : EVENT_TYPE_PLACEHOLDER"
+            (selectedChange)="onEventRowTypeChange(i, $event)"
+            [automationID]="'Dropdown-EventType-' + i"
+          />
+        </div>
+
+        <div class="event-config">
+          @if (row.event) {
+            @for (param of getParamsForType(row.event.type); track param.name) {
+              <div class="event-param-control">
+                @if (getControlType(param) === 'select' || getControlType(param) === 'number') {
+                  <app-dropdown
+                    [label]="param.name"
+                    [options]="getOptionsForEventRow(i, param)"
+                    [selected]="getParamValueForEventRow(i, param.name)"
+                    (selectedChange)="updateParamForEventRow(i, param.name, $event)"
+                    [automationID]="'Dropdown-Event-' + i + '-' + row.event.type + '-' + param.name"
+                  />
+                } @else {
+                  <app-textbox
+                    [label]="param.name"
+                    (inputChange)="updateParamForEventRow(i, param.name, $event)"
+                    [attr.aria-label]="param.name + ' for event ' + row.event.type"
+                    [automationID]="'Textbox-Event-' + i + '-' + row.event.type + '-' + param.name"
+                  />
+                }
+              </div>
+            }
+          } @else {
+            <div class="event-param-control">
+              <app-dropdown
+                [options]="placeholderParamOptions"
+                [selected]="PARAM_PLACEHOLDER"
+                [disabled]="true"
+                [automationID]="'Dropdown-EventParam-Placeholder-' + i"
+              />
+            </div>
+          }
+        </div>
+      </div>
+    }
   }
 
   <div class="event-divider event-divider--footer"></div>
