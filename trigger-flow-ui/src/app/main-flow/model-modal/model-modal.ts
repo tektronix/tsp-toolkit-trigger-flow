@@ -86,7 +86,7 @@ export class ModelModal {
     return true;
   }
 
-  onClose(): void {
+  onCreate(): void {
     if (!this.validateName()) {
       return;
     }

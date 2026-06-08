@@ -11,7 +11,9 @@
 }
 
 .event-title {
-  font-size: 14px;
+  font-size: var(--vscode-font-size, 13px);
+  font-weight: var(--vscode-font-weight, 500);
+  color: var(--vscode-foreground);
 }
 
 .event-hint {
@@ -34,6 +36,12 @@
   height: 1px;
   background: var(--vscode-editorWidget-border);
 }
+
+// .event-block-label {
+//   font-size: var(--vscode-font-size, 13px);
+//   font-weight: var(--vscode-font-weight, 500);
+//   color: var(--vscode-foreground);
+// }
 
 .event-block h4,
 .event-block p {
