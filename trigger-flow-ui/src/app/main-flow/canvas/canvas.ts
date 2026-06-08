@@ -364,6 +364,12 @@ export class Canvas implements AfterViewInit {
     return this.canvasBlocksService.getInputDirection(node.catalogLabel);
   }
 
+  getNodeName(node: FlowNode): string {
+    const block = this.canvasBlocksService.getBlockById(node.blockId);
+    const value = block?.actual_parameters.find((p) => p.name === 'trigger_block_name')?.value;
+    return value != null && `${value}`.trim() !== '' ? `${value}` : (node.catalogLabel ?? '');
+  }
+
 
   /**
    * Inline style positioning the input connector exactly on top of the SVG's
