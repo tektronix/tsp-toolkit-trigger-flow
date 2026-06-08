@@ -9,6 +9,7 @@ import { BlockParameters } from './palette/block-parameters/block-parameters';
 import { ModelModal, ModelModalValue, ModelSlotOption } from './model-modal/model-modal';
 import { TriggerFlowDataService } from '../services/triggerFlowDataService';
 import { CanvasBlocksService, vscode } from '../services/canvas-blocks.service';
+import { ModelResourceAllocationService } from '../services/model-resource-allocation.service';
 import {
   ModelSettingsModal,
   ModelSettingsItem,
@@ -52,6 +53,7 @@ export class MainFlow {
 
   private readonly triggerFlowDataService = inject(TriggerFlowDataService);
   private readonly canvasBlocksService = inject(CanvasBlocksService);
+  private readonly modelResourceAllocationService = inject(ModelResourceAllocationService);
   private readonly destroyRef = inject(DestroyRef);
 
   constructor() {
@@ -210,7 +212,12 @@ export class MainFlow {
       }
     }
 
-    this.slotOptions = options;
+    // Hide slots that have already reached the per-slot model cap or whose
+    // channels are fully claimed. Keeps the dropdown in sync with current
+    // canvas state every time the modal is opened.
+    this.slotOptions = options.filter((o) =>
+      this.modelResourceAllocationService.canCreateNewModelOnSlot(o.nodeId, o.slot),
+    );
 
     // Always pick the first available slot from slotOptions; suggestedSlot is
     // just a number and has no direct relevance to slotChannelList.
