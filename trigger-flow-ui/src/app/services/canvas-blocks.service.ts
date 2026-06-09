@@ -357,14 +357,7 @@ export class CanvasBlocksService {
       return;
     }
 
-    if (!this.models[modelName]) {
-      this.models[modelName] = {
-        trigger_model_name: modelName,
-        slot_index: slotIndex,
-        node_id: nodeId,
-        blocks: [],
-      };
-    }
+    this.newModel(modelName, slotIndex, nodeId);
 
     // Initialize ActualParameter[] from blockData.parameters
     const actualParameters: ActualParameter[] = blockData.parameters.map(
@@ -399,6 +392,18 @@ export class CanvasBlocksService {
     uniqueName = `${baseName} ${count}`;
     this.blockNamesSet.set(baseName, count + 1);
     return uniqueName;
+  }
+
+  newModel(modelName: string, slotIndex: number, nodeId: string) {
+    if (!this.models[modelName]) {
+      this.models[modelName] = {
+        trigger_model_name: modelName,
+        slot_index: slotIndex,
+        node_id: nodeId,
+        blocks: [],
+      };
+    }
+    this.updateAndPrint();
   }
 
   removeModel(modelId: string): void {

@@ -380,6 +380,7 @@ export class Canvas implements AfterViewInit {
     };
 
     this.canvasBlocksService.sections.update((current) => [...current, newSection]);
+    this.canvasBlocksService.newModel(modelName, result.slot, result.nodeId);
 
     // Resume deferred first-drop node creation into this new section.
     if (this.pendingCreateNodeEvent) {
@@ -641,7 +642,7 @@ export class Canvas implements AfterViewInit {
           !!outputParamName &&
           (!inputParamName ||
             this.getLinkParamPriority(outputParamName) <=
-              this.getLinkParamPriority(inputParamName));
+            this.getLinkParamPriority(inputParamName));
 
         const targetBlock = targetFromOutput
           ? outputParamName
@@ -1350,7 +1351,7 @@ export class Canvas implements AfterViewInit {
     console.warn('groupQueries', groupQueries);
     for (const query of groupQueries) {
       svgRoot.querySelectorAll(`g ${query}`).forEach((g) => {
-        if(!hidden) {console.warn("Showing", g)}
+        if (!hidden) { console.warn("Showing", g) }
         g.classList.toggle('hidden', hidden);
       });
     }
@@ -1439,7 +1440,7 @@ export class Canvas implements AfterViewInit {
       selectedFromCanvas.length > 0
         ? selectedFromCanvas
         : selectedFromService &&
-            this.sectionNodes().some((node) => node.blockId === selectedFromService)
+          this.sectionNodes().some((node) => node.blockId === selectedFromService)
           ? [selectedFromService]
           : [];
 
