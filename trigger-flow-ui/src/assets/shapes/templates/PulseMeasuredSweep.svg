@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+  <g class="Icon=Pulse Measured Sweep, Color=Transparent, Size=24">
+    <path stroke="#979797" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M1.5 20.5h2.25V12H10v8.5h4.5V5h7v15.5" class="Vector 3"/>
+    <ellipse cx="7" cy="12" fill="#979797" class="Ellipse" rx="1" ry="2"/>
+    <ellipse cx="18" cy="5" fill="#979797" class="Ellipse" rx="1" ry="2"/>
+  </g>
+</svg>

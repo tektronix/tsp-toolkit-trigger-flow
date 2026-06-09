@@ -1,5 +1,5 @@
 use super::param_types::ParamTypeName;
-use crate::model::trigger_model_block::{TriggerModelBlock, TriggerModelTemplateBlock};
+use crate::model::trigger_model_block::{TemplateBlockGroup, TriggerModelBlock};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -20,7 +20,7 @@ pub struct Template {
     name: String,
     description: String,
     icon: String,
-    blocks: Vec<TriggerModelTemplateBlock>,
+    blocks: Vec<TemplateBlockGroup>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
