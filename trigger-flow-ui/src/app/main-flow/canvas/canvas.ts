@@ -279,6 +279,31 @@ export class Canvas implements AfterViewInit {
     },
   );
 
+  /**
+   * Per-block error index keyed by `block_id`, derived from the live
+   * `models$` signal. Used by node-level error styling so it reacts to
+   * every validation response
+   */
+  readonly blockErrorIndex = computed<Record<string, { hasError: boolean; tooltip: string }>>(
+    () => {
+      const models = this.triggerFlowDataService.models$();
+      const result: Record<string, { hasError: boolean; tooltip: string }> = {};
+
+      for (const model of Object.values(models)) {
+        for (const block of model.blocks) {
+          const hasError = this.hasBlockErrorItems(block.block_error);
+          const messages = this.getBlockMessages(block.block_error);
+          result[block.block_id] = {
+            hasError,
+            tooltip: messages.join('\n'),
+          };
+        }
+      }
+
+      return result;
+    },
+  );
+
   onCreateNode(event: FlowCanvasEvent): void {
     console.log('fCreateNode event:', event);
     console.log('Block Type:', event.data?.type);
@@ -1217,6 +1242,14 @@ export class Canvas implements AfterViewInit {
 
   getSectionErrorTooltip(modelName: string): string {
     return this.modelErrorSummary()[modelName]?.tooltip ?? 'No validation errors';
+  }
+
+  hasNodeError(blockId: string): boolean {
+    return this.blockErrorIndex()[blockId]?.hasError ?? false;
+  }
+
+  getNodeErrorTooltip(blockId: string): string {
+    return this.blockErrorIndex()[blockId]?.tooltip ?? '';
   }
 
   private getBlockMessages(blockError: BlockErrorEntry[] | null | undefined): string[] {
