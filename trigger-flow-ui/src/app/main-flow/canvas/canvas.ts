@@ -19,8 +19,59 @@ import { CanvasBlocksService } from '../../services/canvas-blocks.service';
 import { TriggerFlowDataService } from '../../services/triggerFlowDataService';
 import { TemplateInstantiationService } from '../../services/template-instantiation.service';
 import { BlockErrorEntry } from '../../models/triggerFlowState';
-import { EFMarkerType, FCanvasComponent, FFlowModule, FSelectionChangeEvent, FDragStartedEvent } from '@foblex/flow';
+import {
+  EFMarkerType,
+  FCanvasComponent,
+  FFlowModule,
+  FSelectionChangeEvent,
+  FDragStartedEvent,
+} from '@foblex/flow';
 import { ModelModalValue } from '../model-modal/model-modal';
+import { EventListItem } from '../../models/triggerBlock';
+
+// Generate all groups that might have toggle-able visibility
+const DEFAULT_HIDDEN_SELECTORS: string[] = [
+  ...(() => {
+    const selectors: string[] = [];
+    for (const any_all of ['.EventsAll', '.EventsAny']) {
+      selectors.push(any_all);
+      for (const event of ['.Event1', '.Event2', '.Event3', '.Event4']) {
+        selectors.push(event);
+        selectors.push([any_all, event].join(' '));
+        for (const type of [
+          '.DigitalIO',
+          '.TSPLink',
+          '.Notify',
+          '.Blender',
+          '.Generator',
+          '.Timer',
+          '.AtLimit',
+        ]) {
+          selectors.push([event, type].join(' '));
+          selectors.push([any_all, event, type].join(' '));
+          for (let s = 1; s <= 3; s++) {
+            for (let c = 1; c <= 2; c++) {
+              const str = `.s${s}c${c}`;
+              selectors.push([event, type, str].join(' '));
+              selectors.push([any_all, event, type, str].join(' '));
+            }
+            for (let id = 1; id <= 16; id++) {
+              const str = `.s${s}id${id}`;
+              selectors.push([event, type, str].join(' '));
+              selectors.push([any_all, event, type, str].join(' '));
+            }
+          }
+          for (let n = 1; n <= 18; n++) {
+            const str = `._${n}`;
+            selectors.push([event, type, str].join(' '));
+            selectors.push([any_all, event, type, str].join(' '));
+          }
+        }
+      }
+    }
+    return selectors;
+  })(),
+];
 
 export interface FlowNode {
   blockId: string;
@@ -115,6 +166,7 @@ export class Canvas implements AfterViewInit {
   private connectorPositions = signal<Record<string, { xPct: number; yPct: number } | null>>({});
   // svgPaths whose load is in flight, to avoid duplicate HTTP requests.
   private connectorLoadInFlight = new Set<string>();
+  private svgVisibilityRefreshQueued = false;
 
   private nodeCounter = 0;
 
@@ -198,7 +250,6 @@ export class Canvas implements AfterViewInit {
     canvas.redraw();
   }
 
-
   // Raised to parent (MainFlow) when first block is dropped and
   // a model must be created before node insertion can continue.
   @Output() requestModelModal = new EventEmitter<ModelModalRequest>();
@@ -206,8 +257,12 @@ export class Canvas implements AfterViewInit {
   // Stores the first dropped-node event temporarily until modal closes.
   private pendingCreateNodeEvent: FlowCanvasEvent | null = null;
 
-  get sections() { return this.canvasBlocksService.sections; }
-  get connections() { return this.canvasBlocksService.connections; }
+  get sections() {
+    return this.canvasBlocksService.sections;
+  }
+  get connections() {
+    return this.canvasBlocksService.connections;
+  }
 
   sectionLayouts = computed<LaidOutSection[]>(() => {
     const size = this.canvasSize();
@@ -244,9 +299,15 @@ export class Canvas implements AfterViewInit {
       .subscribe((blockId) => {
         this.selectedBlockId.set(blockId);
       });
+
+    // Keep SVG group visibility synced when block data changes
+    // (for example when parameters are edited in Block Parameters).
+    this.canvasBlocksService.canvasBlocks$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.scheduleSvgVisibilityRefresh();
+      });
   }
-
-
 
   readonly modelErrorSummary = computed<Record<string, { hasError: boolean; tooltip: string }>>(
     () => {
@@ -330,10 +391,8 @@ export class Canvas implements AfterViewInit {
 
     // Assign a stable horizontal slot (max existing + 1) so that deleting
     // a model later does not shift remaining sections leftward.
-    const nextPositionIndex = this.sections().reduce(
-      (max, s) => Math.max(max, s.positionIndex ?? -1),
-      -1,
-    ) + 1;
+    const nextPositionIndex =
+      this.sections().reduce((max, s) => Math.max(max, s.positionIndex ?? -1), -1) + 1;
 
     // Create a new section/model from modal values.
     const newSection: FlowSection = {
@@ -389,7 +448,6 @@ export class Canvas implements AfterViewInit {
     return this.canvasBlocksService.getInputDirection(node.catalogLabel);
   }
 
-
   /**
    * Inline style positioning the input connector exactly on top of the SVG's
    * Connector element (expressed as % of the node's bounding box).
@@ -439,7 +497,10 @@ export class Canvas implements AfterViewInit {
       if (!connector) return null;
 
       const viewBoxAttr = svg.getAttribute('viewBox');
-      let vbX = 0, vbY = 0, vbW = 0, vbH = 0;
+      let vbX = 0,
+        vbY = 0,
+        vbW = 0,
+        vbH = 0;
       if (viewBoxAttr) {
         const parts = viewBoxAttr.trim().split(/\s+|,/).map(Number);
         if (parts.length === 4 && parts.every((n) => Number.isFinite(n))) {
@@ -574,10 +635,7 @@ export class Canvas implements AfterViewInit {
     this.selectedNodeIds.set([blockId]);
   }
 
-  onCreateConnection(event: {
-    fOutputId?: string;
-    fInputId?: string;
-  }) {
+  onCreateConnection(event: { fOutputId?: string; fInputId?: string }) {
     console.log('🔗 CONNECTION CREATED! Event details:', event);
     console.log('Connection data:', JSON.stringify(event, null, 2));
 
@@ -588,9 +646,7 @@ export class Canvas implements AfterViewInit {
       const outputBlock = outputBlockId
         ? this.canvasBlocksService.getBlockById(outputBlockId)
         : null;
-      const inputBlock = inputBlockId
-        ? this.canvasBlocksService.getBlockById(inputBlockId)
-        : null;
+      const inputBlock = inputBlockId ? this.canvasBlocksService.getBlockById(inputBlockId) : null;
 
       // Resolve semantic direction independent of drag start side:
       // the "referencing" block is whichever endpoint owns a supported
@@ -640,7 +696,6 @@ export class Canvas implements AfterViewInit {
         console.log(
           `Set ${parameterName}=${sourceValue} on block ${targetBlockId}`,
         );
-
         // Always persist the visual line in canonical data direction:
         // source (referenced block) -> target (referencing block).
         this.canvasBlocksService.addConnectionByBlockIds(sourceBlock, targetBlock);
@@ -764,8 +819,7 @@ export class Canvas implements AfterViewInit {
     }
 
     const sectionRect = sectionElement.getBoundingClientRect();
-    const withinSectionX =
-      event.clientX >= sectionRect.left && event.clientX <= sectionRect.right;
+    const withinSectionX = event.clientX >= sectionRect.left && event.clientX <= sectionRect.right;
     const withinSectionY =
       event.clientY >= sectionRect.top - 24 && event.clientY <= sectionRect.bottom + 24;
 
@@ -822,9 +876,12 @@ export class Canvas implements AfterViewInit {
 
       const sectionRect = sectionElement.getBoundingClientRect();
       if (
-        event.clientX < sectionRect.left || event.clientX > sectionRect.right ||
-        event.clientY < sectionRect.top - 24 || event.clientY > sectionRect.bottom + 24
-      ) continue;
+        event.clientX < sectionRect.left ||
+        event.clientX > sectionRect.right ||
+        event.clientY < sectionRect.top - 24 ||
+        event.clientY > sectionRect.bottom + 24
+      )
+        continue;
 
       let targetPosition = 0;
       for (const node of section.nodes) {
@@ -893,9 +950,7 @@ export class Canvas implements AfterViewInit {
   }
 
   private getNodeElement(blockId: string): HTMLElement | null {
-    return this.hostRef.nativeElement.querySelector(
-      `.node-wrapper[data-block-id="${blockId}"]`,
-    );
+    return this.hostRef.nativeElement.querySelector(`.node-wrapper[data-block-id="${blockId}"]`);
   }
 
   private getSectionElement(sectionId: string): HTMLElement | null {
@@ -1072,7 +1127,251 @@ export class Canvas implements AfterViewInit {
       this.canvasBlocksService.updateBlockPosition(node.blockId, node.position);
     }
 
+    this.applySvgGroupVisibilityForSection(sectionId);
     this.scheduleCanvasRedraw();
+  }
+
+  private scheduleSvgVisibilityRefresh(): void {
+    if (this.svgVisibilityRefreshQueued) {
+      return;
+    }
+    this.svgVisibilityRefreshQueued = true;
+
+    if (typeof window === 'undefined') {
+      this.svgVisibilityRefreshQueued = false;
+      this.applySvgGroupVisibilityForAllSections();
+      return;
+    }
+
+    queueMicrotask(() => {
+      window.requestAnimationFrame(() => {
+        this.svgVisibilityRefreshQueued = false;
+        this.applySvgGroupVisibilityForAllSections();
+      });
+    });
+  }
+
+  private applySvgGroupVisibilityForAllSections(): void {
+    for (const section of this.sections()) {
+      this.applySvgGroupVisibilityForSection(section.id);
+    }
+  }
+
+  private applySvgGroupVisibilityForSection(sectionId: string): void {
+    const section = this.getSectionById(sectionId);
+    if (!section) {
+      return;
+    }
+
+    for (const node of section.nodes) {
+      this.applySvgGroupVisibilityForNode(node);
+    }
+  }
+
+  private applySvgGroupVisibilityForNode(node: FlowNode): void {
+    const nodeElement = this.getNodeElement(node.blockId);
+    if (!nodeElement) {
+      return;
+    }
+
+    const svgRoot = nodeElement.querySelector('.node-svg svg');
+    if (!(svgRoot instanceof SVGElement)) {
+      return;
+    }
+
+    const { hideGroupSelectors, showGroupSelectors } = this.resolveSvgVisibilityGroups(node);
+    this.setSvgGroupsHiddenState(svgRoot, hideGroupSelectors, true);
+    // It is vital that show come AFTER hide.
+    this.setSvgGroupsHiddenState(svgRoot, showGroupSelectors, false);
+  }
+  private svgVisibleGroupsFromActualParams(
+    eventType: string,
+    eventParam: EventListItem,
+    parentSelector: string,
+  ): string[] {
+    const visibleGroups: string[] = [];
+    if (
+      !(
+        eventParam &&
+        typeof eventParam != 'string' &&
+        typeof eventParam != 'number' &&
+        typeof eventParam != 'boolean' &&
+        !Array.isArray(eventParam) &&
+        'params' in eventParam
+      )
+    ) {
+      return visibleGroups;
+    }
+    switch (eventType) {
+      case 'event_at_limit': {
+        const type = '.AtLimit';
+        visibleGroups.push([parentSelector, type].join(' '));
+        const channel = eventParam.params?.['channel_index'];
+        const slot = eventParam.params?.['slot_index'];
+        if (channel && slot) {
+          visibleGroups.push([parentSelector, type, `.s${slot}c${channel}`].join(' '));
+        }
+        break;
+      }
+      case 'event_tsplink': {
+        const type = '.TSPLink';
+        visibleGroups.push([parentSelector, type].join(' '));
+        const triggerLine = eventParam.params?.['trigger_line'];
+        if (triggerLine) {
+          visibleGroups.push([parentSelector, type, `._${triggerLine}`].join(' '));
+        }
+        break;
+      }
+      case 'event_timer': {
+        const type = '.Timer';
+        visibleGroups.push([parentSelector, type].join(' '));
+        const timer = eventParam.params?.['trigger_timer_number'];
+        if (timer) {
+          visibleGroups.push([parentSelector, type, `._${timer}`].join(' '));
+        }
+        break;
+      }
+      case 'event_generator': {
+        const type = '.Generator';
+        visibleGroups.push([parentSelector, type].join(' '));
+        const generator = eventParam.params?.['generator_number'];
+        if (generator) {
+          visibleGroups.push([parentSelector, type, `._${generator}`].join(' '));
+        }
+        break;
+      }
+      case 'event_digio': {
+        const type = '.DigitalIO';
+        visibleGroups.push([parentSelector, type].join(' '));
+        const digioLine = eventParam.params?.['digio_trigger_line'];
+        if (digioLine) {
+          visibleGroups.push([parentSelector, type, `._${digioLine}`].join(' '));
+        }
+        break;
+      }
+      case 'event_notify_n': {
+        const type = '.Notify';
+        visibleGroups.push([parentSelector, type].join(' '));
+        const slot = eventParam.params?.['slot_index'];
+        const eventNum = eventParam.params?.['notify_event_number'];
+        if (slot && eventNum) {
+          visibleGroups.push([parentSelector, type, `.s${slot}id${eventNum}`].join(' '));
+        }
+        break;
+      }
+    }
+    return visibleGroups;
+  }
+  private resolveSvgVisibilityGroups(node: FlowNode): {
+    hideGroupSelectors: string[];
+    showGroupSelectors: string[];
+  } {
+    // Generate all groups that might have toggle-able visibility
+    const hideGroupSelectors: string[] = DEFAULT_HIDDEN_SELECTORS;
+    const showGroupSelectors: string[] = [];
+
+    // TODO: Implement your rule selection here.
+    // 1) Read block data for this node (for example via getBlockById).
+    // 2) Decide which SVG group classes should be hidden vs shown.
+    // 3) Push class names into hideGroupClasses/showGroupClasses.
+    //
+    // Example skeleton:
+    // const block = this.canvasBlocksService.getBlockById(node.blockId);
+    // if (block) {
+    //   // hideGroupClasses.push('Timer');
+    //   // showGroupClasses.push('Notify');
+    // }
+    const block = this.canvasBlocksService.getBlockById(node.blockId);
+    if (block) {
+      switch (block.type) {
+        case 'notify':
+        case 'on event': {
+          console.warn(block.type, block.actual_parameters);
+          const event_id = block.actual_parameters.find((param) => param.name === 'event_id');
+          if (
+            event_id &&
+            event_id.value &&
+            typeof event_id.value != 'string' &&
+            typeof event_id.value != 'number' &&
+            typeof event_id.value != 'boolean' &&
+            !Array.isArray(event_id.value) &&
+            'type' in event_id.value
+          ) {
+            const type = event_id.value?.type;
+            if (type) {
+              showGroupSelectors.push('.Event1');
+              showGroupSelectors.push(
+                ...this.svgVisibleGroupsFromActualParams(type, event_id.value, '.Event1'),
+              );
+            }
+          }
+          break;
+        }
+        case 'wait on event': {
+          console.warn(block.type, block.actual_parameters);
+          const event_id = block.actual_parameters.find((param) => param.name === 'event');
+          let logic = block.actual_parameters.find((param) => param.name === 'logic')?.value;
+          if (logic && typeof logic === 'string') {
+            logic = logic === 'AND' ? '.EventsAny' : '.EventsAll';
+            showGroupSelectors.push(logic)
+          }
+
+          if (
+            event_id &&
+            event_id.value &&
+            typeof event_id.value != 'string' &&
+            typeof event_id.value != 'number' &&
+            typeof event_id.value != 'boolean' &&
+            Array.isArray(event_id.value)
+          ) {
+            let count = 0;
+            for (const event of event_id.value) {
+              if (typeof event === 'number') {
+                continue;
+              }
+              const type = event.type;
+              if (type) {
+                count++;
+                if (count > 4) {
+                  continue;
+                }
+                showGroupSelectors.push([logic, `.Event${count}`].join(' '));
+                showGroupSelectors.push(
+                  ...this.svgVisibleGroupsFromActualParams(
+                    type,
+                    event,
+                    [logic, `.Event${count}`].join(' '),
+                  ),
+                );
+              }
+            }
+          }
+
+          break;
+        }
+        default:
+          break;
+      }
+    }
+
+    return { hideGroupSelectors, showGroupSelectors };
+  }
+
+  private setSvgGroupsHiddenState(
+    svgRoot: SVGElement,
+    groupQueries: string[],
+    hidden: boolean,
+  ): void {
+    if (!groupQueries.length) {
+      return;
+    }
+    console.warn('groupQueries', groupQueries);
+    for (const query of groupQueries) {
+      svgRoot.querySelectorAll(`g ${query}`).forEach((g) => {
+        if(!hidden) {console.warn("Showing", g)}
+        g.classList.toggle('hidden', hidden);
+      });
+    }
   }
 
   private scheduleCanvasRedraw(): void {
@@ -1142,9 +1441,7 @@ export class Canvas implements AfterViewInit {
     const target = event.target as HTMLElement | null;
     const isTypingTarget =
       !!target &&
-      (target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.isContentEditable);
+      (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
 
     if (isTypingTarget) {
       return;
@@ -1159,7 +1456,8 @@ export class Canvas implements AfterViewInit {
     const nodeIds =
       selectedFromCanvas.length > 0
         ? selectedFromCanvas
-        : selectedFromService && this.sectionNodes().some((node) => node.blockId === selectedFromService)
+        : selectedFromService &&
+            this.sectionNodes().some((node) => node.blockId === selectedFromService)
           ? [selectedFromService]
           : [];
 
@@ -1173,6 +1471,7 @@ export class Canvas implements AfterViewInit {
 
   ngAfterViewInit(): void {
     this.canvasSize.set(this.getCanvasSize());
+    this.scheduleSvgVisibilityRefresh();
   }
 
   private getCanvasSize(): { width: number; height: number } {
@@ -1212,8 +1511,7 @@ export class Canvas implements AfterViewInit {
         (connection) =>
           !nodeIds.some(
             (id) =>
-              connection.fInputId.startsWith(id + '-') ||
-              connection.fOutputId.startsWith(id + '-'),
+              connection.fInputId.startsWith(id + '-') || connection.fOutputId.startsWith(id + '-'),
           ),
       ),
     );
