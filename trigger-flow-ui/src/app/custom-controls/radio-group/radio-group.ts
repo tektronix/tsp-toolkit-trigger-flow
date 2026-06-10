@@ -6,6 +6,7 @@ import {
   EventEmitter,
   forwardRef,
 } from '@angular/core';
+
 import {
   ControlValueAccessor,
   FormsModule,
@@ -33,17 +34,24 @@ export interface RadioOption {
 })
 export class RadioGroup implements ControlValueAccessor {
   @Input() label: string | undefined;
+
   @Input() automationID: string | undefined;
+
   @Input() name = 'radio-group';
-  @Input() options: RadioOption[] = [];
-  @Input() selectedValue = '';
+
+  @Input() options: (string | RadioOption)[] = [];
+
+  @Input() selectedValue: string | null | undefined = '';
+
   @Input() disabled = false;
+
   @Output() selectionChange = new EventEmitter<string>();
 
   private onChange: ((value: string) => void) | undefined;
+
   private onTouched: (() => void) | undefined;
 
-  writeValue(value: string): void {
+  writeValue(value: string | null | undefined): void {
     this.selectedValue = value ?? '';
   }
 
@@ -61,13 +69,28 @@ export class RadioGroup implements ControlValueAccessor {
 
   onRadioChange(event: Event): void {
     const value = (event.target as HTMLInputElement).value;
+
     this.selectedValue = value;
+
     if (this.onChange) {
       this.onChange(value);
     }
+
     if (this.onTouched) {
       this.onTouched();
     }
+
     this.selectionChange.emit(value);
+  }
+
+  getNormalizedOption(option: string | RadioOption): RadioOption {
+    if (typeof option === 'string') {
+      return {
+        value: option,
+        label: option,
+      };
+    }
+
+    return option;
   }
 }
