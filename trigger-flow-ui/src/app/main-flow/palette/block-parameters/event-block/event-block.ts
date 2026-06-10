@@ -16,6 +16,7 @@ import { RadioButton } from '../../../../custom-controls/radio-button/radio-butt
 
 interface EventParamView {
   name: string;
+  label?: string;
   type?: string;
   options?: { label: string; value: string }[] | null;
   constraints?: Record<string, ParamConstraintLike> | null;
@@ -49,22 +50,22 @@ const EVENT_TYPE_ORDER = [
 // This ensures the Event custom UI still shows the expected checkboxes/parameter names.
 const FALLBACK_EVENT_DEFINITIONS: Record<string, { parameters: EventParamView[] }> = {  
   event_digio: {
-    parameters: [{ name: 'digio_trigger_line' }],
+    parameters: [{ name: 'digio_trigger_line', label: 'Trigger Line' }],
   },
   event_notify_n: {
-    parameters: [{ name: 'slot_index' }, { name: 'notify_event_number' }],
+    parameters: [{ name: 'slot_index', label: 'Slot' }, { name: 'notify_event_number', label: 'Event Number' }],
   },
   event_at_limit: {
-    parameters: [{ name: 'slot_index' }, { name: 'channel_index' }],
+    parameters: [{ name: 'slot_index', label: 'Slot' }, { name: 'channel_index', label: 'Channel' }],
   },
   event_generator: {
-    parameters: [{ name: 'generator_number' }],
+    parameters: [{ name: 'generator_number', label: 'Generator Number' }],
   },
   event_timer: {
-    parameters: [{ name: 'trigger_timer_number' }],
+    parameters: [{ name: 'trigger_timer_number', label: 'Timer Number' }],
   },
   event_tsplink: {
-    parameters: [{ name: 'trigger_line' }],
+    parameters: [{ name: 'trigger_line', label: 'Trigger Line' }],
   },
 };
 
@@ -217,7 +218,20 @@ export class EventBlockComponent implements OnChanges {
   // The first option is the "Select" placeholder which represents an
   // unassigned slot.
   get eventTypeDropdownOptions(): string[] {
-    return [this.EVENT_TYPE_PLACEHOLDER, ...this.eventTypes];
+    return [this.EVENT_TYPE_PLACEHOLDER, ...this.eventTypes.map((type) => this.getEventTypeLabel(type))];
+  }
+
+  getEventTypeLabel(type: string): string {
+    return this.triggerEvents?.[type]?.label ?? type;
+  }
+
+  getParamLabel(param: EventParamView): string {
+    return param.label ?? param.name;
+  }
+
+  private getEventTypeFromLabel(label: string): string {
+    const matchedType = this.eventTypes.find((type) => this.getEventTypeLabel(type) === label);
+    return matchedType ?? label;
   }
 
   // Row list rendered in multi-selection mode.
@@ -362,16 +376,18 @@ export class EventBlockComponent implements OnChanges {
   //   row or appends a newly initialized event (respecting MAX_EVENTS).
   // - The same event type is allowed in multiple rows, so we do not
   //   deduplicate.
-  onEventRowTypeChange(index: number, type: string): void {
+  onEventRowTypeChange(index: number, selectedLabel: string): void {
     if (this.isSingleSelection) return;
 
-    if (type === this.EVENT_TYPE_PLACEHOLDER) {
+    if (selectedLabel === this.EVENT_TYPE_PLACEHOLDER) {
       if (index < this.selectedEvents.length) {
         this.param.value = this.selectedEvents.filter((_, i) => i !== index);
         this.valueChange.emit();
       }
       return;
     }
+
+    const type = this.getEventTypeFromLabel(selectedLabel);
 
     const newEvent = this.createInitializedEvent(type);
     const events = [...this.selectedEvents];

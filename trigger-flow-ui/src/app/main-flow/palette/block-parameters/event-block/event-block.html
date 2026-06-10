@@ -23,7 +23,7 @@
       <div class="event-row event-row--single" [class.event-row--last]="last">
         <div class="event-type-selector">
           <app-radio-button
-            [label]="type"
+            [label]="getEventTypeLabel(type)"
             [name]="'event-list-selection'"
             [value]="type"
             [checked]="isSelected(type)"
@@ -39,7 +39,7 @@
             <div class="event-param-control">
               @if (getControlType(param) === 'select' || getControlType(param) === 'number') {
                 <app-dropdown
-                  [label]="param.name"
+                  [label]="getParamLabel(param)"
                   [options]="getOptions(type, param)"
                   [selected]="getParamValue(type, param.name)"
                   [disabled]="!isSelected(type)"
@@ -48,10 +48,10 @@
                 />
               } @else {
                 <app-textbox
-                  [label]="param.name"
+                  [label]="getParamLabel(param)"
                   [disabled]="!isSelected(type)"
                   (inputChange)="updateParam(type, param.name, $event)"
-                  [attr.aria-label]="param.name + ' for event ' + type"
+                  [attr.aria-label]="getParamLabel(param) + ' for event ' + getEventTypeLabel(type)"
                   [automationID]="'Textbox-Event-' + type + '-' + param.name"
                 />
               }
@@ -67,7 +67,7 @@
              [class.event-type-placeholder-selected]="!row.event">
           <app-dropdown
             [options]="eventTypeDropdownOptions"
-            [selected]="row.event ? row.event.type : EVENT_TYPE_PLACEHOLDER"
+            [selected]="row.event ? getEventTypeLabel(row.event.type) : EVENT_TYPE_PLACEHOLDER"
             (selectedChange)="onEventRowTypeChange(i, $event)"
             [automationID]="'Dropdown-EventType-' + i"
           />
@@ -79,7 +79,7 @@
               <div class="event-param-control">
                 @if (getControlType(param) === 'select' || getControlType(param) === 'number') {
                   <app-dropdown
-                    [label]="param.name"
+                    [label]="getParamLabel(param)"
                     [options]="getOptionsForEventRow(i, param)"
                     [selected]="getParamValueForEventRow(i, param.name)"
                     (selectedChange)="updateParamForEventRow(i, param.name, $event)"
@@ -87,9 +87,9 @@
                   />
                 } @else {
                   <app-textbox
-                    [label]="param.name"
+                    [label]="getParamLabel(param)"
                     (inputChange)="updateParamForEventRow(i, param.name, $event)"
-                    [attr.aria-label]="param.name + ' for event ' + row.event.type"
+                    [attr.aria-label]="getParamLabel(param) + ' for event ' + getEventTypeLabel(row.event.type)"
                     [automationID]="'Textbox-Event-' + i + '-' + row.event.type + '-' + param.name"
                   />
                 }
