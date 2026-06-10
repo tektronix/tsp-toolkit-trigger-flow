@@ -278,6 +278,45 @@ export class CanvasBlocksService {
       current.filter((c) => c.fInputId !== fInputId),
     );
   }
+
+  /**
+   * Removes a single visual connection by id and clears the corresponding
+   * block-reference parameter on the target block so the underlying data
+   * stays in sync. The matching parameter is the one whose value resolves to
+   * the source block (either by `trigger_block_name` or by `block_id`); it is
+   * reset to `BLOCK_REFERENCE_UNKNOWN_VALUE`, mirroring the default state for
+   * a freshly created block.
+   */
+  removeConnectionById(connectionId: string): void {
+    const connection = this.connections().find((c) => c.id === connectionId);
+    if (!connection) return;
+
+    const targetBlockId = connection.fInputId.replace(/-in$/, '');
+    const sourceBlockId = connection.fOutputId.replace(/-out-(?:left|right)$/, '');
+
+    const targetBlock = this.getBlockById(targetBlockId);
+    const sourceBlock = this.getBlockById(sourceBlockId);
+
+    if (targetBlock) {
+      const sourceTriggerName = sourceBlock?.actual_parameters.find(
+        (p) => p.name === 'trigger_block_name',
+      )?.value;
+      const sourceValue =
+        sourceTriggerName !== undefined && sourceTriggerName !== null
+          ? String(sourceTriggerName)
+          : sourceBlockId;
+
+      for (const param of targetBlock.actual_parameters) {
+        if (!isBlockReferenceParam(param.type)) continue;
+        if (param.value != null && String(param.value) === sourceValue) {
+          param.value = BLOCK_REFERENCE_UNKNOWN_VALUE;
+        }
+      }
+    }
+
+    this.connections.update((current) => current.filter((c) => c.id !== connectionId));
+    this.updateAndPrint();
+  }
   private getSVGPath(blockType: string): string {
     const svgPath = this.paletteDataService.getSVGPathByCatalogLabel(blockType);
     return this.changeSVGPath(svgPath || '');
