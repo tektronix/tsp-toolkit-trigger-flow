@@ -244,7 +244,6 @@ export class BlockParameters {
    */
   isBlockReferenceUnset(param: ActualParameter): boolean {
     return (
-      param.required === true &&
       isBlockReferenceParam(param.type) &&
       String(param.value ?? '') === BLOCK_REFERENCE_UNKNOWN_VALUE
     );
