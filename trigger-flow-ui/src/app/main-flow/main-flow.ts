@@ -1,4 +1,5 @@
-import { Component, ViewChild, inject } from '@angular/core';
+import { Component, ViewChild, inject, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
@@ -8,6 +9,7 @@ import { BlockParameters } from './palette/block-parameters/block-parameters';
 import { ModelModal, ModelModalValue, ModelSlotOption } from './model-modal/model-modal';
 import { TriggerFlowDataService } from '../services/triggerFlowDataService';
 import { CanvasBlocksService, vscode } from '../services/canvas-blocks.service';
+import { ModelResourceAllocationService } from '../services/model-resource-allocation.service';
 import {
   ModelSettingsModal,
   ModelSettingsItem,
@@ -51,6 +53,20 @@ export class MainFlow {
 
   private readonly triggerFlowDataService = inject(TriggerFlowDataService);
   private readonly canvasBlocksService = inject(CanvasBlocksService);
+  private readonly modelResourceAllocationService = inject(ModelResourceAllocationService);
+  private readonly destroyRef = inject(DestroyRef);
+
+  constructor() {
+    // Auto-expand the parameters panel whenever a block becomes selected
+    // (either by user click or by being newly created on the canvas).
+    this.canvasBlocksService.selectedBlock$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((blockId) => {
+        if (blockId && this.parametersCollapsed) {
+          this.parametersCollapsed = false;
+        }
+      });
+  }
 
   toggleSidebar(): void {
     this.sidebarCollapsed = !this.sidebarCollapsed;
@@ -196,7 +212,12 @@ export class MainFlow {
       }
     }
 
-    this.slotOptions = options;
+    // Hide slots that have already reached the per-slot model cap or whose
+    // channels are fully claimed. Keeps the dropdown in sync with current
+    // canvas state every time the modal is opened.
+    this.slotOptions = options.filter((o) =>
+      this.modelResourceAllocationService.canCreateNewModelOnSlot(o.nodeId, o.slot),
+    );
 
     // Always pick the first available slot from slotOptions; suggestedSlot is
     // just a number and has no direct relevance to slotChannelList.
@@ -245,7 +266,7 @@ export class MainFlow {
   onDeleteModel(item: ModelSettingsItem): void {
     console.warn('Delete model:', item);
     this.canvasBlocksService.removeModel(item.modelName);
-    this.modelSettingsList = this.modelSettingsList.filter((model) => model.id !== item.id);
+    this.modelSettingsList = this.modelSettingsList.filter((model) => model.modelName !== item.modelName);
   }
 
   onEditModel(item: ModelSettingsItem): void {

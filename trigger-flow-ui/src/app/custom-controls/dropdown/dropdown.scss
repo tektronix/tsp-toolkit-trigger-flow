@@ -6,8 +6,8 @@
 }
 
 .dropdown label {
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-size: var(--vscode-font-size, 13px);
+  font-weight: var(--vscode-font-weight, 500);
   color: var(--vscode-editor-foreground);
 }
 
@@ -15,7 +15,8 @@
   padding: 4px;
   border: 1px solid var(--vscode-editorWidget-border);
   border-radius: 5px;
-  font-size: 0.875rem;
+  font-size: var(--vscode-font-size, 13px);
+  font-weight: var(--vscode-font-weight, 500);
   background-color: var(--vscode-input-background);
   color: var(--vscode-input-foreground);
   cursor: pointer;
@@ -36,4 +37,13 @@
   cursor: not-allowed;
   opacity: 0.6;
   border-color: var(--vscode-editorWidget-border);
+}
+
+.dropdown.invalid select {
+  border-color: var(--vscode-inputValidation-errorBorder, #be1100);
+}
+
+.dropdown.invalid select:focus {
+  border-color: var(--vscode-inputValidation-errorBorder, #be1100);
+  box-shadow: 0 0 0 3px rgba(190, 17, 0, 0.15);
 }
