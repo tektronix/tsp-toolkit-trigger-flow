@@ -129,4 +129,36 @@ export class ModelResourceAllocationService {
     );
     return slot?.module ?? null;
   }
+
+  /** Channels claimed by ALL models on a given slot, as a Set of "<channel>" strings. */
+  private usedChannelsOnSlot(nodeId: string, slotIndex: number): Set<string> {
+    const used = new Set<string>();
+    for (const model of Object.values(this.canvasBlocksService.getModels())) {
+      if (model.node_id !== nodeId || model.slot_index !== slotIndex) continue;
+      for (const block of model.blocks) {
+        const list = block.actual_parameters?.find((p) => p.name === 'channel_list')?.value;
+        if (Array.isArray(list)) list.forEach((c) => used.add(`${c}`));
+      }
+    }
+    return used;
+  }
+
+  /**
+   * Number of models currently on this slot.
+   */
+  private modelCountOnSlot(nodeId: string, slotIndex: number): number {
+    return this.canvasBlocksService.sections()
+      .filter((s) => s.nodeId === nodeId && s.slotIndex === slotIndex).length;
+  }
+
+  /** check used by the dropdown filter. */
+  canCreateNewModelOnSlot(nodeId: string, slotIndex: number, maxModels = 2): boolean {
+    const slot = this.findSlot(slotIndex, nodeId, this.triggerFlowDataService.getSlotChannelList()!);
+    if (!slot) return false;
+
+    if (this.modelCountOnSlot(nodeId, slotIndex) >= maxModels) return false;
+
+    const used = this.usedChannelsOnSlot(nodeId, slotIndex);
+    return used.size < slot.channels.length; // at least one channel still free
+  }
 }

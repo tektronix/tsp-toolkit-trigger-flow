@@ -1,131 +1,93 @@
-<f-flow
-  class="flow-surface"
-  fDraggable
-  fConnectionDraggable
-  [fCanvasMoveTrigger]="canvasMoveTrigger"
-  (fSelectionChange)="onSelectionChange($event)"
-  (fCreateNode)="onCreateNode($event)"
-  (fMoveNodes)="onMoveNodes($event)"
-  (fCreateConnection)="onCreateConnection($event)"
-  [attr.aria-label]="'Trigger flow canvas'"
->
+<f-flow class="flow-surface" fDraggable fConnectionDraggable [fCanvasMoveTrigger]="canvasMoveTrigger"
+  (fDragStarted)="onDragStarted($event)" (fDragEnded)="onDragEnded()" (fSelectionChange)="onSelectionChange($event)"
+  (fCreateNode)="onCreateNode($event)" (fMoveNodes)="onMoveNodes($event)"
+  (fCreateConnection)="onCreateConnection($event)" [attr.aria-label]="'Trigger flow canvas'">
+  <!-- <f-magnetic-lines [threshold]="100"/> -->
   <f-background>
-    <f-rect-pattern/>
+    <f-rect-pattern />
   </f-background>
-<!-- <f-line-alignment [fAlignThreshold]="100"></f-line-alignment> -->
-  <f-canvas  fZoom>
+  <f-canvas fZoom>
+    @if (sectionLayouts().length === 0 ) {
+    <div [id]="'no-trigger-model-message'" class="message-node" fNode [fNodePosition]="{ x: 30, y: 30 }"
+      [attr.aria-label]="'Empty-Canvas-Block'">
+      <p>
+        No trigger models exist.
+      </p>
+      <p>
+        Drag blocks from the left panel or create a model using the Model Settings
+        button to start building your TriggerFlow.
+      </p>
+    </div>
+    }
     @for (section of sectionLayouts(); track section.id) {
-      <div
-        class="section-group"
-        fGroup
-        [fGroupId]="section.id"
-        [fGroupPosition]="section.position"
-        [fGroupSize]="section.size"
-        [fGroupDraggingDisabled]="true"
-        [fGroupSelectionDisabled]="true"
-        [aria-label]="'Section-' + section.modelName"
-      >
-        <div class="section-title">
-          <div class="title-left">
-            <span class="title-chip title-chip-primary">{{ section.modelName }}</span>
-            <span class="title-chip">{{section.nodeId}}.slot[{{section.slotIndex}}]</span>
-            <!--button
-              type="button"
-              class="title-btn"
-              [attr.aria-label]="'Model-Settings-' + section.modelName"
-              title="Model Settings"
-            >
-              <svg-icon src="assets/shapes/Icons/Pencil.svg" class="title-btn-icon"></svg-icon>
-            </button-->
-          </div>
-          <div class="title-right">
-            <button
-              type="button"
-              class="title-btn"
-              [attr.aria-label]="'Model-Errors-' + section.modelName"
-              [title]="getSectionErrorTooltip(section.modelName)"
-            >
-              <svg-icon
-                src="assets/shapes/Icons/Error.svg"
-                [ngClass]="
+    <div class="section-group" fGroup [fGroupId]="section.id" [fGroupPosition]="section.position"
+      [fGroupSize]="section.size" [fGroupDraggingDisabled]="true" [fGroupSelectionDisabled]="true"
+      [attr.data-section-id]="section.id" [aria-label]="'Section-' + section.modelName">
+      <div class="section-title">
+        <div class="title-left">
+          <span class="title-chip title-chip-primary">{{ section.modelName }}</span>
+          <span class="title-chip">{{section.nodeId}}.slot[{{section.slotIndex}}]</span>
+        </div>
+        <div class="title-right">
+          <button type="button" class="title-btn" [attr.aria-label]="'Model-Errors-' + section.modelName"
+            [title]="getSectionErrorTooltip(section.modelName)">
+            <svg-icon src="assets/shapes/Icons/Error.svg" [ngClass]="
                   getSectionHasError(section.modelName)
                     ? 'title-btn-icon error-icon--has-error'
                     : 'title-btn-icon'
-                "
-              ></svg-icon>
-            </button>
-            <!-- <button type="button" class="title-btn">Button B</button> -->
-          </div>
+                "></svg-icon>
+          </button>
         </div>
-        <div class="section-body"></div>
       </div>
-    }
+      <div class="section-body"></div>
 
-    @for (node of sectionNodes(); track node.blockId) {
+
+      @if (shouldShowInsertionIndicatorInSection(section.id)) {
       <div
-        fNode
-        fDragHandle
-        [fNodeParentId]="node.sectionId"
-        [fNodeId]="node.blockId"
-        [fNodePosition]="node.position"
-        class="node-wrapper"
-        (click)="onNodeClick(node.blockId)"
-        role="button"
-        tabindex="0"
-        [aria-label]="node.sectionId + '_' + node.catalogLabel"
-        (keydown.enter)="onNodeClick(node.blockId)"
-        [aria-label]="node.sectionId + '-' + node.catalogLabel"
-      >
-        <div class="node-content">
-          <svg-icon [src]="node.svgPath" class="node-svg" fDragHandle>
-          </svg-icon>
-          @if (hasInputConnector(node)) {
-            <div
-              fNodeInput
-              [fInputId]="node.blockId + '-in'"
-              [fInputConnectableSide]="getInputDirection(node)"
-              fInputMultiple="false"
-              class="input-connector input-connector--svg"
-              [style]="getInputStyle(node)"
-            ></div>
-          }
-          <div
-            fNodeOutput
-            [fOutputId]="node.blockId + '-out-right'"
-            [fOutputMultiple]="true"
-            fOutputConnectableSide="right"
-            class="output-connector connector-right"
-          ></div>
+        class="insert-indicator"
+        [style.top.px]="getInsertionIndicatorTop(section)"
+      ></div>
+      }
+      <!-- Nodes -->
+      @for (node of section.nodes; track node.blockId) {
+          <div fNode fDragHandle [fNodeParentId]="node.sectionId" [fNodeId]="node.blockId"
+            [fNodePosition]="node.position" class="node-wrapper" [class.node-wrapper--selected]="selectedBlockId() === node.blockId"
+            [style.--node-x]="node.position.x + 'px'" (click)="onNodeClick(node.blockId)" role="button"
+            tabindex="0" [aria-label]="node.sectionId + '-' + getNodeName(node)"
+            (keydown.enter)="onNodeClick(node.blockId)" [attr.data-block-id]="node.blockId"
+            [attr.data-section-id]="node.sectionId">
+            <div class="node-content">
+              <svg-icon [src]="node.svgPath" class="node-svg {{node.blockType}}" fDragHandle >
+              </svg-icon>
+              @if (hasInputConnector(node)) {
+              <div fNodeInput [fInputId]="node.blockId + '-in'" [fInputConnectableSide]="getInputDirection(node)"
+                fInputMultiple="false" class="input-connector" [class.input-connector--svg]="hasSvgInputConnector(node)" [style]="getInputStyle(node)"
+                [attr.aria-label]="node.catalogLabel + '-input'" [attr.automationID]="node.catalogLabel + '-input'">
+              </div>
+              }
+              <div fNodeOutput [fOutputId]="node.blockId + '-out-right'" [fOutputMultiple]="true"
+                fOutputConnectableSide="right" class="output-connector connector-right"
+                [attr.aria-label]="node.catalogLabel + '-output-right'"
+                [attr.automationID]="node.catalogLabel + '-output-right'"></div>
 
-          <div
-            fNodeOutput
-            [fOutputId]="node.blockId + '-out-left'"
-            [fOutputMultiple]="true"
-            fOutputConnectableSide="left"
-            class="output-connector connector-left"
-          ></div>
-        </div>
-      </div>
+              <div fNodeOutput [fOutputId]="node.blockId + '-out-left'" [fOutputMultiple]="true"
+                fOutputConnectableSide="left" class="output-connector connector-left"
+                [attr.aria-label]="node.catalogLabel + '-output-left'"
+                [attr.automationID]="node.catalogLabel + '-output-left'"></div>
+            </div>
+          </div>
+      }
+    </div>
     }
 
     @for (connection of connections(); track connection.id) {
-      <f-connection
-        [fConnectionId]="connection.id"
-        [fOutputId]="connection.fOutputId"
-        [fInputId]="connection.fInputId"
-        [fType]="'segment'">
+      <f-connection [fConnectionId]="connection.id" [fOutputId]="connection.fOutputId"
+        [fInputId]="connection.fInputId" [fType]="'segment'">
         <!-- Arrow head at the source (output) end to indicate flow direction.
              refX/refY anchor the marker on the triangle's apex so the tip is
              flush with the connection endpoint and stays visible. -->
-        <svg
-          fMarker
-          [type]="eMarkerType.START"
-          [width]="12"
-          [height]="12"
-          [refX]="0"
-          [refY]="6"
-          class="connection-arrow-marker"
-          orient="auto">
+        <svg fMarker [type]="eMarkerType.START" [width]="12" [height]="12" [refX]="0" [refY]="6"
+          class="connection-arrow-marker" orient="auto">
           <path d="M0,6 L10,0 L10,12 Z" fill="currentColor"></path>
         </svg>
       </f-connection>
