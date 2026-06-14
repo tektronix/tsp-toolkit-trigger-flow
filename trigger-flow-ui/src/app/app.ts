@@ -21,7 +21,7 @@ export class App implements OnInit, OnDestroy {
   private triggerFlowDataService = inject(TriggerFlowDataService);
   private wsSubscription: Subscription | undefined;
 
-  protected readonly catalog$ = this.triggerFlowDataService.catalog$;
+  protected readonly slotChannelList$ = this.triggerFlowDataService.slotChannelList$;
 
   ngOnInit(): void {
     this.webSocket.connect();

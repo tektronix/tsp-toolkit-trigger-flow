@@ -173,6 +173,7 @@ export class Canvas implements AfterViewInit {
 
   canvasSize = signal(this.getCanvasSize());
   selectedNodeIds = signal<string[]>([]);
+  selectedConnectionIds = signal<string[]>([]);
   insertionIndicator = signal<InsertionIndicator | null>(null);
   private activeDraggedNodeId = signal<string | null>(null);
   private isExternalDragActive = false;
@@ -441,6 +442,13 @@ export class Canvas implements AfterViewInit {
   getInputDirection(node: FlowNode): string {
     return this.canvasBlocksService.getInputDirection(node.catalogLabel);
   }
+
+  getNodeName(node: FlowNode): string {
+    const block = this.canvasBlocksService.getBlockById(node.blockId);
+    const value = block?.actual_parameters.find((p) => p.name === 'trigger_block_name')?.value;
+    return value != null && `${value}`.trim() !== '' ? `${value}` : (node.catalogLabel ?? '');
+  }
+
 
   /**
    * Inline style positioning the input connector exactly on top of the SVG's
@@ -745,8 +753,10 @@ export class Canvas implements AfterViewInit {
   }
 
   onSelectionChange(event: FSelectionChangeEvent): void {
-    const nodeIds = event.fNodeIds ?? [];
+    const nodeIds = event.nodeIds ?? [];
+    const connectionIds = event.connectionIds ?? [];
     this.selectedNodeIds.set(nodeIds);
+    this.selectedConnectionIds.set(connectionIds);
     if (nodeIds.length > 0) {
       this.canvasBlocksService.selectBlock(nodeIds[0]);
       return;
@@ -1459,12 +1469,28 @@ export class Canvas implements AfterViewInit {
           ? [selectedFromService]
           : [];
 
-    if (!nodeIds.length) {
+    const connectionIds = this.selectedConnectionIds();
+
+    if (!nodeIds.length && !connectionIds.length) {
       return;
     }
 
     event.preventDefault();
-    this.deleteNodes(nodeIds);
+
+    if (connectionIds.length) {
+      this.deleteConnections(connectionIds);
+    }
+
+    if (nodeIds.length) {
+      this.deleteNodes(nodeIds);
+    }
+  }
+
+  private deleteConnections(connectionIds: string[]): void {
+    for (const id of connectionIds) {
+      this.canvasBlocksService.removeConnectionById(id);
+    }
+    this.selectedConnectionIds.set([]);
   }
 
   ngAfterViewInit(): void {

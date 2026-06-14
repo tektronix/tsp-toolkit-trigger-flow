@@ -55,7 +55,7 @@
             [class.node-wrapper--error]="hasNodeError(node.blockId)"
             [title]="getNodeErrorTooltip(node.blockId)"
             [style.--node-x]="node.position.x + 'px'" (click)="onNodeClick(node.blockId)" role="button"
-            tabindex="0" [aria-label]="node.sectionId + '-' + node.catalogLabel"
+            tabindex="0" [aria-label]="node.sectionId + '-' + getNodeName(node)"
             (keydown.enter)="onNodeClick(node.blockId)" [attr.data-block-id]="node.blockId"
             [attr.data-section-id]="node.sectionId">
             <div class="node-content">
