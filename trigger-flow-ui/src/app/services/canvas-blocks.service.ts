@@ -7,6 +7,7 @@ import { TriggerFlowDataService } from './triggerFlowDataService';
 import { FlowNode, FlowSection, FlowConnection } from '../main-flow/canvas/canvas';
 import { PaletteDataService } from './palette-data.service';
 import { LOOP_COUNTER_BLOCK_TYPE, BLOCK_REFERENCE_UNKNOWN_VALUE, isBlockReferenceParam } from '../models/blockParameterHelper';
+import { DEBUG } from '../debug';
 
 export interface CanvasBlock {
   block_id: string;
@@ -99,6 +100,28 @@ export class CanvasBlocksService {
     this.restoreConnections();
   }
 
+  /**
+   * Apply server-validated parameter values (and the resulting block_error
+   * list) onto the existing canvas blocks without rebuilding them. Used on
+   * the in-session evaluate path, where the backend may clamp values into
+   * range.
+   */
+  applyServerValidationResult(models: Record<string, TriggerModel>): void {
+    for (const model of Object.values(models)) {
+      for (const serverBlock of model.blocks) {
+        const canvasBlock = this.getBlockById(serverBlock.block_id);
+        if (!canvasBlock) continue;
+
+        canvasBlock.block_error = serverBlock.block_error ?? null;
+        for (const param of canvasBlock.actual_parameters) {
+          if (Object.prototype.hasOwnProperty.call(serverBlock.block_parameters, param.name)) {
+            param.value = serverBlock.block_parameters[param.name] as ParameterValue;
+          }
+        }
+      }
+    }
+  }
+
   resetCanvas(): void {
     this.models = {};
     this.sections.set([]);
@@ -154,7 +177,7 @@ export class CanvasBlocksService {
      * @param models The list of models to set the local model to.
      */
   setBlockData(models: Record<string, TriggerModel>): void {
-    console.log('setBlockData:', models);
+    if (DEBUG) console.log('setBlockData:', models);
 
     // Reset so recall replaces (not merges with) any previous session.
     this.models = {};
@@ -262,8 +285,10 @@ export class CanvasBlocksService {
       fInputId,
     };
     this.connections.update((current) => [...current, newConnection]);
-    console.log('Connection added to array:', newConnection);
-    console.log('Total connections:', this.connections().length);
+    if (DEBUG) {
+      console.log('Connection added to array:', newConnection);
+      console.log('Total connections:', this.connections().length);
+    }
   }
 
   /**
@@ -526,16 +551,18 @@ export class CanvasBlocksService {
     const data = this.getCanvasData();
     this.update(data);
 
-    console.log('=== Canvas Blocks JSON ===');
-    console.log(JSON.stringify(data, null, 2));
-    console.log('========================');
+    if (DEBUG) {
+      console.log('=== Canvas Blocks JSON ===');
+      console.log(JSON.stringify(data, null, 2));
+      console.log('========================');
+    }
     this.logIpcDataFormat();
   }
 
   private sendIpcDataToServer(ipcData: { request_type: string; additional_info: string; json_value: string }): void {
     try {
       this.websocketService.send(JSON.stringify(ipcData));
-      console.log('=======IpcData sent to server successfully=======');
+      if (DEBUG) console.log('=======IpcData sent to server successfully=======');
     } catch (error) {
       console.error('Failed to send ipcData over websocket:', error);
     }
@@ -758,9 +785,11 @@ export class CanvasBlocksService {
       json_value: triggerFlowState,
     };
 
-    console.log('=== Rust IpcData Format ===');
-    console.log(JSON.stringify(ipcData, null, 2));
-    console.log('==========================');
+    if (DEBUG) {
+      console.log('=== Rust IpcData Format ===');
+      console.log(JSON.stringify(ipcData, null, 2));
+      console.log('==========================');
+    }
 
     this.sendIpcDataToServer(ipcData);
   }

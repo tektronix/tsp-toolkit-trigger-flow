@@ -28,6 +28,7 @@ import {
 } from '@foblex/flow';
 import { ModelModalValue } from '../model-modal/model-modal';
 import { EventListItem } from '../../models/triggerBlock';
+import { DEBUG } from '../../debug';
 
 // Generate all groups that might have toggle-able visibility
 const DEFAULT_HIDDEN_SELECTORS: string[] = [
@@ -309,65 +310,58 @@ export class Canvas implements AfterViewInit {
       });
   }
 
-  readonly modelErrorSummary = computed<Record<string, { hasError: boolean; tooltip: string }>>(
-    () => {
-      const models = this.triggerFlowDataService.models$();
-      const result: Record<string, { hasError: boolean; tooltip: string }> = {};
+  // Single pass over `models$` builds both the per-model summary (for
+  // section-header error styling) and the per-block index (for node-level
+  // error styling).
+  private readonly errorMaps = computed<{
+    modelSummary: Record<string, { hasError: boolean; tooltip: string }>;
+    blockIndex: Record<string, { hasError: boolean; tooltip: string }>;
+  }>(() => {
+    const models = this.triggerFlowDataService.models$();
+    const modelSummary: Record<string, { hasError: boolean; tooltip: string }> = {};
+    const blockIndex: Record<string, { hasError: boolean; tooltip: string }> = {};
 
-      for (const [modelName, model] of Object.entries(models)) {
-        const lines: string[] = [];
-        let hasAnyError = false;
+    for (const [modelName, model] of Object.entries(models)) {
+      const lines: string[] = [];
+      let hasAnyError = false;
 
-        for (const block of model.blocks) {
-          if (this.hasBlockErrorItems(block.block_error)) {
-            hasAnyError = true;
-          }
+      for (const block of model.blocks) {
+        const hasError = this.hasBlockErrorItems(block.block_error);
+        const messages = this.getBlockMessages(block.block_error);
 
-          const errors = this.getBlockMessages(block.block_error);
-          for (const message of errors) {
-            lines.push(`${block.block_id} - ${message}`);
-          }
+        if (hasError) {
+          hasAnyError = true;
         }
 
-        result[modelName] = {
-          hasError: hasAnyError,
-          tooltip:
-            lines.length > 0 ? lines.join('\n') : hasAnyError ? 'Validation errors found' : '',
+        for (const message of messages) {
+          lines.push(`${block.block_id} - ${message}`);
+        }
+
+        blockIndex[block.block_id] = {
+          hasError,
+          tooltip: messages.join('\n'),
         };
       }
 
-      return result;
-    },
-  );
+      modelSummary[modelName] = {
+        hasError: hasAnyError,
+        tooltip:
+          lines.length > 0 ? lines.join('\n') : hasAnyError ? 'Validation errors found' : '',
+      };
+    }
 
-  /**
-   * Per-block error index keyed by `block_id`, derived from the live
-   * `models$` signal. Used by node-level error styling so it reacts to
-   * every validation response
-   */
-  readonly blockErrorIndex = computed<Record<string, { hasError: boolean; tooltip: string }>>(
-    () => {
-      const models = this.triggerFlowDataService.models$();
-      const result: Record<string, { hasError: boolean; tooltip: string }> = {};
+    return { modelSummary, blockIndex };
+  });
 
-      for (const model of Object.values(models)) {
-        for (const block of model.blocks) {
-          const hasError = this.hasBlockErrorItems(block.block_error);
-          const messages = this.getBlockMessages(block.block_error);
-          result[block.block_id] = {
-            hasError,
-            tooltip: messages.join('\n'),
-          };
-        }
-      }
+  readonly modelErrorSummary = computed(() => this.errorMaps().modelSummary);
 
-      return result;
-    },
-  );
+  readonly blockErrorIndex = computed(() => this.errorMaps().blockIndex);
 
   onCreateNode(event: FlowCanvasEvent): void {
-    console.log('fCreateNode event:', event);
-    console.log('Block Type:', event.data?.type);
+    if (DEBUG) {
+      console.log('fCreateNode event:', event);
+      console.log('Block Type:', event.data?.type);
+    }
     if (!event.data || !event.data.type || !event.rect) return;
 
     // first block + no model => ask parent to open modal
@@ -636,8 +630,10 @@ export class Canvas implements AfterViewInit {
   }
 
   onCreateConnection(event: { fOutputId?: string; fInputId?: string }) {
-    console.log('🔗 CONNECTION CREATED! Event details:', event);
-    console.log('Connection data:', JSON.stringify(event, null, 2));
+    if (DEBUG) {
+      console.log('🔗 CONNECTION CREATED! Event details:', event);
+      console.log('Connection data:', JSON.stringify(event, null, 2));
+    }
 
     if (event.fOutputId && event.fInputId) {
       const outputBlockId = this.extractBlockIdFromPortId(event.fOutputId);
@@ -693,9 +689,11 @@ export class Canvas implements AfterViewInit {
           parameterName,
           sourceValue,
         );
-        console.log(
-          `Set ${parameterName}=${sourceValue} on block ${targetBlockId}`,
-        );
+        if (DEBUG) {
+          console.log(
+            `Set ${parameterName}=${sourceValue} on block ${targetBlockId}`,
+          );
+        }
         // Always persist the visual line in canonical data direction:
         // source (referenced block) -> target (referencing block).
         this.canvasBlocksService.addConnectionByBlockIds(sourceBlock, targetBlock);
@@ -903,7 +901,7 @@ export class Canvas implements AfterViewInit {
 
   onDropToGroup(event: FlowCanvasEvent) {
     // Intentionally ignored: nodes stay in their original section after creation.
-    console.log('fDropToGroup ignored (section reassignment disabled):', event);
+    if (DEBUG) console.log('fDropToGroup ignored (section reassignment disabled):', event);
   }
 
   private getSectionById(sectionId: string): FlowSection | undefined {
@@ -1286,7 +1284,7 @@ export class Canvas implements AfterViewInit {
       switch (block.type) {
         case 'notify':
         case 'on event': {
-          console.warn(block.type, block.actual_parameters);
+          if (DEBUG) console.warn(block.type, block.actual_parameters);
           const event_id = block.actual_parameters.find((param) => param.name === 'event_id');
           if (
             event_id &&
@@ -1308,7 +1306,7 @@ export class Canvas implements AfterViewInit {
           break;
         }
         case 'wait on event': {
-          console.warn(block.type, block.actual_parameters);
+          if (DEBUG) console.warn(block.type, block.actual_parameters);
           const event_id = block.actual_parameters.find((param) => param.name === 'event');
           let logic = block.actual_parameters.find((param) => param.name === 'logic')?.value;
           if (logic && typeof logic === 'string') {
@@ -1365,7 +1363,7 @@ export class Canvas implements AfterViewInit {
     if (!groupQueries.length) {
       return;
     }
-    console.warn('groupQueries', groupQueries);
+    if (DEBUG) console.warn('groupQueries', groupQueries);
     for (const query of groupQueries) {
       svgRoot.querySelectorAll(`g ${query}`).forEach((g) => {
         if(!hidden) {console.warn("Showing", g)}
