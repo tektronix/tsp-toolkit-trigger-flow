@@ -1,5 +1,5 @@
 use super::param_types::ParamTypeName;
-use crate::model::trigger_model_block::{TriggerModelBlock, TriggerModelTemplateBlock};
+use crate::model::trigger_model_block::{TemplateBlockGroup, TriggerModelBlock};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -20,7 +20,7 @@ pub struct Template {
     name: String,
     description: String,
     icon: String,
-    blocks: Vec<TriggerModelTemplateBlock>,
+    blocks: Vec<TemplateBlockGroup>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -64,6 +64,8 @@ impl BlockDefinition {
 /// Definition of a single event type with its parameters and syntaxs
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct EventDefinition {
+    #[serde(default)]
+    pub label: Option<String>,
     pub parameters: Vec<Parameter>,
     pub syntax: String,
 }
@@ -72,6 +74,8 @@ pub struct EventDefinition {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Parameter {
     pub name: String,
+    #[serde(default)]
+    pub label: Option<String>,
     #[serde(rename = "type")]
     pub param_type: ParamTypeName,
     pub required: bool,

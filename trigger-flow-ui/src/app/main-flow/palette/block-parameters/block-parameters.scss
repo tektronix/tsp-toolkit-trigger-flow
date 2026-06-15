@@ -9,6 +9,30 @@
   overflow-y: auto;
 }
 
+::ng-deep .required > div > label:after{
+  content: "*";
+  font-style: italic;
+  color: var(--vscode-editorError-foreground, red)
+}
+
+::ng-deep .required > div > span[class$="-label"]:after{
+  content: "*";
+  font-style: italic;
+  color: var(--vscode-editorError-foreground, red)
+}
+
+::ng-deep .required > div > div > div[class$="-label"]:after{
+  content: "*";
+  font-style: italic;
+  color: var(--vscode-editorError-foreground, red)
+}
+
+::ng-deep .required > div > div[class$="-label"]:after{
+  content: "*";
+  font-style: italic;
+  color: var(--vscode-editorError-foreground, red)
+}
+
 .empty-state h3 {
   margin: 0 0 $spacing-xs 0;
 }
