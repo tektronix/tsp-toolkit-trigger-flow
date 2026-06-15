@@ -248,6 +248,7 @@ pub(crate) mod script_tests {
                     parameters: vec![
                         Parameter {
                             name: "slot_index".to_string(),
+                            label: None,
                             param_type: ParamTypeName::SlotIndex,
                             required: true,
                             options: None,
@@ -260,6 +261,7 @@ pub(crate) mod script_tests {
                         },
                         Parameter {
                             name: "trigger_model_name".to_string(),
+                            label: None,
                             param_type: ParamTypeName::String,
                             required: true,
                             options: None,
@@ -269,6 +271,7 @@ pub(crate) mod script_tests {
                         },
                         Parameter {
                             name: "trigger_block_name".to_string(),
+                            label: None,
                             param_type: ParamTypeName::String,
                             required: true,
                             options: None,
@@ -278,6 +281,7 @@ pub(crate) mod script_tests {
                         },
                         Parameter {
                             name: "branch_to_block_name".to_string(),
+                            label: None,
                             param_type: ParamTypeName::String,
                             required: true,
                             options: None,
@@ -301,6 +305,7 @@ pub(crate) mod script_tests {
                     parameters: vec![
                         Parameter {
                             name: "slot_index".to_string(),
+                            label: None,
                             param_type: ParamTypeName::SlotIndex,
                             required: true,
                             options: None,
@@ -313,6 +318,7 @@ pub(crate) mod script_tests {
                         },
                         Parameter {
                             name: "trigger_model_name".to_string(),
+                            label: None,
                             param_type: ParamTypeName::String,
                             required: true,
                             options: None,
@@ -322,6 +328,7 @@ pub(crate) mod script_tests {
                         },
                         Parameter {
                             name: "trigger_block_name".to_string(),
+                            label: None,
                             param_type: ParamTypeName::String,
                             required: true,
                             options: None,
@@ -331,6 +338,7 @@ pub(crate) mod script_tests {
                         },
                         Parameter {
                             name: "channel_list".to_string(),
+                            label: None,
                             param_type: ParamTypeName::ChannelList,
                             required: true,
                             options: None,
@@ -340,6 +348,7 @@ pub(crate) mod script_tests {
                         },
                         Parameter {
                             name: "measure_count".to_string(),
+                            label: None,
                             param_type: ParamTypeName::Number,
                             required: false,
                             options: None,
