@@ -163,6 +163,67 @@ impl Parameter {
                 }
             }
         }
+
+        // 4. Channel validation for ChannelList
+        if self.param_type == ParamTypeName::ChannelList {
+            if self.required {
+                match value {
+                    None => {
+                        let err = (true, format!("Parameter '{}' channel selection is required", self.name));
+                        if let Some(errors) = block.block_error.as_mut() {
+                            errors.push(err);
+                        } else {
+                            block.block_error = Some(vec![err]);
+                        }
+                    }
+                    Some(Value::Array(channels)) => {
+                        if channels.is_empty() {
+                            let err = (true, format!("Parameter '{}' at least one channel must be selected", self.name));
+                            if let Some(errors) = block.block_error.as_mut() {
+                                errors.push(err);
+                            } else {
+                                block.block_error = Some(vec![err]);
+                            }
+                        }
+                    }
+                    Some(Value::String(channels_str)) => {
+                        // Handle comma-separated string format
+                        let channels: Vec<&str> = channels_str.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()).collect();
+                        if channels.is_empty() {
+                            let err = (true, format!("Parameter '{}' at least one channel must be selected", self.name));
+                            if let Some(errors) = block.block_error.as_mut() {
+                                errors.push(err);
+                            } else {
+                                block.block_error = Some(vec![err]);
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        // 5. Channel validation for ChannelItem (single channel)
+        if self.param_type == ParamTypeName::ChannelItem {
+            if self.required {
+                let is_invalid = match value {
+                    None => true,
+                    Some(Value::Null) => true,
+                    Some(Value::String(s)) if s.is_empty() || s == "null" || s == "undefined" => true,
+                    _ => false,
+                };
+
+                if is_invalid {
+                    let err = (true, format!("Parameter '{}' channel selection is required", self.name));
+                    if let Some(errors) = block.block_error.as_mut() {
+                        errors.push(err);
+                    } else {
+                        block.block_error = Some(vec![err]);
+                    }
+                }
+            }
+        }
+
         match self.param_type {
             ParamTypeName::TriggerEventType | ParamTypeName::EventNotifyN => {
                 if let Some(event_value) = value {
