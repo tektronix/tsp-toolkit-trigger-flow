@@ -6,6 +6,7 @@ import { IpcData } from './models/ipcData';
 import { TriggerFlowDataService } from './services/triggerFlowDataService';
 import { TriggerFlowStatePayload } from './models/triggerFlowState';
 import { vscode } from './services/canvas-blocks.service';
+import { DEBUG } from './debug';
 
 @Component({
   selector: 'app-root',
@@ -51,7 +52,7 @@ export class App implements OnInit, OnDestroy {
           if (data.slot_channel_list && data.models) {
             const statePayload = new TriggerFlowStatePayload(data);
             this.triggerFlowDataService.updateStatePayload(statePayload);
-            console.log(statePayload);
+            if (DEBUG) console.log(statePayload);
             vscode.postMessage({ command: 'update_session' , payload: message});
           }
           break;

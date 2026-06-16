@@ -98,33 +98,46 @@ impl Parameter {
         //Names of each block within a model should be unique
         //Name can be an empty string but if not empty, should be unique across the model
 
-        // 2. Range check (for numbers)
+        // 2. Range check (for numbers). Out-of-range values are clamped to the
+        // limit and the stored parameter is rewritten so the rendered script
+        // never contains a value outside the catalog-declared range.
         if let Some(range) = &self.range {
             if let Some(num) = value.and_then(|v| v.as_f64()) {
-                if let Some(min) = range.min.as_ref().and_then(|v| v.as_f64()) {
-                    if num < min {
-                        let err = (
-                            true,
-                            format!("Parameter '{}' value {} below min {}", self.name, num, min),
-                        );
-                        if let Some(errors) = block.block_error.as_mut() {
-                            errors.push(err);
-                        } else {
-                            block.block_error = Some(vec![err]);
-                        }
+                let min = range.min.as_ref().and_then(|v| v.as_f64());
+                let max = range.max.as_ref().and_then(|v| v.as_f64());
+
+                let (clamped_to, limit_value, message) = if let Some(min) = min.filter(|m| num < *m)
+                {
+                    (
+                        Some("min"),
+                        range.min.clone(),
+                        format!(
+                            "Parameter '{}' value {} below min {}; clamped to {}",
+                            self.name, num, min, min
+                        ),
+                    )
+                } else if let Some(max) = max.filter(|m| num > *m) {
+                    (
+                        Some("max"),
+                        range.max.clone(),
+                        format!(
+                            "Parameter '{}' value {} above max {}; clamped to {}",
+                            self.name, num, max, max
+                        ),
+                    )
+                } else {
+                    (None, None, String::new())
+                };
+
+                if clamped_to.is_some() {
+                    if let Some(limit) = limit_value {
+                        block.block_parameters.insert(self.name.clone(), limit);
                     }
-                }
-                if let Some(max) = range.max.as_ref().and_then(|v| v.as_f64()) {
-                    if num > max {
-                        let err = (
-                            true,
-                            format!("Parameter '{}' value {} above max {}", self.name, num, max),
-                        );
-                        if let Some(errors) = block.block_error.as_mut() {
-                            errors.push(err);
-                        } else {
-                            block.block_error = Some(vec![err]);
-                        }
+                    let err = (true, message);
+                    if let Some(errors) = block.block_error.as_mut() {
+                        errors.push(err);
+                    } else {
+                        block.block_error = Some(vec![err]);
                     }
                 }
             }
