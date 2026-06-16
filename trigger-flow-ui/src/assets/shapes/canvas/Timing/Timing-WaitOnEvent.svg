@@ -1,4 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="209" height="99" fill="none" viewBox="0 0 209 99">
+  <style>
+    .hidden {
+      visibility: hidden;
+    }
+  </style>
   <g class="Timing-WaitOnEvent-AllEvents">
     <g class="TimingBlock">
       <path fill="#372E3F" d="M150.291 68.7a.375.375 0 0 1-.571-.003L92.864 1.241a.375.375 0 0 1 .286-.616h114.676c.32 0 .493.376.284.62L150.291 68.7Z" class="Fill"/>
