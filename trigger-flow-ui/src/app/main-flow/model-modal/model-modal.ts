@@ -38,7 +38,7 @@ export class ModelModal {
   @Output() closeWithValue = new EventEmitter<ModelModalValue>();
   @Output() deleteClicked = new EventEmitter<void>();
   @Output() slotChanged = new EventEmitter<ModelSlotOption>();
-  
+
   nameError = '';
 
   get slotOptionsAsString(): string[] {
@@ -86,17 +86,21 @@ export class ModelModal {
     return true;
   }
 
-  onClose(): void {
+  onCreate(): void {
     if (!this.validateName()) {
       return;
     }
 
-    this.closeWithValue.emit({
-      name: this.name.trim(),
-      slot: this.slot,
-      nodeId: this.nodeId,
-      notes: this.notes.trim(),
-    });
+    if (this.nodeId) {
+      this.closeWithValue.emit({
+        name: this.name.trim(),
+        slot: this.slot,
+        nodeId: this.nodeId,
+        notes: this.notes.trim(),
+      });
+    } else {
+      this.deleteClicked.emit();
+    }
   }
 
   onDelete(): void {
