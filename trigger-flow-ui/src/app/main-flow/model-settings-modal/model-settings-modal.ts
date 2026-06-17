@@ -40,10 +40,4 @@ export class ModelSettingsModal {
   @Output() editModel = new EventEmitter<ModelSettingsItem>();
 
   @Output() deleteModel = new EventEmitter<ModelSettingsItem>();
-
-  onOverlayClick(event: MouseEvent): void {
-    if ((event.target as HTMLElement).classList.contains('modal-overlay')) {
-      this.close.emit();
-    }
-  }
 }
