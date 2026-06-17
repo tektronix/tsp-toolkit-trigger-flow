@@ -92,7 +92,10 @@ impl Parameter {
                 Some(Value::Null) => true,
                 Some(Value::String(s)) => {
                     let normalized = s.trim();
-                    normalized.is_empty() || normalized == "null" || normalized == "undefined" || normalized == "unknown"
+                    normalized.is_empty()
+                        || normalized == "null"
+                        || normalized == "undefined"
+                        || normalized == "unknown"
                 }
                 Some(Value::Array(arr)) => arr.is_empty(),
                 _ => false,
@@ -101,7 +104,10 @@ impl Parameter {
             if is_missing_required {
                 let err_msg = match self.param_type {
                     ParamTypeName::ChannelList => {
-                        format!("Parameter '{}' at least one channel must be selected", self.name)
+                        format!(
+                            "Parameter '{}' at least one channel must be selected",
+                            self.name
+                        )
                     }
                     ParamTypeName::ChannelItem => {
                         format!("Parameter '{}' channel selection is required", self.name)
@@ -166,8 +172,7 @@ impl Parameter {
                 if !valid {
                     block.add_error(format!(
                         "Parameter '{}' value '{}' is not a valid option",
-                        self.name,
-                        val_str
+                        self.name, val_str
                     ));
                 }
             }
@@ -187,7 +192,11 @@ impl Parameter {
                     }
                     Some(Value::String(channels_str)) => {
                         // Handle comma-separated string format
-                        let channels: Vec<&str> = channels_str.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()).collect();
+                        let channels: Vec<&str> = channels_str
+                            .split(',')
+                            .map(|s| s.trim())
+                            .filter(|s| !s.is_empty())
+                            .collect();
                         if channels.is_empty() {
                             block.add_error(format!(
                                 "Parameter '{}' at least one channel must be selected",
@@ -204,7 +213,11 @@ impl Parameter {
         if self.param_type == ParamTypeName::ChannelItem {
             if self.required {
                 let is_invalid = match value {
-                    Some(Value::String(s)) if s.is_empty() || s == "null" || s == "undefined" || s == "unknown" => true,
+                    Some(Value::String(s))
+                        if s.is_empty() || s == "null" || s == "undefined" || s == "unknown" =>
+                    {
+                        true
+                    }
                     _ => false,
                 };
 
@@ -359,10 +372,7 @@ impl EventDefinition {
             let param_value = params_map.get(&param.name);
 
             if param_value.is_none() && param.required {
-                block.add_error(format!(
-                    "Missing required event parameter '{}'",
-                    param.name
-                ));
+                block.add_error(format!("Missing required event parameter '{}'", param.name));
                 continue;
             }
 
