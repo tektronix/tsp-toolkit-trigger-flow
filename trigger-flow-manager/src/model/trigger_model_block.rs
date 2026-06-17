@@ -76,4 +76,14 @@ impl TriggerModelBlock {
     pub fn get_parameter(&self, param_name: &str) -> Option<&serde_json::Value> {
         self.block_parameters.get(param_name)
     }
+
+    pub fn add_error(&mut self, message: String) {
+        let err = (true, message);
+
+        if let Some(errors) = self.block_error.as_mut() {
+            errors.push(err);
+        } else {
+            self.block_error = Some(vec![err]);
+        }
+    }
 }
