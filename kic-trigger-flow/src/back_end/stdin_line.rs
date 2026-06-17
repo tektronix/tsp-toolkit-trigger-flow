@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use trigger_flow_manager::{
     api::{script_path::ScriptPath, slot_channel_list::Systems},
+    debug::DEBUG,
     IpcData,
 };
 
@@ -27,11 +28,15 @@ pub struct Reset {
 impl TryFrom<&str> for StdinLine {
     type Error = String;
     fn try_from(s: &str) -> Result<Self, Self::Error> {
-        println!("Attempting to parse StdinLine from input: {}", s);
+        if DEBUG {
+            println!("Attempting to parse StdinLine from input: {}", s);
+        }
         if let Some(start) = s.find('{') {
             if let Some(end) = s.rfind('}') {
                 let json_str = &s[start..=end];
-                println!("Extracted JSON string for StdinLine parsing: {}", json_str);
+                if DEBUG {
+                    println!("Extracted JSON string for StdinLine parsing: {}", json_str);
+                }
 
                 // Try to deserialize directly as StdinLine enum
                 serde_json::from_str::<StdinLine>(json_str)

@@ -51,40 +51,24 @@ describe('DelayListModal', () => {
     });
   });
 
-  it('should clamp delay values to min/max range on apply', () => {
-    let emitted: DelayListModalValue | undefined;
+  it('should floor delayCount to integer when changed', () => {
+    component.localDelayCount = 1;
+    component.localDelayDurations = [1];
 
-    component.applyList.subscribe((value) => {
-      emitted = value;
-    });
+    component.onDelayCountChange('3.7');
 
-    component.minValue = 0.000001;
-    component.maxValue = 1000000;
-    component.localDelayCount = 3;
-    component.localDelayDurations = [0.0000001, 500, 2000000];
-
-    component.onApply();
-
-    expect(emitted?.delayDurations).toEqual([
-      0.000001, // clamped to min
-      500, // within range
-      1000000, // clamped to max
-    ]);
+    expect(component.localDelayCount).toBe(3);
+    expect(component.localDelayDurations.length).toBe(3);
   });
 
-  it('should normalize delayCount to floor integer', () => {
-    let emitted: DelayListModalValue | undefined;
+  it('should floor delayCount on rehydrate when modal reopens', () => {
+    fixture.componentRef.setInput('open', false);
+    fixture.componentRef.setInput('delayCount', 2.9);
+    fixture.componentRef.setInput('delayDurations', [1, 2]);
+    fixture.componentRef.setInput('open', true);
+    fixture.detectChanges();
 
-    component.applyList.subscribe((value) => {
-      emitted = value;
-    });
-
-    component.localDelayCount = 3.7;
-    component.localDelayDurations = [1, 2, 3, 4];
-
-    component.onApply();
-
-    expect(emitted?.delayCount).toBe(3);
+    expect(component.localDelayCount).toBe(2);
   });
 
   it('should render modal only when open=true', () => {

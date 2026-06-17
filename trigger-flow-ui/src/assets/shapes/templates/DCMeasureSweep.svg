@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+  <g class="Icon=DC Measure Sweep, Color=Transparent, Size=24">
+    <path stroke="#979797" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M1.5 20H6v-8h8V4h8.5" class="Vector 3"/>
+    <ellipse cx="10" cy="12" fill="#979797" class="Ellipse" rx="1" ry="2"/>
+    <ellipse cx="18" cy="4" fill="#979797" class="Ellipse" rx="1" ry="2"/>
+  </g>
+</svg>
