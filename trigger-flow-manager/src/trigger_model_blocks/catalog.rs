@@ -195,7 +195,7 @@ impl Parameter {
                 }
             }
         }
-      
+
         // 3b. Range check for `delay_durations` inside a DelayListConfig.
         // The per-element range lives on the `DelayList` custom type, so it
         // is resolved through the catalog rather than duplicated on the
