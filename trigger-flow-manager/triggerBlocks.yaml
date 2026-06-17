@@ -498,26 +498,19 @@ blocks:
         type: ChannelList
         required: true
       - name: state
-        type: SourceOutputState
+        type: SourceState
         required: true
-        fields:
-          - name: channel_index
-            type: ChannelItem
-            required: true
-          - name: state_value
-            type: SourceState
-            required: true
-            default: 'ON'
-            options:
-              - label: 'ON'
-                value: 'ON'
-              - label: 'OFF'
-                value: 'OFF'
+        default: 'ON'
+        options:
+          - label: 'ON'
+            value: 'ON'
+          - label: 'OFF'
+            value: 'OFF'
     syntax: >-
       slot[{{slot_index}}].trigger.model.addblock.source.output("{{trigger_model_name}}",
       "{{trigger_block_name}}",
       { {{#each channel_list}}{{this}}{{#unless @last}}, {{/unless}}{{/each}} },
-      slot[{{slot_index}}].{{module_type slot_index node_id}}[{{state.channel_index}}].{{state.state_value}})
+      slot[{{slot_index}}].{{module_type slot_index node_id}}.{{state}})
     description: The source output block turns the output of the source on or off.
     shape: conditional
   wait on event:
@@ -1249,5 +1242,4 @@ templates:
             - type: wait on event
               block_id: liv_curves_wait_on_event_003
               block_parameters:
-                trigger_block_name: liv_curves_wait_on_event_003   
-        
+                trigger_block_name: liv_curves_wait_on_event_003
