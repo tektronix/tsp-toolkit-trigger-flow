@@ -522,7 +522,7 @@ blocks:
       - name: event
         type: EventList
         required: true
-      - name: clear
+      - name: Clear
         type: ClearType
         required: false
         options:
@@ -530,7 +530,7 @@ blocks:
             value: ENTER
           - label: Never
             value: NEVER
-      - name: logic
+      - name: Logic
         type: LogicType
         required: false
         options:
