@@ -5,6 +5,20 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{collections::HashMap, path::Path};
 
+// Prefer an integer JSON number when the f64 is whole and fits in i64, so a
+// clamped value like 1_000_000.0 renders as "1000000" instead of "1000000.0"
+// in the script template and in error messages.
+fn json_number_from_f64(value: f64) -> Option<serde_json::Number> {
+    if value.is_finite()
+        && value.fract() == 0.0
+        && value >= i64::MIN as f64
+        && value <= i64::MAX as f64
+    {
+        return Some(serde_json::Number::from(value as i64));
+    }
+    serde_json::Number::from_f64(value)
+}
+
 /// The root structure representing all available trigger blocks
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Catalog {
@@ -13,6 +27,23 @@ pub struct Catalog {
     pub blocks: HashMap<String, BlockDefinition>,
     pub trigger_events: HashMap<String, EventDefinition>,
     pub templates: HashMap<String, Template>,
+    // Resolved reference types used by composite parameters (for example
+    // DelayListConfig). Only fields actually consumed by validation are
+    // modelled; the rest is intentionally ignored.
+    pub custom_types: HashMap<String, CustomType>,
+}
+
+/// Subset of a `custom_types:` entry that the validator consults. Other
+/// keys in YAML (description, modal, max_items, fields, ...) are accepted
+/// and discarded.
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct CustomType {
+    pub item: Option<CustomTypeItem>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct CustomTypeItem {
+    pub range: Option<ParameterRange>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -143,6 +174,16 @@ impl Parameter {
             }
         }
 
+        // 2b. Range check for `delay_durations` inside a DelayListConfig.
+        // The per-element range lives on the `DelayList` custom type, so it
+        // is resolved through the catalog rather than duplicated on the
+        // parameter itself.
+        if matches!(self.param_type, ParamTypeName::DelayListConfig) {
+            if let Some(Value::Object(map)) = value {
+                self.clamp_delay_durations(map, block, catalog);
+            }
+        }
+
         // 3. Options/Enum check
         if let Some(options) = &self.options {
             if let Some(Value::String(val_str)) = value {
@@ -184,6 +225,74 @@ impl Parameter {
             _ => {}
         }
         Ok(())
+    }
+
+    fn clamp_delay_durations(
+        &self,
+        map: &serde_json::Map<String, Value>,
+        block: &mut TriggerModelBlock,
+        catalog: &Catalog,
+    ) {
+        let Some(Value::Array(elements)) = map.get("delay_durations") else {
+            return;
+        };
+        let Some(range) = catalog
+            .custom_types
+            .get("DelayList")
+            .and_then(|t| t.item.as_ref())
+            .and_then(|i| i.range.as_ref())
+        else {
+            return;
+        };
+        let min = range.min.as_ref().and_then(|v| v.as_f64());
+        let max = range.max.as_ref().and_then(|v| v.as_f64());
+
+        let mut updated = elements.clone();
+        let mut clamped_any = false;
+        for (idx, el) in updated.iter_mut().enumerate() {
+            let Some(num) = el.as_f64() else { continue };
+            // Row numbers in error messages are 1-based to match the modal UI.
+            let row = idx + 1;
+            let (limit, message) = if let Some(m) = min.filter(|m| num < *m) {
+                (
+                    Some(m),
+                    format!(
+                        "Parameter '{}' delay_durations row {} value {} below min {}; clamped to {}",
+                        self.name, row, num, m, m
+                    ),
+                )
+            } else if let Some(m) = max.filter(|m| num > *m) {
+                (
+                    Some(m),
+                    format!(
+                        "Parameter '{}' delay_durations row {} value {} above max {}; clamped to {}",
+                        self.name, row, num, m, m
+                    ),
+                )
+            } else {
+                (None, String::new())
+            };
+            if let Some(m) = limit {
+                if let Some(num_value) = json_number_from_f64(m) {
+                    *el = Value::Number(num_value);
+                    clamped_any = true;
+                    let err = (true, message);
+                    if let Some(errors) = block.block_error.as_mut() {
+                        errors.push(err);
+                    } else {
+                        block.block_error = Some(vec![err]);
+                    }
+                }
+            }
+        }
+
+        if clamped_any {
+            let mut new_map = map.clone();
+            new_map.insert("delay_durations".to_string(), Value::Array(updated));
+            block
+                .block_parameters
+                .insert(self.name.clone(), Value::Object(new_map));
+        }
     }
 }
 
