@@ -565,7 +565,6 @@ export class BlockParameters {
 
     this.showDelayListModal = false;
     this.previousDelayListConfig = null;
-    this.onParameterValueChange();
   }
 
   onDelayListApply(event: DelayListModalValue): void {
