@@ -109,12 +109,6 @@ impl Parameter {
                     _ => format!("Parameter '{}' is required", self.name),
                 };
 
-                // let err = (true, err_msg);
-                // if let Some(errors) = block.block_error.as_mut() {
-                //     errors.push(err);
-                // } else {
-                //     block.block_error = Some(vec![err]);
-                // }
                 block.add_error(err_msg);
 
                 return Ok(());
@@ -160,12 +154,6 @@ impl Parameter {
                     if let Some(limit) = limit_value {
                         block.block_parameters.insert(self.name.clone(), limit);
                     }
-                    // let err = (true, message);
-                    // if let Some(errors) = block.block_error.as_mut() {
-                    //     errors.push(err);
-                    // } else {
-                    //     block.block_error = Some(vec![err]);
-                    // }
                     block.add_error(message);
                 }
             }
@@ -191,12 +179,6 @@ impl Parameter {
                 match value {
                     Some(Value::Array(channels)) => {
                         if channels.is_empty() {
-                            // let err = (true, format!("Parameter '{}' at least one channel must be selected", self.name));
-                            // if let Some(errors) = block.block_error.as_mut() {
-                            //     errors.push(err);
-                            // } else {
-                            //     block.block_error = Some(vec![err]);
-                            // }
                             block.add_error(format!(
                                 "Parameter '{}' at least one channel must be selected",
                                 self.name
@@ -207,12 +189,6 @@ impl Parameter {
                         // Handle comma-separated string format
                         let channels: Vec<&str> = channels_str.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()).collect();
                         if channels.is_empty() {
-                            // let err = (true, format!("Parameter '{}' at least one channel must be selected", self.name));
-                            // if let Some(errors) = block.block_error.as_mut() {
-                            //     errors.push(err);
-                            // } else {
-                            //     block.block_error = Some(vec![err]);
-                            // }
                             block.add_error(format!(
                                 "Parameter '{}' at least one channel must be selected",
                                 self.name
@@ -228,17 +204,11 @@ impl Parameter {
         if self.param_type == ParamTypeName::ChannelItem {
             if self.required {
                 let is_invalid = match value {
-                    Some(Value::String(s)) if s.is_empty() || s == "null" || s == "undefined" => true,
+                    Some(Value::String(s)) if s.is_empty() || s == "null" || s == "undefined" || s == "unknown" => true,
                     _ => false,
                 };
 
                 if is_invalid {
-                    // let err = (true, format!("Parameter '{}' channel selection is required", self.name));
-                    // if let Some(errors) = block.block_error.as_mut() {
-                    //     errors.push(err);
-                    // } else {
-                    //     block.block_error = Some(vec![err]);
-                    // }
                     block.add_error(format!(
                         "Parameter '{}' channel selection is required",
                         self.name
@@ -347,30 +317,12 @@ impl Catalog {
                 if let Some(event_def) = self.trigger_events.get(event_type) {
                     event_def.validate(event_obj, block, self)?;
                 } else {
-                    // let err = (true, format!("Unknown event type '{}'", event_type));
-                    // if let Some(errors) = block.block_error.as_mut() {
-                    //     errors.push(err);
-                    // } else {
-                    //     block.block_error = Some(vec![err]);
-                    // }
                     block.add_error(format!("Unknown event type '{}'", event_type));
                 }
             } else {
-                // let err = (true, "Event object missing 'type' field".to_string());
-                // if let Some(errors) = block.block_error.as_mut() {
-                //     errors.push(err);
-                // } else {
-                //     block.block_error = Some(vec![err]);
-                // }
                 block.add_error(format!("Event object missing 'type' field"));
             }
         } else {
-            // let err = (true, "Event parameter must be a JSON object".to_string());
-            // if let Some(errors) = block.block_error.as_mut() {
-            //     errors.push(err);
-            // } else {
-            //     block.block_error = Some(vec![err]);
-            // }
             block.add_error(format!("Event parameter must be a JSON object"));
         }
         Ok(())
@@ -407,15 +359,6 @@ impl EventDefinition {
             let param_value = params_map.get(&param.name);
 
             if param_value.is_none() && param.required {
-                // let err = (
-                //     true,
-                //     format!("Missing required event parameter '{}'", param.name),
-                // );
-                // if let Some(errors) = block.block_error.as_mut() {
-                //     errors.push(err);
-                // } else {
-                //     block.block_error = Some(vec![err]);
-                // }
                 block.add_error(format!(
                     "Missing required event parameter '{}'",
                     param.name
