@@ -390,6 +390,7 @@ slot[{{this.slot_index}}].trigger.model.create("{{this.trigger_model_name}}")
             blocks,
             trigger_events,
             templates: HashMap::new(),
+            custom_types: HashMap::new(),
         }
     }
 

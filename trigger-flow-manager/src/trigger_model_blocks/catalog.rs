@@ -9,7 +9,11 @@ use std::{collections::HashMap, path::Path};
 // clamped value like 1_000_000.0 renders as "1000000" instead of "1000000.0"
 // in the script template and in error messages.
 fn json_number_from_f64(value: f64) -> Option<serde_json::Number> {
-    if value.is_finite() && value.fract() == 0.0 && value >= i64::MIN as f64 && value <= i64::MAX as f64 {
+    if value.is_finite()
+        && value.fract() == 0.0
+        && value >= i64::MIN as f64
+        && value <= i64::MAX as f64
+    {
         return Some(serde_json::Number::from(value as i64));
     }
     serde_json::Number::from_f64(value)
