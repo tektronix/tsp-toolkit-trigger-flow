@@ -13,17 +13,20 @@ import { PaletteDataService } from '../../../services/palette-data.service';
 })
 export class SidePanelAccordion {
   private paletteDataService = inject(PaletteDataService);
-  
+
   // Get the complete groups structure from the service
   groups = computed(() => this.paletteDataService.getGroupsStructure());
 
-  expanded: Set<number> = new Set<number>();
-  blockExpanded: Set<number> = new Set<number>();
+  // Templates rendered inside the 'Templates' (single) accordion section
+  templates = computed(() => this.paletteDataService.getTemplates());
+
+  expanded: Set<number> = new Set<number>([1]);
+  blockExpanded: Set<number> = new Set<number>([0,1,2,3]);
   
   getSVGPathByCatalogLabel(catalogLabel: string): string | undefined {
     return this.paletteDataService.getSVGPathByCatalogLabel(catalogLabel);
   }
-  
+
   togglePanel(idx: number) {
     if (this.expanded.has(idx)) {
       this.expanded.delete(idx);

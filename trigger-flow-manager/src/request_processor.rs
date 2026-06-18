@@ -4,6 +4,7 @@ use crate::{
         slot_channel_list::{self},
         state::TriggerFlowState,
     },
+    debug::DEBUG,
     validator::{
         catalog_validator::CatalogValidator, instr_validator::InstrumentValidator, ValidationChain,
     },
@@ -27,11 +28,16 @@ impl RequestProcessor {
             catalog,
         }
     }
-    pub fn process_request(&self, request: RequestType) -> Result<Option<String>> {
-        println!(
-            "###RequestProcessor::process_request called with: {:?}",
-            request
-        );
+    pub fn process_request(
+        &self,
+        request: RequestType,
+    ) -> Result<Option<(String, Option<TriggerFlowState>)>> {
+        if DEBUG {
+            println!(
+                "###RequestProcessor::process_request called with: {:?}",
+                request
+            );
+        }
         match request {
             RequestType::InitialRequest => {
                 println!("instrument data requested");
@@ -42,24 +48,29 @@ impl RequestProcessor {
             } => {
                 // Process only the state from the request - no backend state persistence
                 let mut working_state = request_state;
-                println!(
-                    "Processing EvaluateRequest with TriggerFlowState: {:?}",
-                    working_state
-                );
+                if DEBUG {
+                    println!(
+                        "Processing EvaluateRequest with TriggerFlowState: {:?}",
+                        working_state
+                    );
+                }
                 let response = self.handle_evaluate_request(&mut working_state)?;
-                // Return response without persisting state (stateless)
-                Ok(Some(response))
+                // Return validated state alongside response so callers persist
+                // post-clamp values, not the raw request snapshot.
+                Ok(Some((response, Some(working_state))))
             }
             RequestType::RecallRequest {
                 trigger_flow_state: request_state,
             } => {
-                println!(
-                    "Processing RecallRequest with TriggerFlowState: {:?}",
-                    request_state
-                );
+                if DEBUG {
+                    println!(
+                        "Processing RecallRequest with TriggerFlowState: {:?}",
+                        request_state
+                    );
+                }
                 let mut working_state = request_state;
                 let response = self.handle_recall_request(&mut working_state)?;
-                Ok(Some(response))
+                Ok(Some((response, Some(working_state))))
             }
         }
     }
@@ -94,7 +105,9 @@ impl RequestProcessor {
         match IpcData::try_from(&response) {
             Result::Ok(ipc_response) => {
                 let serialized_response = serde_json::to_string(&ipc_response)?;
-                println!("Generated EvaluateResponse: {}", serialized_response);
+                if DEBUG {
+                    println!("Generated EvaluateResponse: {}", serialized_response);
+                }
                 Ok(serialized_response)
             }
             Result::Err(e) => {
@@ -121,7 +134,9 @@ impl RequestProcessor {
         //evaluate models in state
         //validation chain validates the models first, then hashmap
         self.validation_chain.validate(trigger_flow_state)?;
-        println!("###Catalog is {:?}", self.catalog.clone());
+        if DEBUG {
+            println!("###Catalog is {:?}", self.catalog.clone());
+        }
         trigger_flow_state.catalog = Some(self.catalog.clone()); // Include catalog in recall response
         let response = ResponseType::EvaluateResponse {
             trigger_flow_state: trigger_flow_state.clone(),
@@ -130,7 +145,9 @@ impl RequestProcessor {
         match IpcData::try_from(&response) {
             Result::Ok(ipc_response) => {
                 let serialized_response = serde_json::to_string(&ipc_response)?;
-                println!("Generated EvaluateResponse: {}", serialized_response);
+                if DEBUG {
+                    println!("Generated EvaluateResponse: {}", serialized_response);
+                }
                 Ok(serialized_response)
             }
             Result::Err(e) => {
