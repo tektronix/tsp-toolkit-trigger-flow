@@ -1318,7 +1318,7 @@ export class Canvas implements AfterViewInit {
         case 'wait on event': {
           if (DEBUG) console.warn(block.type, block.actual_parameters);
           const event_id = block.actual_parameters.find((param) => param.name === 'event');
-          let logic = block.actual_parameters.find((param) => param.name === 'logic')?.value;
+          let logic = block.actual_parameters.find((param) => param.name === 'Logic')?.value;
           if (logic && typeof logic === 'string') {
             logic = logic === 'AND' ? '.EventsAny' : '.EventsAll';
             showGroupSelectors.push(logic)
