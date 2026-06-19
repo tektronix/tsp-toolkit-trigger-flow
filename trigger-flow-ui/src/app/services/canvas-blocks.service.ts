@@ -453,6 +453,89 @@ export class CanvasBlocksService {
     //vscode.postMessage({ command: 'open_manual', payload: 'block_name: ' + blockName });
   }
 
+  addBlocksFromTemplate(
+    blocks: Array<{
+      templateBlockId: string; 
+      type: string;
+      block_parameters?: Record<string, unknown>;
+    }>,
+    runtimeBlockIds: string[],
+    positions: Array<{ x: number; y: number }>,
+    modelName: string,
+    slotIndex: number,
+    nodeId: string,
+    preComputedNames?: Map<string, string>,
+  ): void {
+    const catalogData = this.triggerFlowDataService.getCatalog();
+    if (!catalogData) {
+      console.warn('Catalog data not loaded yet');
+      return;
+    }
+
+    if (!this.models[modelName]) {
+      this.models[modelName] = {
+        trigger_model_name: modelName,
+        slot_index: slotIndex,
+        node_id: nodeId,
+        blocks: [],
+      };
+    }
+
+    const canvasBlocks: CanvasBlock[] = [];
+
+    blocks.forEach((tmplBlock, index) => {
+      const blockLabel = tmplBlock.type.toLowerCase().trim();
+      const blockData = this.findBlockInCatalog(blockLabel, catalogData);
+
+      if (!blockData) {
+        console.warn(`Block "${blockLabel}" not found in catalog`);
+        return;
+      }
+
+      let finalTriggerName: string;
+      if (preComputedNames?.has(tmplBlock.templateBlockId)) {
+        finalTriggerName = preComputedNames.get(tmplBlock.templateBlockId)!;
+      } else {
+        const catalogDefaultName = (blockData.parameters.find((p) => p.name === 'trigger_block_name')?.default) ?? 'Block';
+        finalTriggerName = this.getUniqueBlockName(catalogDefaultName.toString());
+      }
+
+      const actualParameters: ActualParameter[] = blockData.parameters.map((param) => {
+        const actual = new ActualParameter(param);
+
+        if (param.name === 'trigger_block_name') {
+          actual.value = finalTriggerName;
+        } else {
+          const templateValue = tmplBlock.block_parameters?.[param.name];
+          if (templateValue !== null && templateValue !== undefined) {
+            actual.value = templateValue as ParameterValue;
+          }
+        }
+
+        return actual;
+      });
+
+      const canvasBlock: CanvasBlock = {
+        block_id: runtimeBlockIds[index],
+        type: blockLabel,
+        blockData: blockData,
+        block_position: positions[index] ?? { x: 0, y: 0 },
+        incoming: null,
+        outgoing: null,
+        block_error: null,
+        actual_parameters: actualParameters,
+        notes: '',
+      };
+
+      canvasBlocks.push(canvasBlock);
+    });
+
+    this.models[modelName].blocks.push(...canvasBlocks);
+    this.sortBlocksByVerticalPosition(this.models[modelName]);
+
+    this.updateAndPrint();
+  }
+
   getUniqueBlockName(baseName: string): string {
     if (!this.blockNamesSet.has(baseName)) {
       this.blockNamesSet.set(baseName, 1);
