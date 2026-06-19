@@ -10,7 +10,9 @@
     [class.textbox--error]="invalid"
   />
 
-  <div *ngIf="invalid && errorMessage" class="textbox__error">
-    {{ errorMessage }}
-  </div>
+  @if (invalid && errorMessage) {
+    <div class="textbox__error">
+      {{ errorMessage }}
+    </div>
+  }
 </div>

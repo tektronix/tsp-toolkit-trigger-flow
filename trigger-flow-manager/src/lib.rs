@@ -1,4 +1,5 @@
 pub mod api;
+pub mod debug;
 pub mod model;
 pub mod request_processor;
 pub mod script;
