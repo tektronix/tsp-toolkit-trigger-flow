@@ -78,26 +78,76 @@ export class TemplateInstantiationService {
             const sectionOriginX = (section.positionIndex ?? groupIndex) * SECTION_WIDTH;
             const groupBaseX = sectionOriginX + relativeDropX;
 
-            const idMap = new Map<string, { runtimeBlockId: string; triggerBlockName: string }>();
-            const createdBlockIds: string[] = [];
-            const newNodes: FlowNode[] = [];
+            const runtimeBlockIds: string[] = [];
+            const positions: Array<{ x: number; y: number }> = [];
+            const blockDataArray: Array<{
+                templateBlockId: string;
+                type: string;
+                block_parameters?: Record<string, unknown>;
+            }> = [];
+            const templateNameMap = new Map<string, string>(); 
+
+            group.blocks.forEach((tmplBlock) => {
+                const templateTriggerName = tmplBlock.block_parameters?.['trigger_block_name'];
+                let finalTriggerName: string;
+
+                if (typeof templateTriggerName === 'string' && templateTriggerName.length > 0) {
+                    finalTriggerName = this.canvasBlocksService.getUniqueBlockName(templateTriggerName);
+                } else {
+                    finalTriggerName = this.canvasBlocksService.getUniqueBlockName(tmplBlock.block_id);
+                }
+
+                templateNameMap.set(tmplBlock.block_id, finalTriggerName);
+            });
 
             group.blocks.forEach((tmplBlock, index) => {
-                const blockCatalogLabel = tmplBlock.type;
-                const palettePath = this.canvasBlocksService.getSVGPathForLabel(blockCatalogLabel);
-                const svgPath = helpers.changeSVGPath(palettePath || '');
-
                 const runtimeBlockId = helpers.createUniqueNodeId();
-                const nodeCounter = helpers.getNodeCounter();
                 const position = {
                     x: groupBaseX,
                     y: dropRect.y + index * VERTICAL_GAP,
                 };
 
+                runtimeBlockIds.push(runtimeBlockId);
+                positions.push(position);
+
+                const resolvedParams = { ...tmplBlock.block_parameters };
+                for (const [paramName, rawValue] of Object.entries(resolvedParams)) {
+                    if (LINK_PARAM_NAMES.includes(paramName) && typeof rawValue === 'string') {
+                        const resolvedName = templateNameMap.get(rawValue);
+                        if (resolvedName) {
+                            resolvedParams[paramName] = resolvedName;
+                        }
+                    }
+                }
+
+                blockDataArray.push({
+                    templateBlockId: tmplBlock.block_id,
+                    type: tmplBlock.type,
+                    block_parameters: resolvedParams,
+                });
+            });
+
+            this.canvasBlocksService.addBlocksFromTemplate(
+                blockDataArray,
+                runtimeBlockIds,
+                positions,
+                section.modelName,
+                section.slotIndex,
+                section.nodeId,
+                templateNameMap, 
+            );
+
+            const newNodes: FlowNode[] = [];
+            group.blocks.forEach((tmplBlock, index) => {
+                const blockCatalogLabel = tmplBlock.type;
+                const palettePath = this.canvasBlocksService.getSVGPathForLabel(blockCatalogLabel);
+                const svgPath = helpers.changeSVGPath(palettePath || '');
+                const nodeCounter = helpers.getNodeCounter();
+
                 newNodes.push({
-                    blockId: runtimeBlockId,
+                    blockId: runtimeBlockIds[index],
                     sectionId: section.id,
-                    position,
+                    position: positions[index],
                     svgPath,
                     catalogLabel: blockCatalogLabel,
                     blockType: 'Template',
@@ -105,76 +155,12 @@ export class TemplateInstantiationService {
                     outputs: [`output-${nodeCounter}`],
                     color: '#FFFFFF',
                 });
-
-                this.canvasBlocksService.addBlock(
-                    runtimeBlockId,
-                    blockCatalogLabel,
-                    position,
-                    section.modelName,
-                    section.slotIndex,
-                    section.nodeId,
-                );
-
-                const created = this.canvasBlocksService.getBlockById(runtimeBlockId);
-                const templateTriggerName = tmplBlock.block_parameters?.['trigger_block_name'];
-                let triggerName: string;
-                if (typeof templateTriggerName === 'string' && templateTriggerName.length > 0) {
-                    triggerName = this.canvasBlocksService.getUniqueBlockName(templateTriggerName);
-                    this.canvasBlocksService.updateBlockParameterValue(
-                        runtimeBlockId,
-                        'trigger_block_name',
-                        triggerName,
-                    );
-                } else {
-                    triggerName = String(
-                        created?.actual_parameters.find((p) => p.name === 'trigger_block_name')?.value ??
-                        created?.actual_parameters.find((p) => p.name === 'trigger_block_name')?.default ??
-                        runtimeBlockId,
-                    );
-                }
-                idMap.set(tmplBlock.block_id, {
-                    runtimeBlockId,
-                    triggerBlockName: triggerName,
-                });
-                createdBlockIds.push(runtimeBlockId);
-            });
-
-            group.blocks.forEach((tmplBlock) => {
-                const mapped = idMap.get(tmplBlock.block_id);
-                if (!mapped) return;
-                const params = tmplBlock.block_parameters ?? {};
-
-                for (const [paramName, rawValue] of Object.entries(params)) {
-                    if (rawValue === null || rawValue === undefined) continue;
-
-                    if (paramName === 'trigger_block_name') continue;
-
-                    let value = rawValue as ParameterValue;
-
-                    if (LINK_PARAM_NAMES.includes(paramName) && typeof value === 'string') {
-                        const target = idMap.get(value);
-                        if (target) {
-                            value = target.triggerBlockName;
-                        }
-                    }
-
-                    this.canvasBlocksService.updateBlockParameterValue(
-                        mapped.runtimeBlockId,
-                        paramName,
-                        value,
-                    );
-                }
-
-                this.initializeEventParameterDefaults(mapped.runtimeBlockId, section);
             });
 
             this.sections.update((current) =>
                 current.map((item) => {
                     if (item.id !== section.id) return item;
                     const nodes = [...item.nodes];
-                    // Only the first group honors the user's insertion indicator;
-                    // subsequent groups go into their own freshly-created sections
-                    // and are simply appended.
                     const insertAt =
                         groupIndex === 0 && insertionTarget?.insertionIndex !== undefined
                             ? Math.max(0, Math.min(insertionTarget.insertionIndex, nodes.length))
@@ -184,11 +170,12 @@ export class TemplateInstantiationService {
                 }),
             );
 
-            affectedSectionIds.add(section.id);
+            runtimeBlockIds.forEach((blockId) => {
+                this.initializeEventParameterDefaults(blockId, section);
+            });
 
-            if (groupIndex === 0) {
-                firstCreatedBlockIds.push(...createdBlockIds);
-            }
+            affectedSectionIds.add(section.id);
+            firstCreatedBlockIds.push(...runtimeBlockIds);
         });
 
         this.canvasBlocksService.restoreConnections();
