@@ -77,16 +77,6 @@ impl BlockDefinition {
         // For each parameter in the catalog definition
         for param in &self.parameters {
             let value = block.block_parameters.get(&param.name).cloned();
-            if value.is_none() && param.required {
-                let err = (true, format!("Missing required parameter '{}'", param.name));
-                if let Some(errors) = block.block_error.as_mut() {
-                    errors.push(err);
-                } else {
-                    block.block_error = Some(vec![err]);
-                }
-                continue;
-            }
-
             param.validate(value.as_ref(), block, catalog)?;
         }
         Ok(())
@@ -125,11 +115,48 @@ impl Parameter {
         block: &mut TriggerModelBlock,
         catalog: &Catalog,
     ) -> Result<()> {
-        // 1. Name check
+        // 1. Required-value check for all mandatory parameters.
+        // Treat missing, null, empty/placeholder strings, and empty arrays as invalid.
+        if self.required {
+            let is_missing_required = match value {
+                None => true,
+                Some(Value::Null) => true,
+                Some(Value::String(s)) => {
+                    let normalized = s.trim();
+                    normalized.is_empty()
+                        || normalized == "null"
+                        || normalized == "undefined"
+                        || normalized == "unknown"
+                }
+                Some(Value::Array(arr)) => arr.is_empty(),
+                _ => false,
+            };
+
+            if is_missing_required {
+                let err_msg = match self.param_type {
+                    ParamTypeName::ChannelList => {
+                        format!(
+                            "Parameter '{}' at least one channel must be selected",
+                            self.name
+                        )
+                    }
+                    ParamTypeName::ChannelItem => {
+                        format!("Parameter '{}' channel selection is required", self.name)
+                    }
+                    _ => format!("Parameter '{}' is required", self.name),
+                };
+
+                block.add_error(err_msg);
+
+                return Ok(());
+            }
+        }
+
+        // 2. Name check
         //Names of each block within a model should be unique
         //Name can be an empty string but if not empty, should be unique across the model
 
-        // 2. Range check (for numbers). Out-of-range values are clamped to the
+        // 3. Range check (for numbers). Out-of-range values are clamped to the
         // limit and the stored parameter is rewritten so the rendered script
         // never contains a value outside the catalog-declared range.
         if let Some(range) = &self.range {
@@ -164,17 +191,12 @@ impl Parameter {
                     if let Some(limit) = limit_value {
                         block.block_parameters.insert(self.name.clone(), limit);
                     }
-                    let err = (true, message);
-                    if let Some(errors) = block.block_error.as_mut() {
-                        errors.push(err);
-                    } else {
-                        block.block_error = Some(vec![err]);
-                    }
+                    block.add_error(message);
                 }
             }
         }
 
-        // 2b. Range check for `delay_durations` inside a DelayListConfig.
+        // 3b. Range check for `delay_durations` inside a DelayListConfig.
         // The per-element range lives on the `DelayList` custom type, so it
         // is resolved through the catalog rather than duplicated on the
         // parameter itself.
@@ -184,26 +206,71 @@ impl Parameter {
             }
         }
 
-        // 3. Options/Enum check
+        // 4. Options/Enum check
         if let Some(options) = &self.options {
             if let Some(Value::String(val_str)) = value {
                 let valid = options.iter().any(|opt| opt.value == *val_str);
                 if !valid {
-                    let err = (
-                        true,
-                        format!(
-                            "Parameter '{}' value '{}' is not a valid option",
-                            self.name, val_str
-                        ),
-                    );
-                    if let Some(errors) = block.block_error.as_mut() {
-                        errors.push(err);
-                    } else {
-                        block.block_error = Some(vec![err]);
-                    }
+                    block.add_error(format!(
+                        "Parameter '{}' value '{}' is not a valid option",
+                        self.name, val_str
+                    ));
                 }
             }
         }
+
+        // 5. Channel validation for ChannelList
+        if self.param_type == ParamTypeName::ChannelList {
+            if self.required {
+                match value {
+                    Some(Value::Array(channels)) => {
+                        if channels.is_empty() {
+                            block.add_error(format!(
+                                "Parameter '{}' at least one channel must be selected",
+                                self.name
+                            ));
+                        }
+                    }
+                    Some(Value::String(channels_str)) => {
+                        // Handle comma-separated string format
+                        let channels: Vec<&str> = channels_str
+                            .split(',')
+                            .map(|s| s.trim())
+                            .filter(|s| !s.is_empty())
+                            .collect();
+                        if channels.is_empty() {
+                            block.add_error(format!(
+                                "Parameter '{}' at least one channel must be selected",
+                                self.name
+                            ));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        // 6. Channel validation for ChannelItem (single channel)
+        if self.param_type == ParamTypeName::ChannelItem {
+            if self.required {
+                let is_invalid = match value {
+                    Some(Value::String(s))
+                        if s.is_empty() || s == "null" || s == "undefined" || s == "unknown" =>
+                    {
+                        true
+                    }
+                    _ => false,
+                };
+
+                if is_invalid {
+                    block.add_error(format!(
+                        "Parameter '{}' channel selection is required",
+                        self.name
+                    ));
+                }
+            }
+        }
+
         match self.param_type {
             ParamTypeName::TriggerEventType | ParamTypeName::EventNotifyN => {
                 if let Some(event_value) = value {
@@ -372,28 +439,13 @@ impl Catalog {
                 if let Some(event_def) = self.trigger_events.get(event_type) {
                     event_def.validate(event_obj, block, self)?;
                 } else {
-                    let err = (true, format!("Unknown event type '{}'", event_type));
-                    if let Some(errors) = block.block_error.as_mut() {
-                        errors.push(err);
-                    } else {
-                        block.block_error = Some(vec![err]);
-                    }
+                    block.add_error(format!("Unknown event type '{}'", event_type));
                 }
             } else {
-                let err = (true, "Event object missing 'type' field".to_string());
-                if let Some(errors) = block.block_error.as_mut() {
-                    errors.push(err);
-                } else {
-                    block.block_error = Some(vec![err]);
-                }
+                block.add_error(format!("Event object missing 'type' field"));
             }
         } else {
-            let err = (true, "Event parameter must be a JSON object".to_string());
-            if let Some(errors) = block.block_error.as_mut() {
-                errors.push(err);
-            } else {
-                block.block_error = Some(vec![err]);
-            }
+            block.add_error(format!("Event parameter must be a JSON object"));
         }
         Ok(())
     }
@@ -429,15 +481,7 @@ impl EventDefinition {
             let param_value = params_map.get(&param.name);
 
             if param_value.is_none() && param.required {
-                let err = (
-                    true,
-                    format!("Missing required event parameter '{}'", param.name),
-                );
-                if let Some(errors) = block.block_error.as_mut() {
-                    errors.push(err);
-                } else {
-                    block.block_error = Some(vec![err]);
-                }
+                block.add_error(format!("Missing required event parameter '{}'", param.name));
                 continue;
             }
 
