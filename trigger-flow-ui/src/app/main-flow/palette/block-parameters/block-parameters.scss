@@ -79,6 +79,35 @@
   text-overflow: ellipsis;
 }
 
+.block-info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  margin-left: $spacing-sm;
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+  flex: 0 0 auto;
+
+  &:hover {
+    background: var(--vscode-toolbar-hoverBackground, rgba(127, 127, 127, 0.2));
+  }
+
+  &:focus-visible {
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: 1px;
+  }
+
+  svg {
+    display: block;
+  }
+}
+
 .params-body {
   display: flex;
   flex-direction: column;

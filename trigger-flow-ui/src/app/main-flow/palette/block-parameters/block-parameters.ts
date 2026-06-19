@@ -1,7 +1,7 @@
 import { Component, DestroyRef, effect, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AngularSvgIconModule } from 'angular-svg-icon';
-import { CanvasBlocksService } from '../../../services/canvas-blocks.service';
+import { CanvasBlocksService, vscode } from '../../../services/canvas-blocks.service';
 import {
   findblockCategory,
   getBlockParameterDisplayName,
@@ -121,6 +121,13 @@ export class BlockParameters {
       const catalog = this.triggerFlowDataService.catalog$();
       this.triggerEvents = catalog?.trigger_events || {};
     });
+  }
+
+  onBlockInfoClick(): void {
+    if (!this.blockName) {
+      return;
+    }
+    vscode.postMessage({ command: 'open_manual', payload: { block_name: this.blockName } });
   }
 
   private updateBlockControls() {
