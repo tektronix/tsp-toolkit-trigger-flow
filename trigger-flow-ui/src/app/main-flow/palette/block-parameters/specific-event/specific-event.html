@@ -1,6 +1,6 @@
 <div class="specific-event">
   <div class="specific-event-row">
-    <div class="specific-event-type-label">{{ typeLabel }}</div>
+    <div class="specific-event-type-label" [attr.aria-label]="'event-type-label'">{{ typeLabel }}</div>
 
     <div class="specific-event-config">
       @for (p of paramsToRender; track p.name) {
@@ -11,6 +11,7 @@
               [options]="p.options"
               [(ngModel)]="p.selected"
               (selectedChange)="onChange(p.name, $event)"
+              [attr.aria-label]="'dropdown-' + p.name"
             />
           </div>
         }
