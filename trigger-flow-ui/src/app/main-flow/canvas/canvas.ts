@@ -655,26 +655,18 @@ export class Canvas implements AfterViewInit {
       // Resolve semantic direction independent of drag start side:
       // the "referencing" block is whichever endpoint owns a supported
       // block-reference parameter, and the opposite endpoint is the source.
+      // When both endpoints own a link parameter, the input-side endpoint
+      // (drag drop target) wins.
       if (outputBlock && inputBlock && outputBlockId && inputBlockId) {
         const outputParamName = this.getLinkParamName(outputBlock);
         const inputParamName = this.getLinkParamName(inputBlock);
 
-        const targetFromOutput =
-          !!outputParamName &&
-          (!inputParamName ||
-            this.getLinkParamPriority(outputParamName) <=
-              this.getLinkParamPriority(inputParamName));
+        const targetFromInput = !!inputParamName;
 
-        const targetBlock = targetFromOutput
-          ? outputParamName
-            ? outputBlock
-            : null
-          : inputParamName
-            ? inputBlock
-            : null;
-        const targetBlockId = targetBlock === outputBlock ? outputBlockId : targetBlock === inputBlock ? inputBlockId : null;
-        const parameterName = targetBlock === outputBlock ? outputParamName : targetBlock === inputBlock ? inputParamName : null;
-        const sourceBlock = targetBlock === outputBlock ? inputBlock : outputBlock;
+        const targetBlock = targetFromInput ? inputBlock : outputParamName ? outputBlock : null;
+        const targetBlockId = targetFromInput ? inputBlockId : outputParamName ? outputBlockId : null;
+        const parameterName = targetFromInput ? inputParamName : outputParamName;
+        const sourceBlock = targetFromInput ? outputBlock : inputBlock;
 
         if (!targetBlock || !targetBlockId || !parameterName) {
           console.warn('Connection ignored: neither endpoint supports a block-reference parameter.');
@@ -722,21 +714,6 @@ export class Canvas implements AfterViewInit {
       return 'reset_branch_count_block_name';
     }
     return null;
-  }
-
-  private getLinkParamPriority(
-    paramName: 'branch_to_block_name' | 'reference_block_name' | 'reset_branch_count_block_name',
-  ): number {
-    switch (paramName) {
-      case 'branch_to_block_name':
-        return 0;
-      case 'reference_block_name':
-        return 1;
-      case 'reset_branch_count_block_name':
-        return 2;
-      default:
-        return Number.MAX_SAFE_INTEGER;
-    }
   }
 
   /**
