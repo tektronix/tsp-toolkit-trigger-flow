@@ -3,6 +3,7 @@ import { InitialPayload, Catalog, EventDefinition } from '../models/triggerBlock
 import { SlotChannelList } from '../models/slotChannelModel';
 import { TriggerFlowStatePayload, TriggerModel } from '../models/triggerFlowState';
 import { CanvasBlocksService } from './canvas-blocks.service';
+import { DEBUG } from '../debug';
 
 @Injectable({
   providedIn: 'root',
@@ -40,13 +41,19 @@ export class TriggerFlowDataService {
 
   updateStatePayload(payload: TriggerFlowStatePayload): void {
     this.statePayloadSnapshot = payload;
-    console.log('###State payload updated:', payload);
+    if (DEBUG) console.log('###State payload updated:', payload);
 
     // ORDER MATTERS: catalog must be set BEFORE models, otherwise any
     // consumer that reacts to models$ (e.g. canvas block restoration) reads
     // a stale/null catalog and cannot resolve block definitions.
     // This case is hit in case of recall session, catalog is getting passed explicitly.
     if (payload.catalog) {
+      // Block ids use a per-instance counter (`node-N`), so a recalled
+      // payload almost always reuses ids that match the currently selected
+      // id but refer to different blocks. Clear the selection so the
+      // parameters panel does not silently rebind to an unrelated recalled
+      // block.
+      this.canvasBlocksService.clearSelectedBlock();
       this.catalog.set(payload.catalog);
       if (!this.initialPayloadSnapshot) {
         this.initialPayloadSnapshot = new InitialPayload({
@@ -65,6 +72,12 @@ export class TriggerFlowDataService {
       // Keep slot_channel_list fresh from runtime updates
       this.slotChannelList.set(payload.slot_channel_list);
 
+      // Reconcile clamped values and per-block errors back onto the existing
+      // canvas blocks. The canvas service is the source of truth that the
+      // parameters panel reads, so without this the UI keeps showing the
+      // pre-clamp value the user just typed.
+      this.canvasBlocksService.applyServerValidationResult(payload.models);
+
       // Set models LAST so any subscriber reacting to models change sees a
       // fully populated catalog and slot_channel_list.
       this.models.set(payload.models);
@@ -73,6 +86,7 @@ export class TriggerFlowDataService {
 
   resetState(): void {
     this.canvasBlocksService.resetCanvas();
+    this.canvasBlocksService.clearSelectedBlock();
     this.catalog.set(null);
     this.slotChannelList.set(null);
     this.models.set({});
