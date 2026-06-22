@@ -969,6 +969,10 @@ templates:
               block_id: digital_io_trigger_wait_on_event_001
               block_parameters:
                 trigger_block_name: digital_io_trigger_wait_on_event_001
+                event:
+                  - type: event_digio
+                    params:
+                      digio_trigger_line: "1"
             - type: constant delay
               block_id: digital_io_trigger_constant_delay_001
               block_parameters:
