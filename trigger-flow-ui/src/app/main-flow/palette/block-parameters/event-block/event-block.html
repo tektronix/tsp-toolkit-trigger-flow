@@ -1,12 +1,12 @@
 <div class="event-block">
 @if (isSingleSelection) {
       <div class="event-title-row">
-        <div class="event-title">Event</div>
+        <div class="event-title event-label">Event</div>
       </div>
       <div class="event-hint">(select one)</div>
     } @else {
       <div class="event-title-row">
-        <div class="event-title">Event</div>
+        <div class="event-title event-label">Event</div>
         <span class="event-count" [class.event-count-limit]="isAddDisabled"
           automationID="Label-Event-Count"
           [attr.aria-label]="'Event-Count-' + selectedEvents.length + '-of-' + MAX_EVENTS">
