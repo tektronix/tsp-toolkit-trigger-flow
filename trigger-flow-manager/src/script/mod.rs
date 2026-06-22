@@ -5,8 +5,15 @@ use handlebars::Handlebars;
 
 use crate::{
     api::{slot_channel_list::Module, state::TriggerFlowState},
+    trigger_model_blocks::param_types::ParamTypeName,
     Catalog,
 };
+
+/// Sentinel value used by the UI to mark a `BlockReference` parameter that
+/// has not yet been pointed at a real block. It must NOT leak into generated scripts (a block
+/// literally named "unknown" doesn't exist) — `from_state` rewrites it to
+/// an empty string before handing the state to the template renderer.
+const BLOCK_REFERENCE_UNKNOWN_VALUE: &str = "unknown";
 
 /// A script representing the contents of a script. The preamble and postable are used
 /// for comments to be rendered to the file only if the file is being written for the
@@ -23,6 +30,14 @@ impl Script {
     /// Take the current [`TriggerFlowState`] and, using the provided [`TriggerBlocks`] catalog,
     /// generate the appropriate [`Script`].
     pub fn from_state(catalog: &Catalog, state: &TriggerFlowState) -> Result<Self, Error> {
+        // Creating a clone so we can rewrite the UI's "unknown" sentinel on
+        // `BlockReference` parameters to an empty string for script generation
+        // without disturbing the caller's state (the original value still
+        // round-trips through save/recall unchanged).
+        let mut state = state.clone();
+        sanitize_unknown_block_references(&mut state, catalog);
+        let state = &state;
+
         let mut hb = Handlebars::new();
 
         // load the script templates into hb
@@ -183,6 +198,28 @@ impl Display for Script {
     }
 }
 
+/// Replaces the UI's "unknown" sentinel with an empty string on every
+/// `BlockReference` parameter across the entire state, in-place.
+fn sanitize_unknown_block_references(state: &mut TriggerFlowState, catalog: &Catalog) {
+    for model in state.models.values_mut() {
+        for block in model.blocks.iter_mut() {
+            let Some(block_def) = catalog.blocks.get(&block.block_type) else {
+                continue;
+            };
+            for param in &block_def.parameters {
+                if param.param_type != ParamTypeName::BlockReference {
+                    continue;
+                }
+                if let Some(value) = block.block_parameters.get_mut(&param.name) {
+                    if value.as_str() == Some(BLOCK_REFERENCE_UNKNOWN_VALUE) {
+                        *value = serde_json::Value::String(String::new());
+                    }
+                }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 pub(crate) mod script_tests {
     use std::collections::HashMap;
@@ -211,6 +248,7 @@ pub(crate) mod script_tests {
                     parameters: vec![
                         Parameter {
                             name: "slot_index".to_string(),
+                            label: None,
                             param_type: ParamTypeName::SlotIndex,
                             required: true,
                             options: None,
@@ -223,6 +261,7 @@ pub(crate) mod script_tests {
                         },
                         Parameter {
                             name: "trigger_model_name".to_string(),
+                            label: None,
                             param_type: ParamTypeName::String,
                             required: true,
                             options: None,
@@ -232,6 +271,7 @@ pub(crate) mod script_tests {
                         },
                         Parameter {
                             name: "trigger_block_name".to_string(),
+                            label: None,
                             param_type: ParamTypeName::String,
                             required: true,
                             options: None,
@@ -241,6 +281,7 @@ pub(crate) mod script_tests {
                         },
                         Parameter {
                             name: "branch_to_block_name".to_string(),
+                            label: None,
                             param_type: ParamTypeName::String,
                             required: true,
                             options: None,
@@ -264,6 +305,7 @@ pub(crate) mod script_tests {
                     parameters: vec![
                         Parameter {
                             name: "slot_index".to_string(),
+                            label: None,
                             param_type: ParamTypeName::SlotIndex,
                             required: true,
                             options: None,
@@ -276,6 +318,7 @@ pub(crate) mod script_tests {
                         },
                         Parameter {
                             name: "trigger_model_name".to_string(),
+                            label: None,
                             param_type: ParamTypeName::String,
                             required: true,
                             options: None,
@@ -285,6 +328,7 @@ pub(crate) mod script_tests {
                         },
                         Parameter {
                             name: "trigger_block_name".to_string(),
+                            label: None,
                             param_type: ParamTypeName::String,
                             required: true,
                             options: None,
@@ -294,6 +338,7 @@ pub(crate) mod script_tests {
                         },
                         Parameter {
                             name: "channel_list".to_string(),
+                            label: None,
                             param_type: ParamTypeName::ChannelList,
                             required: true,
                             options: None,
@@ -303,6 +348,7 @@ pub(crate) mod script_tests {
                         },
                         Parameter {
                             name: "measure_count".to_string(),
+                            label: None,
                             param_type: ParamTypeName::Number,
                             required: false,
                             options: None,
@@ -327,7 +373,7 @@ pub(crate) mod script_tests {
             script_template: ScriptTemplate {
                 preamble: "-- Preamble Text\n{{> begin_sentinel}}".to_string(),
                 postamble: "{{> end_sentinel}}\n\n-- Postamble Text".to_string(),
-                contents: r##"{{#each models}}
+                contents: r#"{{#each models}}
 -- {{this.trigger_model_name}}
 slot[{{this.slot_index}}].trigger.model.create("{{this.trigger_model_name}}")
 {{#each this.blocks}}
@@ -336,7 +382,7 @@ slot[{{this.slot_index}}].trigger.model.create("{{this.trigger_model_name}}")
 {{/each}}
 -- slot[{{this.slot_index}}].trigger.model.initiate("{{this.trigger_model_name}}")
 {{/each}}
-"##
+"#
                 .to_string(),
                 begin_sentinel: "-- BEGIN GENERATED TRIGGER MODEL --".to_string(),
                 end_sentinel: "-- END GENERATED TRIGGER MODEL --".to_string(),
@@ -344,6 +390,7 @@ slot[{{this.slot_index}}].trigger.model.create("{{this.trigger_model_name}}")
             blocks,
             trigger_events,
             templates: HashMap::new(),
+            custom_types: HashMap::new(),
         }
     }
 

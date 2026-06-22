@@ -9,6 +9,30 @@
   overflow-y: auto;
 }
 
+::ng-deep .required > div > label:after{
+  content: "*";
+  font-style: italic;
+  color: var(--vscode-editorError-foreground, red)
+}
+
+::ng-deep .required > div > span[class$="-label"]:after{
+  content: "*";
+  font-style: italic;
+  color: var(--vscode-editorError-foreground, red)
+}
+
+::ng-deep .required > div > div > div[class$="-label"]:after{
+  content: "*";
+  font-style: italic;
+  color: var(--vscode-editorError-foreground, red)
+}
+
+::ng-deep .required > div > div[class$="-label"]:after{
+  content: "*";
+  font-style: italic;
+  color: var(--vscode-editorError-foreground, red)
+}
+
 .empty-state h3 {
   margin: 0 0 $spacing-xs 0;
 }
@@ -53,6 +77,35 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.block-info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  margin-left: $spacing-sm;
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+  flex: 0 0 auto;
+
+  &:hover {
+    background: var(--vscode-toolbar-hoverBackground, rgba(127, 127, 127, 0.2));
+  }
+
+  &:focus-visible {
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: 1px;
+  }
+
+  svg {
+    display: block;
+  }
 }
 
 .params-body {
