@@ -18,7 +18,7 @@
     ],
     "scripts": {},
     "devDependencies": {
-        "@cyclonedx/cyclonedx-npm": "^4.1.2",
+        "@cyclonedx/cyclonedx-npm": "^5.0.0",
         "@types/vscode": "^1.87.0",
         "license-checker": "^25.0.1",
         "source-map-support": "^0.5.21",
