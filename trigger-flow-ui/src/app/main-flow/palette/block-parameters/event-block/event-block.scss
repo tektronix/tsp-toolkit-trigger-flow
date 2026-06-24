@@ -1,22 +1,47 @@
 .event-block {
-  padding: 10px;
+  padding: 10px 0;
   --event-dropdown-width: 100px;
+}
+
+.event-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.event-title {
+  font-size: var(--vscode-font-size, 13px);
+  font-weight: var(--vscode-font-weight, 500);
+  color: var(--vscode-foreground);
+}
+
+.event-hint {
+  font-size: 12px;
+  opacity: 0.8;
+  font-style: italic;
+  margin-top: 2px;
+  margin-bottom: 8px;
+}
+
+.event-count {
+  font-size: 12px;
+}
+
+.event-count-limit {
+  color: var(--Notify, #E79F48);
 }
 
 .event-divider {
   height: 1px;
   background: var(--vscode-editorWidget-border);
-//   display: block;
-//   width: 100%;
-//   height: 0;
-//   border-top: 1px solid var(--vscode-editorWidget-border, var(--vscode-widget-border, var(--vscode-contrastBorder, #5a5a5a)));
 }
 
-.event-block-label {
-  font-size: var(--vscode-font-size, 13px);
-  font-weight: var(--vscode-font-weight, 500);
-  color: var(--vscode-foreground);
-}
+// .event-block-label {
+//   font-size: var(--vscode-font-size, 13px);
+//   font-weight: var(--vscode-font-weight, 500);
+//   color: var(--vscode-foreground);
+// }
 
 .event-block h4,
 .event-block p {
@@ -35,10 +60,20 @@
 
 .event-row {
   margin-bottom: 12px;
+  padding-bottom: 12px;
   display: grid;
   grid-template-columns: minmax(150px, 220px) 1fr;
   column-gap: 12px;
   align-items: start;
+}
+
+.event-row--single,
+.event-row--multi {
+  border-bottom: 1px solid var(--vscode-editorWidget-border, #3a3a3a);
+}
+
+.event-row--last {
+  border-bottom: none;
 }
 
 .event-config {
@@ -51,6 +86,18 @@
 
 .event-type-selector {
   padding-top: 6px;
+}
+
+// In multi mode the per-row event-type selector is a dropdown rather than a
+// checkbox. Remove the radio/checkbox top padding so the dropdown vertically
+// aligns with the right-side parameter dropdown.
+.event-type-selector--dropdown {
+  padding-top: 0;
+}
+
+.event-type-selector--dropdown app-dropdown {
+  display: block;
+  width: 100%;
 }
 
 .event-param-control {
@@ -80,4 +127,15 @@
 :host ::ng-deep .event-param-control .textbox input {
   width: 100%;
   box-sizing: border-box;
+}
+
+// When no event type is selected (placeholder shown), make the select text grey
+:host ::ng-deep .event-type-placeholder-selected .dropdown select {
+  color: #888888 !important;
+}
+
+// Keep selected real event type and parameter dropdown values in normal color
+:host ::ng-deep .event-type-selector--dropdown:not(.event-type-placeholder-selected) .dropdown select,
+:host ::ng-deep .event-param-control .dropdown select {
+  color: var(--vscode-input-foreground);
 }

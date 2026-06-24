@@ -41,19 +41,32 @@ impl TriggerModelBlock {
 
         // Extract single channel_index
         if let Some(channel_idx_param) = self.block_parameters.get("channel_index") {
+            // Handle JSON number
             if let Some(channel_idx) = channel_idx_param.as_u64() {
                 channels.push(channel_idx as u8);
             }
         }
 
-        // Extract channel_list (comma-separated)
+        // Extract channel_list (both JSON array and comma-separated string formats)
         if let Some(channel_list_param) = self.block_parameters.get("channel_list") {
-            if let Some(channel_list_str) = channel_list_param.as_str() {
-                let channel_numbers: Vec<u8> = channel_list_str
-                    .split(',')
-                    .filter_map(|s| s.trim().parse().ok())
-                    .collect();
-                channels.extend(channel_numbers);
+            match channel_list_param {
+                // Handle JSON array format [1, 2, 3]
+                serde_json::Value::Array(arr) => {
+                    for channel_val in arr {
+                        if let Some(ch) = channel_val.as_u64() {
+                            channels.push(ch as u8);
+                        }
+                    }
+                }
+                // Handle comma-separated string format "1, 2, 3"
+                serde_json::Value::String(channel_list_str) => {
+                    let channel_numbers: Vec<u8> = channel_list_str
+                        .split(',')
+                        .filter_map(|s| s.trim().parse().ok())
+                        .collect();
+                    channels.extend(channel_numbers);
+                }
+                _ => {}
             }
         }
 
@@ -62,5 +75,15 @@ impl TriggerModelBlock {
 
     pub fn get_parameter(&self, param_name: &str) -> Option<&serde_json::Value> {
         self.block_parameters.get(param_name)
+    }
+
+    pub fn add_error(&mut self, message: String) {
+        let err = (true, message);
+
+        if let Some(errors) = self.block_error.as_mut() {
+            errors.push(err);
+        } else {
+            self.block_error = Some(vec![err]);
+        }
     }
 }

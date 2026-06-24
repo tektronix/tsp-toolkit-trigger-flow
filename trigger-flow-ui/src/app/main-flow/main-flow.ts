@@ -1,4 +1,4 @@
-import { Component, ViewChild, inject, DestroyRef } from '@angular/core';
+import { Component, ViewChild, inject, DestroyRef, effect } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -66,6 +66,17 @@ export class MainFlow {
           this.parametersCollapsed = false;
         }
       });
+
+    effect(() => {
+      this.canvasBlocksService.sections();
+      if (this.showModelModal) {
+        this.canvas?.discardPendingCreateNode();
+        this.showModelModal = false;
+      }
+      if (this.showModelSettingsModal) {
+        this.refreshModelSettingsList();
+      }
+    });
   }
 
   toggleSidebar(): void {
@@ -227,16 +238,18 @@ export class MainFlow {
   }
 
   openModelSettings(): void {
-    const sections = this.canvas?.getSections() ?? [];
+    this.refreshModelSettingsList();
 
-    this.modelSettingsList = sections.map((section) => ({
+    this.showModelSettingsModal = true;
+  }
+
+  private refreshModelSettingsList(): void {
+    this.modelSettingsList = this.canvasBlocksService.sections().map((section) => ({
       id: section.id,
       modelName: section.modelName,
       nodeId: section.nodeId,
       slotIndex: section.slotIndex,
     }));
-
-    this.showModelSettingsModal = true;
   }
 
   closeModelSettings(): void {
@@ -272,7 +285,7 @@ export class MainFlow {
   onEditModel(item: ModelSettingsItem): void {
     console.warn('Edit model:', item);
   }
-  
+
   openScript(): void {
     console.log('Open Script clicked');
     // Ask the server to regenerate the script from current canvas state.

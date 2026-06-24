@@ -26,6 +26,17 @@ impl ValidationChain {
         self
     }
     pub fn validate(&self, state: &mut TriggerFlowState) -> Result<TriggerFlowState> {
+        // Clear old errors before validating. Clients may send back state
+        // that still has errors from a previous response (for example, a
+        // recall payload). Without this reset, the validators would add to
+        // the old list, causing duplicates.
+
+        for model in state.models.values_mut() {
+            for block in &mut model.blocks {
+                block.block_error = None;
+            }
+        }
+
         for validator in &self.validators {
             validator.validate(state)?;
         }

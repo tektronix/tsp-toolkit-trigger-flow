@@ -7,6 +7,7 @@ import { TriggerFlowDataService } from './triggerFlowDataService';
 import { FlowNode, FlowSection, FlowConnection } from '../main-flow/canvas/canvas';
 import { PaletteDataService } from './palette-data.service';
 import { LOOP_COUNTER_BLOCK_TYPE, BLOCK_REFERENCE_UNKNOWN_VALUE, isBlockReferenceParam } from '../models/blockParameterHelper';
+import { DEBUG } from '../debug';
 
 export interface CanvasBlock {
   block_id: string;
@@ -99,6 +100,28 @@ export class CanvasBlocksService {
     this.restoreConnections();
   }
 
+  /**
+   * Apply server-validated parameter values (and the resulting block_error
+   * list) onto the existing canvas blocks without rebuilding them. Used on
+   * the in-session evaluate path, where the backend may clamp values into
+   * range.
+   */
+  applyServerValidationResult(models: Record<string, TriggerModel>): void {
+    for (const model of Object.values(models)) {
+      for (const serverBlock of model.blocks) {
+        const canvasBlock = this.getBlockById(serverBlock.block_id);
+        if (!canvasBlock) continue;
+
+        canvasBlock.block_error = serverBlock.block_error ?? null;
+        for (const param of canvasBlock.actual_parameters) {
+          if (Object.prototype.hasOwnProperty.call(serverBlock.block_parameters, param.name)) {
+            param.value = serverBlock.block_parameters[param.name] as ParameterValue;
+          }
+        }
+      }
+    }
+  }
+
   resetCanvas(): void {
     this.models = {};
     this.sections.set([]);
@@ -154,7 +177,7 @@ export class CanvasBlocksService {
      * @param models The list of models to set the local model to.
      */
   setBlockData(models: Record<string, TriggerModel>): void {
-    console.log('setBlockData:', models);
+    if (DEBUG) console.log('setBlockData:', models);
 
     // Reset so recall replaces (not merges with) any previous session.
     this.models = {};
@@ -262,8 +285,10 @@ export class CanvasBlocksService {
       fInputId,
     };
     this.connections.update((current) => [...current, newConnection]);
-    console.log('Connection added to array:', newConnection);
-    console.log('Total connections:', this.connections().length);
+    if (DEBUG) {
+      console.log('Connection added to array:', newConnection);
+      console.log('Total connections:', this.connections().length);
+    }
   }
 
   /**
@@ -277,6 +302,45 @@ export class CanvasBlocksService {
     this.connections.update((current) =>
       current.filter((c) => c.fInputId !== fInputId),
     );
+  }
+
+  /**
+   * Removes a single visual connection by id and clears the corresponding
+   * block-reference parameter on the target block so the underlying data
+   * stays in sync. The matching parameter is the one whose value resolves to
+   * the source block (either by `trigger_block_name` or by `block_id`); it is
+   * reset to `BLOCK_REFERENCE_UNKNOWN_VALUE`, mirroring the default state for
+   * a freshly created block.
+   */
+  removeConnectionById(connectionId: string): void {
+    const connection = this.connections().find((c) => c.id === connectionId);
+    if (!connection) return;
+
+    const targetBlockId = connection.fInputId.replace(/-in$/, '');
+    const sourceBlockId = connection.fOutputId.replace(/-out-(?:left|right)$/, '');
+
+    const targetBlock = this.getBlockById(targetBlockId);
+    const sourceBlock = this.getBlockById(sourceBlockId);
+
+    if (targetBlock) {
+      const sourceTriggerName = sourceBlock?.actual_parameters.find(
+        (p) => p.name === 'trigger_block_name',
+      )?.value;
+      const sourceValue =
+        sourceTriggerName !== undefined && sourceTriggerName !== null
+          ? String(sourceTriggerName)
+          : sourceBlockId;
+
+      for (const param of targetBlock.actual_parameters) {
+        if (!isBlockReferenceParam(param.type)) continue;
+        if (param.value != null && String(param.value) === sourceValue) {
+          param.value = BLOCK_REFERENCE_UNKNOWN_VALUE;
+        }
+      }
+    }
+
+    this.connections.update((current) => current.filter((c) => c.id !== connectionId));
+    this.updateAndPrint();
   }
   private getSVGPath(blockType: string): string {
     const svgPath = this.paletteDataService.getSVGPathByCatalogLabel(blockType);
@@ -357,14 +421,7 @@ export class CanvasBlocksService {
       return;
     }
 
-    if (!this.models[modelName]) {
-      this.models[modelName] = {
-        trigger_model_name: modelName,
-        slot_index: slotIndex,
-        node_id: nodeId,
-        blocks: [],
-      };
-    }
+    this.newModel(modelName, slotIndex, nodeId);
 
     // Initialize ActualParameter[] from blockData.parameters
     const actualParameters: ActualParameter[] = blockData.parameters.map(
@@ -389,6 +446,89 @@ export class CanvasBlocksService {
     //vscode.postMessage({ command: 'open_manual', payload: 'block_name: ' + blockName });
   }
 
+  addBlocksFromTemplate(
+    blocks: Array<{
+      templateBlockId: string; 
+      type: string;
+      block_parameters?: Record<string, unknown>;
+    }>,
+    runtimeBlockIds: string[],
+    positions: Array<{ x: number; y: number }>,
+    modelName: string,
+    slotIndex: number,
+    nodeId: string,
+    preComputedNames?: Map<string, string>,
+  ): void {
+    const catalogData = this.triggerFlowDataService.getCatalog();
+    if (!catalogData) {
+      console.warn('Catalog data not loaded yet');
+      return;
+    }
+
+    if (!this.models[modelName]) {
+      this.models[modelName] = {
+        trigger_model_name: modelName,
+        slot_index: slotIndex,
+        node_id: nodeId,
+        blocks: [],
+      };
+    }
+
+    const canvasBlocks: CanvasBlock[] = [];
+
+    blocks.forEach((tmplBlock, index) => {
+      const blockLabel = tmplBlock.type.toLowerCase().trim();
+      const blockData = this.findBlockInCatalog(blockLabel, catalogData);
+
+      if (!blockData) {
+        console.warn(`Block "${blockLabel}" not found in catalog`);
+        return;
+      }
+
+      let finalTriggerName: string;
+      if (preComputedNames?.has(tmplBlock.templateBlockId)) {
+        finalTriggerName = preComputedNames.get(tmplBlock.templateBlockId)!;
+      } else {
+        const catalogDefaultName = (blockData.parameters.find((p) => p.name === 'trigger_block_name')?.default) ?? 'Block';
+        finalTriggerName = this.getUniqueBlockName(catalogDefaultName.toString());
+      }
+
+      const actualParameters: ActualParameter[] = blockData.parameters.map((param) => {
+        const actual = new ActualParameter(param);
+
+        if (param.name === 'trigger_block_name') {
+          actual.value = finalTriggerName;
+        } else {
+          const templateValue = tmplBlock.block_parameters?.[param.name];
+          if (templateValue !== null && templateValue !== undefined) {
+            actual.value = templateValue as ParameterValue;
+          }
+        }
+
+        return actual;
+      });
+
+      const canvasBlock: CanvasBlock = {
+        block_id: runtimeBlockIds[index],
+        type: blockLabel,
+        blockData: blockData,
+        block_position: positions[index] ?? { x: 0, y: 0 },
+        incoming: null,
+        outgoing: null,
+        block_error: null,
+        actual_parameters: actualParameters,
+        notes: '',
+      };
+
+      canvasBlocks.push(canvasBlock);
+    });
+
+    this.models[modelName].blocks.push(...canvasBlocks);
+    this.sortBlocksByVerticalPosition(this.models[modelName]);
+
+    this.updateAndPrint();
+  }
+
   getUniqueBlockName(baseName: string): string {
     if (!this.blockNamesSet.has(baseName)) {
       this.blockNamesSet.set(baseName, 1);
@@ -399,6 +539,18 @@ export class CanvasBlocksService {
     uniqueName = `${baseName} ${count}`;
     this.blockNamesSet.set(baseName, count + 1);
     return uniqueName;
+  }
+
+  newModel(modelName: string, slotIndex: number, nodeId: string) {
+    if (!this.models[modelName]) {
+      this.models[modelName] = {
+        trigger_model_name: modelName,
+        slot_index: slotIndex,
+        node_id: nodeId,
+        blocks: [],
+      };
+    }
+    this.updateAndPrint();
   }
 
   removeModel(modelId: string): void {
@@ -526,16 +678,18 @@ export class CanvasBlocksService {
     const data = this.getCanvasData();
     this.update(data);
 
-    console.log('=== Canvas Blocks JSON ===');
-    console.log(JSON.stringify(data, null, 2));
-    console.log('========================');
+    if (DEBUG) {
+      console.log('=== Canvas Blocks JSON ===');
+      console.log(JSON.stringify(data, null, 2));
+      console.log('========================');
+    }
     this.logIpcDataFormat();
   }
 
   private sendIpcDataToServer(ipcData: { request_type: string; additional_info: string; json_value: string }): void {
     try {
       this.websocketService.send(JSON.stringify(ipcData));
-      console.log('=======IpcData sent to server successfully=======');
+      if (DEBUG) console.log('=======IpcData sent to server successfully=======');
     } catch (error) {
       console.error('Failed to send ipcData over websocket:', error);
     }
@@ -758,9 +912,11 @@ export class CanvasBlocksService {
       json_value: triggerFlowState,
     };
 
-    console.log('=== Rust IpcData Format ===');
-    console.log(JSON.stringify(ipcData, null, 2));
-    console.log('==========================');
+    if (DEBUG) {
+      console.log('=== Rust IpcData Format ===');
+      console.log(JSON.stringify(ipcData, null, 2));
+      console.log('==========================');
+    }
 
     this.sendIpcDataToServer(ipcData);
   }
