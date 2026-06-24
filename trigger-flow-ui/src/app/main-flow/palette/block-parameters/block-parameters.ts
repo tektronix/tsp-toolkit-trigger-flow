@@ -1,7 +1,7 @@
 import { Component, DestroyRef, effect, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AngularSvgIconModule } from 'angular-svg-icon';
-import { CanvasBlocksService } from '../../../services/canvas-blocks.service';
+import { CanvasBlocksService, vscode } from '../../../services/canvas-blocks.service';
 import {
   findblockCategory,
   getBlockParameterDisplayName,
@@ -30,6 +30,7 @@ import { RadioGroup, RadioOption } from '../../../custom-controls/radio-group/ra
 import { ModelResourceAllocationService } from '../../../services/model-resource-allocation.service';
 import { Checkbox } from '../../../custom-controls/checkbox/checkbox';
 import { DelayListModal, DelayListModalValue } from './delay-list-modal/delay-list-modal';
+import { DEBUG } from '../../../debug';
 
 const CATEGORY_ICON_PATHS: Record<string, string> = {
   actions: 'assets/shapes/icons/TinyAction.svg',
@@ -101,6 +102,17 @@ export class BlockParameters {
         this.updateBlockControls();
       });
 
+    // `models$` only updates from `updateStatePayload` (the `evaluate_response`
+    // round-trip), not from local canvas edits, so this fires exactly when
+    // server-validated parameters arrive. The canvas service was reconciled
+    // before the signal, so only re-bind `actualParameters`
+    effect(() => {
+      this.triggerFlowDataService.models$();
+      if (this.selectedBlockId !== null) {
+        this.syncFromCanvasBlock();
+      }
+    });
+
     // Catalog data is loaded asynchronously, so reading it once in ngOnInit can
     // leave the Event custom UI empty. Keep the trigger event definitions in sync
     // with the reactive catalog signal so raw event names and parameter labels are
@@ -111,15 +123,29 @@ export class BlockParameters {
     });
   }
 
+  onBlockInfoClick(): void {
+    if (!this.blockName) {
+      return;
+    }
+    vscode.postMessage({ command: 'open_manual', payload: { block_name: this.blockName } });
+  }
+
   private updateBlockControls() {
     if (this.selectedBlockId !== null) {
       const canvasBlock = this.canvasBlocksService.getBlockById(this.selectedBlockId);
-      if (canvasBlock) {
-        this.blockName = canvasBlock.type.toUpperCase(); // Display type as name for now
-        const category = findblockCategory(canvasBlock.type);
-        if (category) {
-          this.blockTypeSvgPath = CATEGORY_ICON_PATHS[category];
-        }
+      if (!canvasBlock) {
+        // The selected `block_id` is absent from the current canvas (for
+        // example after a recall that does not contain it). Clear the
+        // selection so the panel renders empty instead of stale parameters.
+        this.canvasBlocksService.clearSelectedBlock();
+        return;
+      }
+
+      this.blockName = canvasBlock.type.toUpperCase(); // Display type as name for now
+      const category = findblockCategory(canvasBlock.type);
+      if (category) {
+        this.blockTypeSvgPath = CATEGORY_ICON_PATHS[category];
+      }
 
         this.actualParameters = canvasBlock.actual_parameters;
         // Snapshot the current name so a subsequent edit can be detected as a
@@ -130,27 +156,44 @@ export class BlockParameters {
           ? String(linkParam.value)
           : '';
 
-        // Resolve model context from the owning model
-        const model = this.canvasBlocksService.getModelForBlock(this.selectedBlockId);
+      // Resolve model context from the owning model
+      const model = this.canvasBlocksService.getModelForBlock(this.selectedBlockId);
 
-        this.selectedBlockNodeId = model?.node_id ?? 'localnode';
-        this.selectedBlockSlotIndex = model?.slot_index ?? 1;
+      this.selectedBlockNodeId = model?.node_id ?? 'localnode';
+      this.selectedBlockSlotIndex = model?.slot_index ?? 1;
 
-        // Notes are per-block, so refresh the textarea each time selection changes.
-        this.blockNotes = canvasBlock.notes ?? '';
-        // Refresh channel options BEFORE seeding defaults so composite params
-        // (e.g. SourceOutputState) can pick a valid initial channel_index.
-        this.refreshChannelListOptions();
-        this.refreshChannelItemOptions();
-        const seeded = this.ensureParameterDefaults(this.actualParameters);
-        if (seeded) {
-          // Defaults were just populated (e.g. first time a block is dropped onto
-          // the canvas). Regenerate the script so the seeded values are reflected
-          // immediately, not only on the user's first manual edit.
-          this.canvasBlocksService.updateAndPrint();
-        }
+      // Notes are per-block, so refresh the textarea each time selection changes.
+      this.blockNotes = canvasBlock.notes ?? '';
+      // Refresh channel options BEFORE seeding defaults so composite params
+      // (e.g. SourceOutputState) can pick a valid initial channel_index.
+      this.refreshChannelListOptions();
+      this.refreshChannelItemOptions();
+      const seeded = this.ensureParameterDefaults(this.actualParameters);
+      if (seeded) {
+        // Defaults were just populated (e.g. first time a block is dropped onto
+        // the canvas). Regenerate the script so the seeded values are reflected
+        // immediately, not only on the user's first manual edit.
+        this.canvasBlocksService.updateAndPrint();
       }
     }
+  }
+
+  /**
+   * Re-bind `actualParameters` to the (already reconciled) canvas block
+   * after a server response.
+   */
+  private syncFromCanvasBlock(): void {
+    if (this.selectedBlockId === null) {
+      return;
+    }
+
+    const canvasBlock = this.canvasBlocksService.getBlockById(this.selectedBlockId);
+    if (!canvasBlock) {
+      this.canvasBlocksService.clearSelectedBlock();
+      return;
+    }
+
+    this.actualParameters = canvasBlock.actual_parameters;
   }
 
   /**
@@ -308,12 +351,15 @@ export class BlockParameters {
     const canvasBlock = this.canvasBlocksService.getBlockById(this.selectedBlockId);
     if (!canvasBlock) return;
 
-    console.log(
-      'Updating block parameters for block ID:',
-      this.selectedBlockId,
-      'with values:',
-      this.actualParameters,
-    );
+    if (DEBUG) {
+      console.log(
+        'Updating block parameters for block ID:',
+        this.selectedBlockId,
+        'with values:',
+        this.actualParameters,
+      );
+    }
+
     canvasBlock.actual_parameters = this.actualParameters;
 
     // Detect a rename of `trigger_block_name` on the currently selected
@@ -361,7 +407,7 @@ export class BlockParameters {
       // search for block with name same as sourceValue to connect with
       const targetBlock = this.canvasBlocksService.findBlockByName(sourceValue);
       if (targetBlock) {
-        console.log('Found target block to connect:', targetBlock);
+        if (DEBUG) console.log('Found target block to connect:', targetBlock);
         // The block whose `trigger_block_name` matches is the source (output);
         // the currently selected block is the target (input).
         this.canvasBlocksService.requestConnection(
@@ -526,7 +572,6 @@ export class BlockParameters {
 
     this.showDelayListModal = false;
     this.previousDelayListConfig = null;
-    this.onParameterValueChange();
   }
 
   onDelayListApply(event: DelayListModalValue): void {

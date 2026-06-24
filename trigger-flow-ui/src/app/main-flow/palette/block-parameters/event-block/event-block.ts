@@ -12,11 +12,11 @@ import {
   resolveParameterOptions,
   resolveParamControlType,
 } from '../../../../models/blockParameterHelper';
-import { Checkbox } from '../../../../custom-controls/checkbox/checkbox';
 import { RadioButton } from '../../../../custom-controls/radio-button/radio-button';
 
 interface EventParamView {
   name: string;
+  label?: string;
   type?: string;
   options?: { label: string; value: string }[] | null;
   constraints?: Record<string, ParamConstraintLike> | null;
@@ -50,28 +50,28 @@ const EVENT_TYPE_ORDER = [
 // This ensures the Event custom UI still shows the expected checkboxes/parameter names.
 const FALLBACK_EVENT_DEFINITIONS: Record<string, { parameters: EventParamView[] }> = {  
   event_digio: {
-    parameters: [{ name: 'digio_trigger_line' }],
+    parameters: [{ name: 'digio_trigger_line', label: 'Trigger Line' }],
   },
   event_notify_n: {
-    parameters: [{ name: 'slot_index' }, { name: 'notify_event_number' }],
+    parameters: [{ name: 'slot_index', label: 'Slot' }, { name: 'notify_event_number', label: 'Event Number' }],
   },
   event_at_limit: {
-    parameters: [{ name: 'slot_index' }, { name: 'channel_index' }],
+    parameters: [{ name: 'slot_index', label: 'Slot' }, { name: 'channel_index', label: 'Channel' }],
   },
   event_generator: {
-    parameters: [{ name: 'generator_number' }],
+    parameters: [{ name: 'generator_number', label: 'Generator Number' }],
   },
   event_timer: {
-    parameters: [{ name: 'trigger_timer_number' }],
+    parameters: [{ name: 'trigger_timer_number', label: 'Timer Number' }],
   },
   event_tsplink: {
-    parameters: [{ name: 'trigger_line' }],
+    parameters: [{ name: 'trigger_line', label: 'Trigger Line' }],
   },
 };
 
 @Component({
   selector: 'app-event-block',
-  imports: [Textbox, Dropdown, Checkbox, RadioButton],
+  imports: [Textbox, Dropdown, RadioButton],
   templateUrl: './event-block.html',
   styleUrl: './event-block.scss',
 })
@@ -80,8 +80,8 @@ export class EventBlockComponent implements OnChanges {
 
   // User must keep at least 1 event selected
   // User can select at most 4 events
-  private readonly MIN_EVENTS = 1;
-  private readonly MAX_EVENTS = 4;
+  readonly MIN_EVENTS = 1;
+  readonly MAX_EVENTS = 4;
 
   @Input() param!: ActualParameter;
   @Input() triggerEvents!: Record<string, EventDefinition>;
@@ -92,6 +92,10 @@ export class EventBlockComponent implements OnChanges {
 
   eventTypes: string[] = [];
   private slotChannelList: SlotChannelList | null = null;
+
+  get isAddDisabled(): boolean {
+    return this.selectedEvents.length >= this.MAX_EVENTS;
+  }
 
   ngOnChanges() {
     this.slotChannelList = this.triggerFlowDataService.getSlotChannelList();
@@ -141,7 +145,15 @@ export class EventBlockComponent implements OnChanges {
     //
     // To keep UI state and model state synchronized, we immediately
     // create a fully initialized event whenever selection becomes empty.
-    if (this.selectedEvents.length < this.MIN_EVENTS && this.eventTypes.length > 0) {
+    //
+    // Only enforced for single-selection mode ("on event"). In multi mode
+    // ("wait on event") the user now drives selection explicitly via
+    // per-row dropdowns, so an empty selection is a valid initial state.
+    if (
+      this.isSingleSelection &&
+      this.selectedEvents.length < this.MIN_EVENTS &&
+      this.eventTypes.length > 0
+    ) {
       const initialized = this.createInitializedEvent(this.eventTypes[0]);
 
       if (this.param.type === 'EventItem') {
@@ -187,8 +199,62 @@ export class EventBlockComponent implements OnChanges {
     }
   }
   
+  // Placeholder string shown in the per-row event-type dropdown when a row
+  // has not yet been assigned an event. Picking this value clears the row.
+  readonly EVENT_TYPE_PLACEHOLDER = 'Select';
+
+  // Placeholder string shown in the right-side parameter dropdown when a
+  // row has not yet been assigned an event. The dropdown is disabled and
+  // displays only this single character so the user sees a layout-stable
+  // control before they pick an event type.
+  readonly PARAM_PLACEHOLDER = '-';
+  readonly placeholderParamOptions = [this.PARAM_PLACEHOLDER];
+
   get isSingleSelection(): boolean {
     return this.selectionMode === 'single';
+  }
+
+  // Options for the multi-mode per-row event type dropdown.
+  // The first option is the "Select" placeholder which represents an
+  // unassigned slot.
+  get eventTypeDropdownOptions(): string[] {
+    return [this.EVENT_TYPE_PLACEHOLDER, ...this.eventTypes.map((type) => this.getEventTypeLabel(type))];
+  }
+
+  getEventTypeLabel(type: string): string {
+    return this.triggerEvents?.[type]?.label ?? type;
+  }
+
+  getParamLabel(param: EventParamView): string {
+    return param.label ?? param.name;
+  }
+
+  private getEventTypeFromLabel(label: string): string {
+    const matchedType = this.eventTypes.find((type) => this.getEventTypeLabel(type) === label);
+    return matchedType ?? label;
+  }
+
+  // Row list rendered in multi-selection mode.
+  //
+  // Note: "row" here refers to a UI row in the event list.
+  //
+  // - Each currently selected event is rendered as a row (and can be
+  //   independently changed or removed via its event-type dropdown).
+  // - A trailing empty row is appended whenever the user can still add
+  //   another event (fewer than MAX_EVENTS selected). This gives the
+  //   "add one more" affordance without a separate button.
+  // - The same event type may now appear in multiple rows, so rows are
+  //   identified by index rather than by type.
+  get eventRows(): Array<{ event: EventListItem | null }> {
+    const rows: Array<{ event: EventListItem | null }> = this.selectedEvents.map((event) => ({
+      event,
+    }));
+
+    if (rows.length < this.MAX_EVENTS) {
+      rows.push({ event: null });
+    }
+
+    return rows;
   }
 
   get selectedEvents(): EventListItem[] {
@@ -208,60 +274,6 @@ export class EventBlockComponent implements OnChanges {
 
   isSelected(type: string): boolean {
     return this.selectedEvents.some((e) => e.type === type);
-  }
-
-  // Disabled state logic for event type checkboxes:
-  // - disable unchecked when 4 already selected
-  // - disable last checked item to keep minimum 1
-  isEventTypeDisabled(type: string): boolean {
-    const selected = this.isSelected(type);
-
-    // Disable unchecked boxes when 4 are already selected (prevents selecting a 5th).
-    if (!selected && this.selectedEvents.length >= this.MAX_EVENTS) {
-      return true;
-    }
-
-    // Disable the only remaining checked box to preserve minimum selection = 1.
-    if (selected && this.selectedEvents.length <= this.MIN_EVENTS) {
-      return true;
-    }
-
-    return false;
-  }
-
-  toggleEvent(type: string) {
-    if (this.isSingleSelection) {
-      this.selectSingleEvent(type);
-      return;
-    }
-
-    const existing = this.selectedEvents.find((e) => e.type === type);
-
-    if (existing) {
-      // Guard in handler as well (UI disable alone is not sufficient).
-      if (this.selectedEvents.length <= this.MIN_EVENTS) return;
-      this.param.value = this.selectedEvents.filter((e) => e.type !== type);
-    } else {
-      if (this.selectedEvents.length >= this.MAX_EVENTS) return;
-
-      const newItem = this.createInitializedEvent(type);
-
-      this.param.value = [...this.selectedEvents, newItem];
-    }
-
-    this.valueChange.emit();
-  }
-
-  onEventCheckedChange(type: string, checked: boolean): void {
-    const selected = this.isSelected(type);
-
-    if (checked && !selected) {
-      this.toggleEvent(type);
-    }
-
-    if (!checked && selected) {
-      this.toggleEvent(type);
-    }
   }
 
   selectSingleEvent(type: string) {
@@ -351,6 +363,96 @@ export class EventBlockComponent implements OnChanges {
     } else {
       this.param.value = normalized;
     }
+    this.valueChange.emit();
+  }
+
+  // Multi-mode per-event-row handler: user changed the event type for the
+  // event row at `index`.
+  //
+  // Behavior:
+  // - Picking the "Select" placeholder removes the event at this row
+  //   (or is a no-op for the trailing empty row).
+  // - Picking a real event type either replaces the event at an existing
+  //   row or appends a newly initialized event (respecting MAX_EVENTS).
+  // - The same event type is allowed in multiple rows, so we do not
+  //   deduplicate.
+  onEventRowTypeChange(index: number, selectedLabel: string): void {
+    if (this.isSingleSelection) return;
+
+    if (selectedLabel === this.EVENT_TYPE_PLACEHOLDER) {
+      if (index < this.selectedEvents.length) {
+        this.param.value = this.selectedEvents.filter((_, i) => i !== index);
+        this.valueChange.emit();
+      }
+      return;
+    }
+
+    const type = this.getEventTypeFromLabel(selectedLabel);
+
+    const newEvent = this.createInitializedEvent(type);
+    const events = [...this.selectedEvents];
+
+    if (index < events.length) {
+      events[index] = newEvent;
+    } else {
+      if (events.length >= this.MAX_EVENTS) return;
+      events.push(newEvent);
+    }
+
+    this.param.value = events;
+    this.valueChange.emit();
+  }
+
+  // Multi-mode per-event-row getter for a parameter dropdown value.
+  // Indexed access ensures duplicates of the same event type stay independent.
+  getParamValueForEventRow(index: number, paramName: string): string {
+    const eventItem = this.selectedEvents[index];
+    const stored = eventItem?.params?.[paramName];
+
+    return stored === undefined || stored === null ? '' : `${stored}`;
+  }
+
+  // Multi-mode per-event-row getter for parameter dropdown options.
+  // Resolves dependent options against the params of the event at `index`
+  // (row-local state) rather than searching by type.
+  getOptionsForEventRow(index: number, param: EventParamView): string[] {
+    const eventItem = this.selectedEvents[index];
+
+    return resolveParameterOptions(param, {
+      values: eventItem?.params ?? {},
+      slotChannelList: this.slotChannelList,
+      modelNodeId: this.modelNodeId,
+      modelSlotIndex: this.modelSlotIndex,
+    });
+  }
+
+  // Multi-mode per-event-row parameter update.
+  // Normalizes the row's params so dependent dropdowns and script
+  // generation stay in sync after the change.
+  updateParamForEventRow(index: number, paramName: string, value: string | number): void {
+    if (index >= this.selectedEvents.length) return;
+
+    const events = this.selectedEvents.map((event, i) => {
+      if (i !== index) return event;
+
+      const updatedParams = {
+        ...event.params,
+        [paramName]: value,
+      };
+
+      return {
+        ...event,
+        params: normalizeParameterValues(
+          this.getParamsForType(event.type),
+          updatedParams,
+          this.slotChannelList,
+          this.modelNodeId,
+          this.modelSlotIndex,
+        ),
+      };
+    });
+
+    this.param.value = events;
     this.valueChange.emit();
   }
 

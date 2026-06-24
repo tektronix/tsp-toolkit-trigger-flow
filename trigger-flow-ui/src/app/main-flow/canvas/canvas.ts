@@ -28,6 +28,7 @@ import {
 } from '@foblex/flow';
 import { ModelModalValue } from '../model-modal/model-modal';
 import { EventListItem } from '../../models/triggerBlock';
+import { DEBUG } from '../../debug';
 
 // Generate all groups that might have toggle-able visibility
 const DEFAULT_HIDDEN_SELECTORS: string[] = [
@@ -172,6 +173,7 @@ export class Canvas implements AfterViewInit {
 
   canvasSize = signal(this.getCanvasSize());
   selectedNodeIds = signal<string[]>([]);
+  selectedConnectionIds = signal<string[]>([]);
   insertionIndicator = signal<InsertionIndicator | null>(null);
   private activeDraggedNodeId = signal<string | null>(null);
   private isExternalDragActive = false;
@@ -309,40 +311,58 @@ export class Canvas implements AfterViewInit {
       });
   }
 
-  readonly modelErrorSummary = computed<Record<string, { hasError: boolean; tooltip: string }>>(
-    () => {
-      const models = this.triggerFlowDataService.models$();
-      const result: Record<string, { hasError: boolean; tooltip: string }> = {};
+  // Single pass over `models$` builds both the per-model summary (for
+  // section-header error styling) and the per-block index (for node-level
+  // error styling).
+  private readonly errorMaps = computed<{
+    modelSummary: Record<string, { hasError: boolean; tooltip: string }>;
+    blockIndex: Record<string, { hasError: boolean; tooltip: string }>;
+  }>(() => {
+    const models = this.triggerFlowDataService.models$();
+    const modelSummary: Record<string, { hasError: boolean; tooltip: string }> = {};
+    const blockIndex: Record<string, { hasError: boolean; tooltip: string }> = {};
 
-      for (const [modelName, model] of Object.entries(models)) {
-        const lines: string[] = [];
-        let hasAnyError = false;
+    for (const [modelName, model] of Object.entries(models)) {
+      const lines: string[] = [];
+      let hasAnyError = false;
 
-        for (const block of model.blocks) {
-          if (this.hasBlockErrorItems(block.block_error)) {
-            hasAnyError = true;
-          }
+      for (const block of model.blocks) {
+        const hasError = this.hasBlockErrorItems(block.block_error);
+        const messages = this.getBlockMessages(block.block_error);
 
-          const errors = this.getBlockMessages(block.block_error);
-          for (const message of errors) {
-            lines.push(`${block.block_id} - ${message}`);
-          }
+        if (hasError) {
+          hasAnyError = true;
         }
 
-        result[modelName] = {
-          hasError: hasAnyError,
-          tooltip:
-            lines.length > 0 ? lines.join('\n') : hasAnyError ? 'Validation errors found' : '',
+        for (const message of messages) {
+          lines.push(`${block.block_id} - ${message}`);
+        }
+
+        blockIndex[block.block_id] = {
+          hasError,
+          tooltip: messages.join('\n'),
         };
       }
 
-      return result;
-    },
-  );
+      modelSummary[modelName] = {
+        hasError: hasAnyError,
+        tooltip:
+          lines.length > 0 ? lines.join('\n') : hasAnyError ? 'Validation errors found' : '',
+      };
+    }
+
+    return { modelSummary, blockIndex };
+  });
+
+  readonly modelErrorSummary = computed(() => this.errorMaps().modelSummary);
+
+  readonly blockErrorIndex = computed(() => this.errorMaps().blockIndex);
 
   onCreateNode(event: FlowCanvasEvent): void {
-    console.log('fCreateNode event:', event);
-    console.log('Block Type:', event.data?.type);
+    if (DEBUG) {
+      console.log('fCreateNode event:', event);
+      console.log('Block Type:', event.data?.type);
+    }
     if (!event.data || !event.data.type || !event.rect) return;
 
     // first block + no model => ask parent to open modal
@@ -619,8 +639,10 @@ export class Canvas implements AfterViewInit {
   }
 
   onCreateConnection(event: { fOutputId?: string; fInputId?: string }) {
-    console.log('🔗 CONNECTION CREATED! Event details:', event);
-    console.log('Connection data:', JSON.stringify(event, null, 2));
+    if (DEBUG) {
+      console.log('🔗 CONNECTION CREATED! Event details:', event);
+      console.log('Connection data:', JSON.stringify(event, null, 2));
+    }
 
     if (event.fOutputId && event.fInputId) {
       const outputBlockId = this.extractBlockIdFromPortId(event.fOutputId);
@@ -634,26 +656,18 @@ export class Canvas implements AfterViewInit {
       // Resolve semantic direction independent of drag start side:
       // the "referencing" block is whichever endpoint owns a supported
       // block-reference parameter, and the opposite endpoint is the source.
+      // When both endpoints own a link parameter, the input-side endpoint
+      // (drag drop target) wins.
       if (outputBlock && inputBlock && outputBlockId && inputBlockId) {
         const outputParamName = this.getLinkParamName(outputBlock);
         const inputParamName = this.getLinkParamName(inputBlock);
 
-        const targetFromOutput =
-          !!outputParamName &&
-          (!inputParamName ||
-            this.getLinkParamPriority(outputParamName) <=
-            this.getLinkParamPriority(inputParamName));
+        const targetFromInput = !!inputParamName;
 
-        const targetBlock = targetFromOutput
-          ? outputParamName
-            ? outputBlock
-            : null
-          : inputParamName
-            ? inputBlock
-            : null;
-        const targetBlockId = targetBlock === outputBlock ? outputBlockId : targetBlock === inputBlock ? inputBlockId : null;
-        const parameterName = targetBlock === outputBlock ? outputParamName : targetBlock === inputBlock ? inputParamName : null;
-        const sourceBlock = targetBlock === outputBlock ? inputBlock : outputBlock;
+        const targetBlock = targetFromInput ? inputBlock : outputParamName ? outputBlock : null;
+        const targetBlockId = targetFromInput ? inputBlockId : outputParamName ? outputBlockId : null;
+        const parameterName = targetFromInput ? inputParamName : outputParamName;
+        const sourceBlock = targetFromInput ? outputBlock : inputBlock;
 
         if (!targetBlock || !targetBlockId || !parameterName) {
           console.warn('Connection ignored: neither endpoint supports a block-reference parameter.');
@@ -676,9 +690,11 @@ export class Canvas implements AfterViewInit {
           parameterName,
           sourceValue,
         );
-        console.log(
-          `Set ${parameterName}=${sourceValue} on block ${targetBlockId}`,
-        );
+        if (DEBUG) {
+          console.log(
+            `Set ${parameterName}=${sourceValue} on block ${targetBlockId}`,
+          );
+        }
         // Always persist the visual line in canonical data direction:
         // source (referenced block) -> target (referencing block).
         this.canvasBlocksService.addConnectionByBlockIds(sourceBlock, targetBlock);
@@ -701,21 +717,6 @@ export class Canvas implements AfterViewInit {
     return null;
   }
 
-  private getLinkParamPriority(
-    paramName: 'branch_to_block_name' | 'reference_block_name' | 'reset_branch_count_block_name',
-  ): number {
-    switch (paramName) {
-      case 'branch_to_block_name':
-        return 0;
-      case 'reference_block_name':
-        return 1;
-      case 'reset_branch_count_block_name':
-        return 2;
-      default:
-        return Number.MAX_SAFE_INTEGER;
-    }
-  }
-
   /**
    * Port ids are constructed as `<blockId>-out-<side>` or `<blockId>-in[-<side>]`.
    * Strip the trailing port suffix so we can resolve back to the FlowNode/block.
@@ -730,8 +731,10 @@ export class Canvas implements AfterViewInit {
   }
 
   onSelectionChange(event: FSelectionChangeEvent): void {
-    const nodeIds = event.fNodeIds ?? [];
+    const nodeIds = event.nodeIds ?? [];
+    const connectionIds = event.connectionIds ?? [];
     this.selectedNodeIds.set(nodeIds);
+    this.selectedConnectionIds.set(connectionIds);
     if (nodeIds.length > 0) {
       this.canvasBlocksService.selectBlock(nodeIds[0]);
       return;
@@ -886,7 +889,7 @@ export class Canvas implements AfterViewInit {
 
   onDropToGroup(event: FlowCanvasEvent) {
     // Intentionally ignored: nodes stay in their original section after creation.
-    console.log('fDropToGroup ignored (section reassignment disabled):', event);
+    if (DEBUG) console.log('fDropToGroup ignored (section reassignment disabled):', event);
   }
 
   private getSectionById(sectionId: string): FlowSection | undefined {
@@ -1269,7 +1272,7 @@ export class Canvas implements AfterViewInit {
       switch (block.type) {
         case 'notify':
         case 'on event': {
-          console.warn(block.type, block.actual_parameters);
+          if (DEBUG) console.warn(block.type, block.actual_parameters);
           const event_id = block.actual_parameters.find((param) => param.name === 'event_id');
           if (
             event_id &&
@@ -1291,9 +1294,9 @@ export class Canvas implements AfterViewInit {
           break;
         }
         case 'wait on event': {
-          console.warn(block.type, block.actual_parameters);
+          if (DEBUG) console.warn(block.type, block.actual_parameters);
           const event_id = block.actual_parameters.find((param) => param.name === 'event');
-          let logic = block.actual_parameters.find((param) => param.name === 'logic')?.value;
+          let logic = block.actual_parameters.find((param) => param.name === 'Logic')?.value;
           if (logic && typeof logic === 'string') {
             logic = logic === 'AND' ? '.EventsAny' : '.EventsAll';
             showGroupSelectors.push(logic)
@@ -1348,7 +1351,7 @@ export class Canvas implements AfterViewInit {
     if (!groupQueries.length) {
       return;
     }
-    console.warn('groupQueries', groupQueries);
+    if (DEBUG) console.warn('groupQueries', groupQueries);
     for (const query of groupQueries) {
       svgRoot.querySelectorAll(`g ${query}`).forEach((g) => {
         if (!hidden) { console.warn("Showing", g) }
@@ -1444,12 +1447,28 @@ export class Canvas implements AfterViewInit {
           ? [selectedFromService]
           : [];
 
-    if (!nodeIds.length) {
+    const connectionIds = this.selectedConnectionIds();
+
+    if (!nodeIds.length && !connectionIds.length) {
       return;
     }
 
     event.preventDefault();
-    this.deleteNodes(nodeIds);
+
+    if (connectionIds.length) {
+      this.deleteConnections(connectionIds);
+    }
+
+    if (nodeIds.length) {
+      this.deleteNodes(nodeIds);
+    }
+  }
+
+  private deleteConnections(connectionIds: string[]): void {
+    for (const id of connectionIds) {
+      this.canvasBlocksService.removeConnectionById(id);
+    }
+    this.selectedConnectionIds.set([]);
   }
 
   ngAfterViewInit(): void {
@@ -1523,6 +1542,14 @@ export class Canvas implements AfterViewInit {
 
   getSectionErrorTooltip(modelName: string): string {
     return this.modelErrorSummary()[modelName]?.tooltip ?? 'No validation errors';
+  }
+
+  hasNodeError(blockId: string): boolean {
+    return this.blockErrorIndex()[blockId]?.hasError ?? false;
+  }
+
+  getNodeErrorTooltip(blockId: string): string {
+    return this.blockErrorIndex()[blockId]?.tooltip ?? '';
   }
 
   private getBlockMessages(blockError: BlockErrorEntry[] | null | undefined): string[] {

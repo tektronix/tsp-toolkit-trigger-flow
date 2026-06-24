@@ -498,26 +498,19 @@ blocks:
         type: ChannelList
         required: true
       - name: state
-        type: SourceOutputState
+        type: SourceState
         required: true
-        fields:
-          - name: channel_index
-            type: ChannelItem
-            required: true
-          - name: state_value
-            type: SourceState
-            required: true
-            default: 'ON'
-            options:
-              - label: 'ON'
-                value: 'ON'
-              - label: 'OFF'
-                value: 'OFF'
+        default: 'ON'
+        options:
+          - label: 'ON'
+            value: 'ON'
+          - label: 'OFF'
+            value: 'OFF'
     syntax: >-
       slot[{{slot_index}}].trigger.model.addblock.source.output("{{trigger_model_name}}",
       "{{trigger_block_name}}",
       { {{#each channel_list}}{{this}}{{#unless @last}}, {{/unless}}{{/each}} },
-      slot[{{slot_index}}].{{module_type slot_index node_id}}[{{state.channel_index}}].{{state.state_value}})
+      slot[{{slot_index}}].{{module_type slot_index node_id}}.{{state}})
     description: The source output block turns the output of the source on or off.
     shape: conditional
   wait on event:
@@ -529,7 +522,7 @@ blocks:
       - name: event
         type: EventList
         required: true
-      - name: clear
+      - name: Clear
         type: ClearType
         required: false
         options:
@@ -537,7 +530,7 @@ blocks:
             value: ENTER
           - label: Never
             value: NEVER
-      - name: logic
+      - name: Logic
         type: LogicType
         required: false
         options:
@@ -559,11 +552,14 @@ blocks:
 
 trigger_events:
   event_notify_n:
+    label: "Notify"
     parameters:
       - name: slot_index
+        label: "Slot"
         type: SlotIndex
         required: true
       - name: notify_event_number
+        label: "Event Number"
         type: notifyEventNumber
         required: true
         default: '1'
@@ -623,8 +619,10 @@ trigger_events:
     syntax: slot[{{slot_index}}].trigger.model.EVENT_NOTIFY{{notify_event_number}}
     shape: circle
   event_digio:
+    label: "Digital I/O"
     parameters:
       - name: digio_trigger_line
+        label: "Trigger Line"
         type: digioTriggerLine
         required: true
         default: '1'
@@ -668,18 +666,23 @@ trigger_events:
     syntax: digio.trigger[{{digio_trigger_line}}].EVENT_ID
     shape: undefined
   event_at_limit:
+    label: "At Limit"
     parameters:
       - name: slot_index
+        label: "Slot"
         type: SlotIndex
         required: true
       - name: channel_index
+        label: "Channel"
         type: ChannelIndex
         required: true
     syntax: slot[{{slot_index}}].{{module_type slot_index}}[{{channel_index}}].trigger.EVENT_AT_LIMIT
     shape: undefined
   event_generator:
+    label: "Generator"
     parameters:
       - name: generator_number
+        label: "Generator Number"
         type: generatorNumber
         required: true
         default: '1'
@@ -703,8 +706,10 @@ trigger_events:
     syntax: trigger.generator[{{generator_number}}].EVENT_ID
     shape: undefined
   event_timer:
+    label: "Timer"
     parameters:
       - name: trigger_timer_number
+        label: "Timer Number"
         type: triggerTimerNumber
         required: true
         default: '1'
@@ -728,8 +733,10 @@ trigger_events:
     syntax: trigger.timer[{{trigger_timer_number}}].EVENT_ID
     shape: undefined
   event_tsplink:
+    label: "TSP-Link"
     parameters:
       - name: trigger_line
+        label: "Trigger Line"
         type: triggerLine
         required: true
         default: '1'
@@ -962,6 +969,10 @@ templates:
               block_id: digital_io_trigger_wait_on_event_001
               block_parameters:
                 trigger_block_name: digital_io_trigger_wait_on_event_001
+                event:
+                  - type: event_digio
+                    params:
+                      digio_trigger_line: "1"
             - type: constant delay
               block_id: digital_io_trigger_constant_delay_001
               block_parameters:
@@ -1235,5 +1246,4 @@ templates:
             - type: wait on event
               block_id: liv_curves_wait_on_event_003
               block_parameters:
-                trigger_block_name: liv_curves_wait_on_event_003   
-        
+                trigger_block_name: liv_curves_wait_on_event_003
