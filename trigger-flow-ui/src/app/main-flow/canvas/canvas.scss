@@ -135,6 +135,17 @@ f-canvas {
   z-index: 10;
 }
 
+.node-wrapper--error .node-content {
+  ::ng-deep .ActionBlock > .Stroke,
+  ::ng-deep .BranchBlock > .Stroke,
+  ::ng-deep .NotifyBlock > .Stroke,
+  ::ng-deep .TimingBlock > .Stroke {
+    fill: var(--vscode-editorError-foreground, #f14c4c);
+    stroke: var(--vscode-editorError-foreground, #f14c4c);
+    stroke-width: 2px;
+  }
+}
+
 .node-content {
   display: none;
   /* width: 100%; */
@@ -327,6 +338,18 @@ f-canvas {
     stroke: currentColor !important;
     fill: none !important;
     pointer-events: none;
+  }
+
+  // Invisible hit-test path. The library defaults to a hairline stroke,
+  // which forces the user to click pixel-perfect on the line. Widening the
+  // stroke gives a generous click target without affecting visuals.
+  path.f-connection-selection,
+  .f-connection-selection {
+    stroke: transparent !important;
+    fill: none !important;
+    stroke-width: 20;
+    cursor: pointer;
+    pointer-events: stroke;
   }
 }
 

@@ -43,6 +43,7 @@ export interface IBlockDefinition {
 
 export interface IParameter {
   name: string;
+  label?: string;
   type: ParamTypeName;
   required: boolean;
   options?: IParameterOptions[] | null;
@@ -68,6 +69,7 @@ export interface IParameterRange {
 }
 
 export interface IEventDefinition {
+  label?: string;
   parameters: IParameter[];
   syntax: string;
 }
@@ -146,6 +148,7 @@ export class BlockDefinition {
 
 export class Parameter {
   name: string;
+  label?: string;
   type: ParamTypeName;
   required: boolean;
   options: ParameterOptions[] | null;
@@ -157,6 +160,7 @@ export class Parameter {
 
   constructor(data: IParameter) {
     this.name = data.name;
+    this.label = data.label;
     this.type = data.type;
     this.required = data.required;
     this.options = data.options
@@ -206,10 +210,12 @@ export class ParameterRange {
 }
 
 export class EventDefinition {
+  label?: string;
   parameters: Parameter[];
   syntax: string;
 
   constructor(data: IEventDefinition) {
+    this.label = data.label;
     this.parameters = data.parameters.map((parameter) => new Parameter(parameter));
     this.syntax = data.syntax;
   }
