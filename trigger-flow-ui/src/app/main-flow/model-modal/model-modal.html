@@ -2,7 +2,7 @@
   <section class="tf-modal" role="dialog" aria-modal="true" [attr.aria-label]="'New-Model-Settings'">
     <header class="tf-modal__header">
       <h2>New Model</h2>
-      <button type="button" class="icon-btn" (click)="onDelete()" automationID="Button-Close-Model-Settings">
+      <button type="button" class="icon-btn" (click)="onDelete()" automationID="Button-Close-Model-Settings" title="Close">
         <img class="icon-img" src="assets/shapes/Icons/X.svg" alt="Close" [attr.aria-label]="'Close-Model-Settings'"/>
       </button>
     </header>
@@ -56,7 +56,7 @@
         <!-- <div class="tf-modal__divider"></div> -->
 
       <div class="tf-modal__footer-icons">
-        <button type="button" class="icon-btn" (click)="onDelete()" automationID="Button-Delete-Model-Settings">
+        <button type="button" class="icon-btn" (click)="onDelete()" automationID="Button-Delete-Model-Settings" title="Delete">
           <img class="icon-img" src="assets/shapes/Icons/Trash.svg" alt="Delete" [attr.aria-label]="'Delete-Model-Settings'" />
         </button>
       <button
