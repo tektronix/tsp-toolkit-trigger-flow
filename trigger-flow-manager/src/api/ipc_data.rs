@@ -1,8 +1,11 @@
 use serde::{Deserialize, Serialize};
 
-use crate::api::{
-    request::{ErrorType, RequestType, ResponseType},
-    state::TriggerFlowState,
+use crate::{
+    api::{
+        request::{ErrorType, RequestType, ResponseType},
+        state::TriggerFlowState,
+    },
+    debug::DEBUG,
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -22,26 +25,34 @@ impl TryFrom<&IpcData> for RequestType {
         match ipc_data.request_type.as_str() {
             "initial_request" => Ok(RequestType::InitialRequest),
             "evaluate_request" => {
-                println!(
-                    "Deserializing TriggerFlowState from IPC data: {}",
-                    ipc_data.json_value
-                );
+                if DEBUG {
+                    println!(
+                        "Deserializing TriggerFlowState from IPC data: {}",
+                        ipc_data.json_value
+                    );
+                }
                 let current_state: TriggerFlowState = serde_json::from_str(&ipc_data.json_value)
                     .map_err(|e| ErrorType::DeserializationError(e.to_string()))?;
-                println!("Deserialized TriggerFlowState: {:?}", current_state);
+                if DEBUG {
+                    println!("Deserialized TriggerFlowState: {:?}", current_state);
+                }
                 Ok(RequestType::EvaluateRequest {
                     trigger_flow_state: current_state.clone(),
                 })
             }
             //for recall
             "evaluate_response" => {
-                println!(
-                    "Deserializing TriggerFlowState from IPC data: {}",
-                    ipc_data.json_value
-                );
+                if DEBUG {
+                    println!(
+                        "Deserializing TriggerFlowState from IPC data: {}",
+                        ipc_data.json_value
+                    );
+                }
                 let current_state: TriggerFlowState = serde_json::from_str(&ipc_data.json_value)
                     .map_err(|e| ErrorType::DeserializationError(e.to_string()))?;
-                println!("Deserialized TriggerFlowState: {:?}", current_state);
+                if DEBUG {
+                    println!("Deserialized TriggerFlowState: {:?}", current_state);
+                }
                 Ok(RequestType::RecallRequest {
                     trigger_flow_state: current_state.clone(),
                 })
@@ -58,7 +69,9 @@ impl TryFrom<&ResponseType> for IpcData {
     type Error = ErrorType;
 
     fn try_from(response: &ResponseType) -> Result<Self, Self::Error> {
-        println!("###Converting ResponseType to IpcData: {:?}", response);
+        if DEBUG {
+            println!("###Converting ResponseType to IpcData: {:?}", response);
+        }
         match response {
             ResponseType::InitialResponse {
                 slot_channel_list,
@@ -81,7 +94,9 @@ impl TryFrom<&ResponseType> for IpcData {
                 }
                 let json_value = serde_json::to_string(response)
                     .map_err(|e| ErrorType::DeserializationError(e.to_string()))?;
-                println!("###Serialized ResponseType JSON: {}", json_value);
+                if DEBUG {
+                    println!("###Serialized ResponseType JSON: {}", json_value);
+                }
                 Ok(IpcData {
                     request_type: "evaluate_response".to_string(),
                     additional_info: "".to_string(),
