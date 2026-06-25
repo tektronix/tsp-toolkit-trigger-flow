@@ -19,6 +19,7 @@ use tokio::{
 };
 use trigger_flow_manager::{
     api::{request::RequestType, slot_channel_list::SlotChannelList, state::TriggerFlowState},
+    debug::DEBUG,
     request_processor::RequestProcessor,
     script::Script,
     Catalog, IpcData,
@@ -174,18 +175,20 @@ async fn ws_index(
                                     // Stateless processing - no backend state needed
                                     let processor = RequestProcessor::new(app_state.catalog);
                                     let response_type = processor.process_request(request);
-                                    let response = match response_type {
-                                        Ok(Some(resp)) => resp,
+                                    let (response, validated_state) = match response_type {
+                                        Ok(Some((resp, state))) => (resp, state),
                                         Ok(None) => continue,
 
                                         Err(e) => {
                                             let error_response = serde_json::json!({
                                                 "error": e.to_string()
                                             });
-                                            error_response.to_string()
+                                            (error_response.to_string(), None)
                                         }
                                     };
-                                    println!("Sending WebSocket response: {}", response);
+                                    if DEBUG {
+                                        println!("Sending WebSocket response: {}", response);
+                                    }
                                     let should_trigger_script =
                                         serde_json::from_str::<serde_json::Value>(&response)
                                             .map(|value| value.get("error").is_none())
@@ -197,33 +200,42 @@ async fn ws_index(
                                     );
                                     if should_trigger_script {
                                         let mut state_persisted = false;
-                                        if let Some((incoming_state, is_recall)) =
+                                        if let Some((_incoming_state, is_recall)) =
                                             request_state_for_persist
                                         {
-                                            let mut state_lock =
-                                                app_state.trigger_flow_state.lock().await;
-                                            // Recall arrives BEFORE Systems: the recall payload
-                                            // already contains the saved slot_channel_list and
-                                            // models, so persist it as-is. Systems will later
-                                            // refresh slot_channel_list against current hardware.
-                                            *state_lock = incoming_state;
-                                            println!(
-                                                "###WS persist: is_recall={}, slots={}, nodes={}, models={}",
-                                                is_recall,
-                                                state_lock.slot_channel_list.slots.len(),
-                                                state_lock.slot_channel_list.nodes.len(),
-                                                state_lock.models.len()
-                                            );
-                                            if is_recall {
-                                                println!(
-                                                    "Persisted recall state from WebSocket request"
-                                                );
-                                            } else {
-                                                println!(
-                                                    "Persisted evaluate state from WebSocket request before script generation"
-                                                );
+                                            match validated_state {
+                                                Some(state) => {
+                                                    let mut state_lock =
+                                                        app_state.trigger_flow_state.lock().await;
+                                                    // Recall arrives BEFORE Systems: the recall payload
+                                                    // already contains the saved slot_channel_list and
+                                                    // models, so persist it as-is. Systems will later
+                                                    // refresh slot_channel_list against current hardware.
+                                                    *state_lock = state;
+                                                    println!(
+                                                        "###WS persist: is_recall={}, slots={}, nodes={}, models={}",
+                                                        is_recall,
+                                                        state_lock.slot_channel_list.slots.len(),
+                                                        state_lock.slot_channel_list.nodes.len(),
+                                                        state_lock.models.len()
+                                                    );
+                                                    if is_recall {
+                                                        println!(
+                                                            "Persisted recall state from WebSocket request"
+                                                        );
+                                                    } else {
+                                                        println!(
+                                                            "Persisted evaluate state from WebSocket request before script generation"
+                                                        );
+                                                    }
+                                                    state_persisted = true;
+                                                }
+                                                None => {
+                                                    eprintln!(
+                                                        "WS persist skipped: processor returned no validated state; refusing to write potentially stale script"
+                                                    );
+                                                }
                                             }
-                                            state_persisted = true;
                                         } else {
                                             println!(
                                                 "WebSocket request did not contain evaluate state; skipping script-generation signal"
@@ -481,9 +493,13 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
         println!("Listening for stdin input...");
         while let Some(line) = reader.next_line().await.unwrap() {
             let trimmed_line = line.trim();
-            println!("Received stdin line: {}", trimmed_line);
+            if DEBUG {
+                println!("Received stdin line: {}", trimmed_line);
+            }
             if let Ok(msg) = StdinLine::try_from(trimmed_line) {
-                print!("Received stdin message: {:?}", msg);
+                if DEBUG {
+                    print!("Received stdin message: {:?}", msg);
+                }
                 match msg {
                     StdinLine::Systems(msg) => {
                         //convert the systems_msg to slotChannelList
@@ -557,7 +573,9 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                     }
                     StdinLine::SessionData(msg) => {
                         // handle session data
-                        println!("Received SessionData command from stdin: {:?}", msg);
+                        if DEBUG {
+                            println!("Received SessionData command from stdin: {:?}", msg);
+                        }
                         // For demonstration, we just print the session data. You can add your own processing logic here.
                         match RequestType::try_from(&msg) {
                             Ok(request) => {
@@ -575,22 +593,24 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                                     };
 
                                 // Keep processor scoped so it is dropped before any await below.
-                                let response = {
+                                let (response, validated_state) = {
                                     let processor = RequestProcessor::new(app_state.catalog);
                                     let response_type = processor.process_request(request);
                                     match response_type {
-                                        Ok(Some(resp)) => resp,
+                                        Ok(Some((resp, state))) => (resp, state),
                                         Ok(None) => continue,
 
                                         Err(e) => {
                                             let error_response = serde_json::json!({
                                                 "error": e.to_string()
                                             });
-                                            error_response.to_string()
+                                            (error_response.to_string(), None)
                                         }
                                     }
                                 };
-                                println!("Sending WebSocket response: {}", response);
+                                if DEBUG {
+                                    println!("Sending WebSocket response: {}", response);
+                                }
 
                                 let should_trigger_script =
                                     serde_json::from_str::<serde_json::Value>(&response)
@@ -603,33 +623,42 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                                 );
                                 if should_trigger_script {
                                     let mut state_persisted = false;
-                                    if let Some((incoming_state, is_recall)) =
+                                    if let Some((_incoming_state, is_recall)) =
                                         request_state_for_persist
                                     {
-                                        let mut state_lock =
-                                            app_state_clone.trigger_flow_state.lock().await;
-                                        // Recall arrives BEFORE Systems: the recall payload
-                                        // already contains the saved slot_channel_list and
-                                        // models, so persist it as-is. Systems will later
-                                        // refresh slot_channel_list against current hardware.
-                                        *state_lock = incoming_state;
-                                        println!(
-                                            "###SessionData persist: is_recall={}, slots={}, nodes={}, models={}",
-                                            is_recall,
-                                            state_lock.slot_channel_list.slots.len(),
-                                            state_lock.slot_channel_list.nodes.len(),
-                                            state_lock.models.len()
-                                        );
-                                        if is_recall {
-                                            println!(
-                                                "Persisted recall state from SessionData request"
-                                            );
-                                        } else {
-                                            println!(
-                                                "Persisted evaluate state from SessionData request before script generation"
-                                            );
+                                        match validated_state {
+                                            Some(state) => {
+                                                let mut state_lock =
+                                                    app_state_clone.trigger_flow_state.lock().await;
+                                                // Recall arrives BEFORE Systems: the recall payload
+                                                // already contains the saved slot_channel_list and
+                                                // models, so persist it as-is. Systems will later
+                                                // refresh slot_channel_list against current hardware.
+                                                *state_lock = state;
+                                                println!(
+                                                    "###SessionData persist: is_recall={}, slots={}, nodes={}, models={}",
+                                                    is_recall,
+                                                    state_lock.slot_channel_list.slots.len(),
+                                                    state_lock.slot_channel_list.nodes.len(),
+                                                    state_lock.models.len()
+                                                );
+                                                if is_recall {
+                                                    println!(
+                                                        "Persisted recall state from SessionData request"
+                                                    );
+                                                } else {
+                                                    println!(
+                                                        "Persisted evaluate state from SessionData request before script generation"
+                                                    );
+                                                }
+                                                state_persisted = true;
+                                            }
+                                            None => {
+                                                eprintln!(
+                                                    "SessionData persist skipped: processor returned no validated state; refusing to write potentially stale script"
+                                                );
+                                            }
                                         }
-                                        state_persisted = true;
                                     } else {
                                         println!(
                                             "SessionData request did not contain evaluate state; skipping script-generation signal"
@@ -661,7 +690,9 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
 
                                 // if session exists, send response back to UI
                                 let mut session_lock = app_state_clone.session.lock().await;
-                                println!("send response to WebSocket session: {}", response);
+                                if DEBUG {
+                                    println!("send response to WebSocket session: {}", response);
+                                }
                                 if let Some(ref mut session) = session_lock.as_mut() {
                                     if let Err(e) = session.text(response).await {
                                         eprintln!("Failed to send response to WebSocket: {:?}", e);
