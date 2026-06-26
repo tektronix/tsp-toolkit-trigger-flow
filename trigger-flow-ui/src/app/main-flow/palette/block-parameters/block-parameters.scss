@@ -33,7 +33,7 @@
   color: var(--vscode-editorError-foreground, red)
 }
 
-::ng-deep .required > div > div > label:after {
+::ng-deep .required .input-multiline .label-row > label::after {
   content: "*";
   font-style: italic;
   color: var(--vscode-editorError-foreground, red);
