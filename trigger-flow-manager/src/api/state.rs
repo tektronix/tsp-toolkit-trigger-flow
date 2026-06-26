@@ -8,6 +8,7 @@ use crate::{
         request::ResponseType,
         slot_channel_list::{ChannelIndex, SlotChannelList, SlotChannelListUpdate, SlotIndex},
     },
+    debug::DEBUG,
     model::trigger_model_block::TriggerModelBlock,
     Catalog, IpcData,
 };
@@ -36,10 +37,12 @@ impl TriggerFlowState {
         //if slot_channel_list does not exist for self, initialize
         //initialize the slot_channel_list with the new system_config
         //sent as initial_response
-        println!(
-            "###process_system_config called with system_config: {:?}",
-            self.slot_channel_list
-        );
+        if DEBUG {
+            println!(
+                "###process_system_config called with system_config: {:?}",
+                self.slot_channel_list
+            );
+        }
         if self.slot_channel_list.slots.is_empty() && self.slot_channel_list.nodes.is_empty() {
             match SlotChannelList::new(system_config) {
                 Ok(list) => {

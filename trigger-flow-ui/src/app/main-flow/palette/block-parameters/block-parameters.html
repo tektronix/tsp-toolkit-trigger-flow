@@ -1,8 +1,8 @@
 @if (!selectedBlockId) {
-  <div class="empty-state" [attr.aria-label]="'empty-block-parameter-editing-panel'">
-    <h3>No block added or selected</h3>
-    <p>Add a new block onto the canvas or select an existing block to edit the block parameters.</p>
-  </div>
+<div class="empty-state" [attr.aria-label]="'empty-block-parameter-editing-panel'">
+  <h3>No block added or selected</h3>
+  <p>Add a new block onto the canvas or select an existing block to edit the block parameters.</p>
+</div>
 } @else {
   <section class="params-shell" [attr.aria-label]="'block-parameter-editing-panel'">
     <header class="params-header">
@@ -12,6 +12,19 @@
         }
         <h3 class="block-name">{{ blockName }}</h3>
       </div>
+      <button
+        type="button"
+        class="block-info-btn"
+        title="Show Block Information"
+        [attr.aria-label]="'block-info-button'"
+        (click)="onBlockInfoClick()"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.25" fill="none"/>
+          <circle cx="8" cy="4.5" r="0.9" fill="currentColor"/>
+          <rect x="7.25" y="6.75" width="1.5" height="5.25" rx="0.5" fill="currentColor"/>
+        </svg>
+      </button>
     </header>
 
     <div class="params-body">
@@ -19,6 +32,7 @@
         @if (shouldShowInUI(param)) {
           @if (getControlType(param) === 'custom') {
             <app-event-block
+              [class.required]="param.required"
               [param]="param"
               [triggerEvents]="triggerEvents"
               [selectionMode]="getEventSelectionMode(param)"
@@ -29,22 +43,36 @@
           } @else if (getControlType(param) === 'specific-event') {
             <div class="param-label">{{ getParameterDisplayName(param) }}</div>
             <app-specific-event
+              [class.required]="param.required"
               [param]="param"
               [eventDefinition]="getEventDefinition(param)"
               [blockId]="selectedBlockId"
               (valueChange)="onParameterValueChange()"
+              [attr.aria-label]="'event-' + param.name + '-dropdown'"
             />
           } @else if (getControlType(param) === 'radio') {
-            <app-radio-button
+            <app-radio-group
+              [class.required]="param.required"
               [label]="param.name"
-              automationID="{{ 'param-' + param.name }}"
-              [options]="getSelectOptions(param)"
+              [automationID]="'param-' + param.name"
               [name]="getRadioGroupName(param)"
+              [options]="getSelectOptions(param)"
+              [selectedValue]="toStringValue(param.value)"
+              (selectionChange)="onRadioSelectionChange(param, $event)"
+            />
+          } @else if (getControlType(param) === 'block-reference') {
+            <app-dropdown
+              [class.required]="param.required"
+              [label]="getParameterDisplayName(param)"
+              [options]="getBlockReferenceOptions(param)"
               [(ngModel)]="param.value"
-              (radioChange)="onParameterValueChange()"
+              [invalid]="isBlockReferenceUnset(param)"
+              (selectedChange)="onParameterValueChange()"
+              automationID="input-{{ param.name }}"
             />
           } @else if (getControlType(param) === 'select') {
             <app-dropdown
+              [class.required]="param.required"
               [label]="param.name"
               [options]="getSelectOptions(param)"
               [(ngModel)]="param.value"
@@ -52,6 +80,7 @@
             />
           } @else if (getControlType(param) === 'channel-list') {
             <app-checkbox-group
+              [class.required]="param.required"
               [label]="getParameterDisplayName(param)"
               [options]="channelListOptions"
               [selectedValues]="getChannelListSelected(param)"
@@ -59,10 +88,11 @@
             />
           } @else if (getControlType(param) === 'channel-item') {
             <app-radio-group
+              [class.required]="param.required"
               [label]="getParameterDisplayName(param)"
               [name]="getRadioGroupName(param)"
               [options]="channelItemOptions"
-              [selectedValue]="getChannelItemSelected(param)"
+              [selectedValue]="toStringValue(getChannelItemSelected(param))"
               (selectionChange)="onChannelItemChange(param, $event)"
             />
           } @else if (getControlType(param) === 'source-output-state') {
@@ -70,15 +100,19 @@
               <div class="param-label">{{ getParameterDisplayName(param) }}</div>
               <div class="source-output-state-controls">
                 <app-dropdown
+                  [class.required]="param.required"
                   label="Channel"
                   [options]="getSourceOutputStateChannelOptions()"
                   [selected]="getSourceOutputChannel(param)"
                   (selectedChange)="onSourceOutputChannelChange(param, $event)"
+                  automationID="{{ param.name + '-channel dropdown' }}"
                 />
                 <app-dropdown
+                  [class.required]="param.required"
                   label="State"
                   [options]="getSourceOutputStateValueOptions()"
                   [selected]="getSourceOutputStateValue(param)"
+                  automationID="{{ param.name + '-state dropdown'  }}"
                   (selectedChange)="onSourceOutputStateValueChange(param, $event)"
                 />
               </div>
@@ -86,6 +120,7 @@
           } @else if (getControlType(param) === 'number') {
             <!-- delay_time is shown in seconds and stays visible but disabled when List mode is enabled. -->
             <app-input-numeric
+              [class.required]="param.required"
               [label]="getParameterDisplayName(param)"
               [unit]="param.name === 'delay_time' ? 's' : undefined"
               [floatAllowed]="param.name === 'delay_time'"
@@ -94,8 +129,32 @@
               (inputChange)="onParameterValueChange()"
               automationID="input-{{ param.name }}"
             />
+            @if (hasDelayListConfig()) {
+              <div class="delay-list-row">
+                <!-- Checkbox toggles list_config on/off; Edit opens the modal for sweep value details. -->
+                <app-checkbox
+                 [class.required]="param.required"
+                 class="delay-list-checkbox"
+                 label="List"
+                 [checked]="isDelayListEnabled()"
+                 (checkedChange)="onDelayListCheckedChange($event)"
+                />
+                @if (isDelayListEnabled()) {
+                  <button
+                    type="button"
+                    class="delay-list-configure-btn"
+                    (click)="openDelayListModal()"
+                    [attr.aria-label]="'Edit List'"
+                    title="Edit"
+                  >
+                    Edit
+                  </button>
+                }
+                </div>
+            }
           } @else if (getControlType(param) === 'toggle' && param.options) {
             <app-toggle
+              [class.required]="param.required"
               [label]="getParameterDisplayName(param)"
               [options]="param.options"
               [(ngModel)]="param.value"
@@ -103,14 +162,17 @@
             />
           } @else if (getControlType(param) === 'multiline') {
             <app-multiline-textbox
+              [class.required]="param.required"
               [label]="getParameterDisplayName(param)"
               [(ngModel)]="param.value"
               [rows]="5"
               [maxLength]="31"
               (inputChange)="onParameterValueChange()"
+              automationID="{{ param.name }}-notes"
             />
           } @else if (getControlType(param) === 'text') {
             <app-textbox
+              [class.required]="param.required"
               [label]="getParameterDisplayName(param)"
               [(ngModel)]="param.value"
               (inputChange)="onParameterValueChange()"
@@ -120,37 +182,17 @@
         }
       }
 
-      @if (hasDelayListConfig()) {
-        <div class="delay-list-row">
-          <!-- Checkbox toggles list_config on/off; Edit opens the modal for sweep value details. -->
-          <app-checkbox
-              class="delay-list-checkbox"
-            label="List"
-            [checked]="isDelayListEnabled()"
-            (checkedChange)="onDelayListCheckedChange($event)"
-          />
-          @if (isDelayListEnabled()) {
-            <button type="button" class="delay-list-configure-btn" (click)="openDelayListModal()">
-              Edit
-            </button>
-          }
-        </div>
-      }
-
       <app-multiline-textbox
         label="Notes"
         [rows]="5"
         [(ngModel)]="blockNotes"
         (inputChange)="onBlockNotesChange()"
+        automationID="block-notes"
       />
 
-      <app-delay-list-modal
-        [open]="showDelayListModal"
-        [delayCount]="delayListModalDelayCount"
-        [delayDurations]="delayListModalDelayDurations"
-        (cancelled)="onDelayListCancel()"
-        (applyList)="onDelayListApply($event)"
-      />
-    </div>
-  </section>
+    <app-delay-list-modal [open]="showDelayListModal" [delayCount]="delayListModalDelayCount"
+      [delayDurations]="delayListModalDelayDurations" (cancelled)="onDelayListCancel()"
+      (applyList)="onDelayListApply($event)" />
+  </div>
+</section>
 }
