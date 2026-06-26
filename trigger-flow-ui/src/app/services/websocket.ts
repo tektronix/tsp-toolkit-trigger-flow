@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
 import { v4 as uuidv4 } from 'uuid';
 import { vscode } from './canvas-blocks.service';
+import { DEBUG } from '../debug';
 
 @Injectable({
   providedIn: 'root',
@@ -41,7 +42,7 @@ export class Websocket {
 
   send(message: string): void {
     if (this.socket.readyState === WebSocket.OPEN) {
-      console.log(`Input size is: ${(message.length / (1024 * 1024)).toFixed(2)} MB)`);
+      if (DEBUG) console.log(`Input size is: ${(message.length / (1024 * 1024)).toFixed(2)} MB)`);
       if (message.length > this.CHUNK_SIZE) {
         const msg_id = uuidv4();
         const chunks = this.chunkString(message, this.CHUNK_SIZE);
