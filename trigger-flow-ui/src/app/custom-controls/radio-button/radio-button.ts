@@ -6,6 +6,7 @@ import {
   EventEmitter,
   forwardRef,
 } from '@angular/core';
+
 import {
   ControlValueAccessor,
   FormsModule,
@@ -27,18 +28,27 @@ import {
 })
 export class RadioButton implements ControlValueAccessor {
   @Input() label: string | undefined;
-  @Input() automationID: string | undefined;
-  @Input() options: string[] = [];
+
+  // value represented by this radio
+  @Input() value: string | undefined;
+
+  // shared group name
   @Input() name = 'radio-group';
-  @Input() selectedValue: string | undefined;
+
+  @Input() checked = false;
+
   @Input() disabled = false;
-  @Output() radioChange = new EventEmitter<string>();
+
+  @Input() automationID: string | undefined;
+
+  @Output() checkedChange = new EventEmitter<string>();
 
   private onChange: ((value: string) => void) | undefined;
+
   private onTouched: (() => void) | undefined;
 
   writeValue(value: string): void {
-    this.selectedValue = value;
+    this.checked = value === this.value;
   }
 
   registerOnChange(fn: ((value: string) => void) | undefined): void {
@@ -53,13 +63,18 @@ export class RadioButton implements ControlValueAccessor {
     this.disabled = isDisabled;
   }
 
-  onRadioChange(event: Event): void {
-    const value = (event.target as HTMLInputElement).value;
-    this.selectedValue = value;
-    if (this.onChange) {
-      this.onChange(value);
+  onRadioChange(): void {
+    if (this.disabled || !this.value) {
+      return;
     }
-    this.radioChange.emit(value);
+
+    this.checked = true;
+
+    if (this.onChange) {
+      this.onChange(this.value);
+    }
+
+    this.checkedChange.emit(this.value);
   }
 
   onBlur(): void {
