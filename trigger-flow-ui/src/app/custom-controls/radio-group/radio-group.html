@@ -1,21 +1,32 @@
 <div class="radio-group">
   @if (label) {
-    <span class="radio-group-label">{{ label }}</span>
+    <span class="radio-group-label">
+      {{ label }}
+    </span>
   }
+
   <div class="radio-group-options">
-    @for (option of options; track option.value) {
+
+    @for (option of options; track option) {
+
+      @let normalized = getNormalizedOption(option);
+
       <label class="radio-group-item">
         <input
           type="radio"
           class="radio-group-input"
           [name]="name"
-          [value]="option.value"
+          [value]="normalized.value"
           [attr.aria-label]="automationID"
-          [checked]="selectedValue === option.value"
-          [disabled]="disabled || option.disabled"
+          [checked]="selectedValue === normalized.value"
+          [disabled]="disabled || !!normalized.disabled"
           (change)="onRadioChange($event)"
         />
-        <span class="radio-group-text">{{ option.label }}</span>
+
+        <span class="radio-group-text">
+          {{ normalized.label }}
+        </span>
+
       </label>
     }
   </div>

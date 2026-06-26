@@ -19,8 +19,6 @@ export class DelayListModal implements OnChanges {
   @Input() open = false;
   @Input() delayCount = 1;
   @Input() delayDurations: number[] = [];
-  @Input() minValue = 0.000001;
-  @Input() maxValue = 1000000;
 
   @Output() cancelled = new EventEmitter<void>();
   @Output() applyList = new EventEmitter<DelayListModalValue>();
@@ -41,16 +39,17 @@ export class DelayListModal implements OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['open'] && this.open) {
       // Rehydrate local editable state every time the modal opens.
-      this.localDelayCount = this.normalizeDelayCount(this.delayCount);
-      this.localDelayDurations = this.normalizeRows(this.delayDurations, this.localDelayCount);
+      this.localDelayCount = this.sanitizeDelayCount(this.delayCount);
+      this.localDelayDurations = this.resizeRows(this.delayDurations, this.localDelayCount);
     }
   }
 
   onDelayCountChange(rawValue: string): void {
     const parsed = Number(rawValue);
-    // Delay count changes also resize duration rows while preserving existing entries.
-    this.localDelayCount = this.normalizeDelayCount(parsed);
-    this.localDelayDurations = this.normalizeRows(this.localDelayDurations, this.localDelayCount);
+    // Resize the table to match the count; sanitize floors at 1 so the
+    // list always has at least one entry.
+    this.localDelayCount = this.sanitizeDelayCount(parsed);
+    this.localDelayDurations = this.resizeRows(this.localDelayDurations, this.localDelayCount);
   }
 
   updateDelayDuration(index: number, rawValue: string): void {
@@ -59,7 +58,8 @@ export class DelayListModal implements OnChanges {
       return;
     }
 
-    this.localDelayDurations[index] = this.clamp(parsed);
+    // Store raw value; range clamping happens server-side.
+    this.localDelayDurations[index] = parsed;
   }
 
   onCancel(): void {
@@ -67,16 +67,15 @@ export class DelayListModal implements OnChanges {
   }
 
   onApply(): void {
-    const normalizedDelayCount = this.normalizeDelayCount(this.localDelayCount);
-    const normalizedRows = this.normalizeRows(this.localDelayDurations, normalizedDelayCount);
-
     this.applyList.emit({
-      delayCount: normalizedDelayCount,
-      delayDurations: normalizedRows,
+      delayCount: this.localDelayCount,
+      delayDurations: [...this.localDelayDurations],
     });
   }
 
-  private normalizeDelayCount(value: number): number {
+  private sanitizeDelayCount(value: number): number {
+    // Must be a positive integer to size the rows array. A list with zero
+    // entries would render an empty `{ }` in the script, so floor at 1.
     if (!Number.isFinite(value) || value < 1) {
       return 1;
     }
@@ -84,19 +83,14 @@ export class DelayListModal implements OnChanges {
     return Math.floor(value);
   }
 
-  private normalizeRows(rows: number[], targetLength: number): number[] {
+  private resizeRows(rows: number[], targetLength: number): number[] {
     const result: number[] = [];
 
     for (let index = 0; index < targetLength; index++) {
       // New rows default to 1 second unless a value already exists for that index.
-      const fallback = rows[index] ?? 1;
-      result.push(this.clamp(fallback));
+      result.push(rows[index] ?? 1);
     }
 
     return result;
-  }
-
-  private clamp(value: number): number {
-    return Math.min(this.maxValue, Math.max(this.minValue, value));
   }
 }

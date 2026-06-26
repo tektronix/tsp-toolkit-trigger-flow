@@ -1,9 +1,23 @@
 use super::param_types::ParamTypeName;
-use crate::model::trigger_model_block::{TriggerModelBlock, TriggerModelTemplateBlock};
+use crate::model::trigger_model_block::{TemplateBlockGroup, TriggerModelBlock};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{collections::HashMap, path::Path};
+
+// Prefer an integer JSON number when the f64 is whole and fits in i64, so a
+// clamped value like 1_000_000.0 renders as "1000000" instead of "1000000.0"
+// in the script template and in error messages.
+fn json_number_from_f64(value: f64) -> Option<serde_json::Number> {
+    if value.is_finite()
+        && value.fract() == 0.0
+        && value >= i64::MIN as f64
+        && value <= i64::MAX as f64
+    {
+        return Some(serde_json::Number::from(value as i64));
+    }
+    serde_json::Number::from_f64(value)
+}
 
 /// The root structure representing all available trigger blocks
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -13,6 +27,23 @@ pub struct Catalog {
     pub blocks: HashMap<String, BlockDefinition>,
     pub trigger_events: HashMap<String, EventDefinition>,
     pub templates: HashMap<String, Template>,
+    // Resolved reference types used by composite parameters (for example
+    // DelayListConfig). Only fields actually consumed by validation are
+    // modelled; the rest is intentionally ignored.
+    pub custom_types: HashMap<String, CustomType>,
+}
+
+/// Subset of a `custom_types:` entry that the validator consults. Other
+/// keys in YAML (description, modal, max_items, fields, ...) are accepted
+/// and discarded.
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct CustomType {
+    pub item: Option<CustomTypeItem>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct CustomTypeItem {
+    pub range: Option<ParameterRange>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -20,7 +51,7 @@ pub struct Template {
     name: String,
     description: String,
     icon: String,
-    blocks: Vec<TriggerModelTemplateBlock>,
+    blocks: Vec<TemplateBlockGroup>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -46,16 +77,6 @@ impl BlockDefinition {
         // For each parameter in the catalog definition
         for param in &self.parameters {
             let value = block.block_parameters.get(&param.name).cloned();
-            if value.is_none() && param.required {
-                let err = (true, format!("Missing required parameter '{}'", param.name));
-                if let Some(errors) = block.block_error.as_mut() {
-                    errors.push(err);
-                } else {
-                    block.block_error = Some(vec![err]);
-                }
-                continue;
-            }
-
             param.validate(value.as_ref(), block, catalog)?;
         }
         Ok(())
@@ -64,6 +85,8 @@ impl BlockDefinition {
 /// Definition of a single event type with its parameters and syntaxs
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct EventDefinition {
+    #[serde(default)]
+    pub label: Option<String>,
     pub parameters: Vec<Parameter>,
     pub syntax: String,
 }
@@ -72,6 +95,8 @@ pub struct EventDefinition {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Parameter {
     pub name: String,
+    #[serde(default)]
+    pub label: Option<String>,
     #[serde(rename = "type")]
     pub param_type: ParamTypeName,
     pub required: bool,
@@ -90,62 +115,162 @@ impl Parameter {
         block: &mut TriggerModelBlock,
         catalog: &Catalog,
     ) -> Result<()> {
-        // 1. Name check
+        // 1. Required-value check for all mandatory parameters.
+        // Treat missing, null, empty/placeholder strings, and empty arrays as invalid.
+        if self.required {
+            let is_missing_required = match value {
+                None => true,
+                Some(Value::Null) => true,
+                Some(Value::String(s)) => {
+                    let normalized = s.trim();
+                    normalized.is_empty()
+                        || normalized == "null"
+                        || normalized == "undefined"
+                        || normalized == "unknown"
+                }
+                Some(Value::Array(arr)) => arr.is_empty(),
+                _ => false,
+            };
+
+            if is_missing_required {
+                let err_msg = match self.param_type {
+                    ParamTypeName::ChannelList => {
+                        format!(
+                            "Parameter '{}' at least one channel must be selected",
+                            self.name
+                        )
+                    }
+                    ParamTypeName::ChannelItem => {
+                        format!("Parameter '{}' channel selection is required", self.name)
+                    }
+                    _ => format!("Parameter '{}' is required", self.name),
+                };
+
+                block.add_error(err_msg);
+
+                return Ok(());
+            }
+        }
+
+        // 2. Name check
         //Names of each block within a model should be unique
         //Name can be an empty string but if not empty, should be unique across the model
 
-        // 2. Range check (for numbers)
+        // 3. Range check (for numbers). Out-of-range values are clamped to the
+        // limit and the stored parameter is rewritten so the rendered script
+        // never contains a value outside the catalog-declared range.
         if let Some(range) = &self.range {
             if let Some(num) = value.and_then(|v| v.as_f64()) {
-                if let Some(min) = range.min.as_ref().and_then(|v| v.as_f64()) {
-                    if num < min {
-                        let err = (
-                            true,
-                            format!("Parameter '{}' value {} below min {}", self.name, num, min),
-                        );
-                        if let Some(errors) = block.block_error.as_mut() {
-                            errors.push(err);
-                        } else {
-                            block.block_error = Some(vec![err]);
-                        }
+                let min = range.min.as_ref().and_then(|v| v.as_f64());
+                let max = range.max.as_ref().and_then(|v| v.as_f64());
+
+                let (clamped_to, limit_value, message) = if let Some(min) = min.filter(|m| num < *m)
+                {
+                    (
+                        Some("min"),
+                        range.min.clone(),
+                        format!(
+                            "Parameter '{}' value {} below min {}; clamped to {}",
+                            self.name, num, min, min
+                        ),
+                    )
+                } else if let Some(max) = max.filter(|m| num > *m) {
+                    (
+                        Some("max"),
+                        range.max.clone(),
+                        format!(
+                            "Parameter '{}' value {} above max {}; clamped to {}",
+                            self.name, num, max, max
+                        ),
+                    )
+                } else {
+                    (None, None, String::new())
+                };
+
+                if clamped_to.is_some() {
+                    if let Some(limit) = limit_value {
+                        block.block_parameters.insert(self.name.clone(), limit);
                     }
-                }
-                if let Some(max) = range.max.as_ref().and_then(|v| v.as_f64()) {
-                    if num > max {
-                        let err = (
-                            true,
-                            format!("Parameter '{}' value {} above max {}", self.name, num, max),
-                        );
-                        if let Some(errors) = block.block_error.as_mut() {
-                            errors.push(err);
-                        } else {
-                            block.block_error = Some(vec![err]);
-                        }
-                    }
+                    block.add_error(message);
                 }
             }
         }
 
-        // 3. Options/Enum check
+        // 3b. Range check for `delay_durations` inside a DelayListConfig.
+        // The per-element range lives on the `DelayList` custom type, so it
+        // is resolved through the catalog rather than duplicated on the
+        // parameter itself.
+        if matches!(self.param_type, ParamTypeName::DelayListConfig) {
+            if let Some(Value::Object(map)) = value {
+                self.clamp_delay_durations(map, block, catalog);
+            }
+        }
+
+        // 4. Options/Enum check
         if let Some(options) = &self.options {
             if let Some(Value::String(val_str)) = value {
                 let valid = options.iter().any(|opt| opt.value == *val_str);
                 if !valid {
-                    let err = (
-                        true,
-                        format!(
-                            "Parameter '{}' value '{}' is not a valid option",
-                            self.name, val_str
-                        ),
-                    );
-                    if let Some(errors) = block.block_error.as_mut() {
-                        errors.push(err);
-                    } else {
-                        block.block_error = Some(vec![err]);
-                    }
+                    block.add_error(format!(
+                        "Parameter '{}' value '{}' is not a valid option",
+                        self.name, val_str
+                    ));
                 }
             }
         }
+
+        // 5. Channel validation for ChannelList
+        if self.param_type == ParamTypeName::ChannelList {
+            if self.required {
+                match value {
+                    Some(Value::Array(channels)) => {
+                        if channels.is_empty() {
+                            block.add_error(format!(
+                                "Parameter '{}' at least one channel must be selected",
+                                self.name
+                            ));
+                        }
+                    }
+                    Some(Value::String(channels_str)) => {
+                        // Handle comma-separated string format
+                        let channels: Vec<&str> = channels_str
+                            .split(',')
+                            .map(|s| s.trim())
+                            .filter(|s| !s.is_empty())
+                            .collect();
+                        if channels.is_empty() {
+                            block.add_error(format!(
+                                "Parameter '{}' at least one channel must be selected",
+                                self.name
+                            ));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        // 6. Channel validation for ChannelItem (single channel)
+        if self.param_type == ParamTypeName::ChannelItem {
+            if self.required {
+                let is_invalid = match value {
+                    Some(Value::String(s))
+                        if s.is_empty() || s == "null" || s == "undefined" || s == "unknown" =>
+                    {
+                        true
+                    }
+                    _ => false,
+                };
+
+                if is_invalid {
+                    block.add_error(format!(
+                        "Parameter '{}' channel selection is required",
+                        self.name
+                    ));
+                }
+            }
+        }
+
         match self.param_type {
             ParamTypeName::TriggerEventType | ParamTypeName::EventNotifyN => {
                 if let Some(event_value) = value {
@@ -167,6 +292,74 @@ impl Parameter {
             _ => {}
         }
         Ok(())
+    }
+
+    fn clamp_delay_durations(
+        &self,
+        map: &serde_json::Map<String, Value>,
+        block: &mut TriggerModelBlock,
+        catalog: &Catalog,
+    ) {
+        let Some(Value::Array(elements)) = map.get("delay_durations") else {
+            return;
+        };
+        let Some(range) = catalog
+            .custom_types
+            .get("DelayList")
+            .and_then(|t| t.item.as_ref())
+            .and_then(|i| i.range.as_ref())
+        else {
+            return;
+        };
+        let min = range.min.as_ref().and_then(|v| v.as_f64());
+        let max = range.max.as_ref().and_then(|v| v.as_f64());
+
+        let mut updated = elements.clone();
+        let mut clamped_any = false;
+        for (idx, el) in updated.iter_mut().enumerate() {
+            let Some(num) = el.as_f64() else { continue };
+            // Row numbers in error messages are 1-based to match the modal UI.
+            let row = idx + 1;
+            let (limit, message) = if let Some(m) = min.filter(|m| num < *m) {
+                (
+                    Some(m),
+                    format!(
+                        "Parameter '{}' delay_durations row {} value {} below min {}; clamped to {}",
+                        self.name, row, num, m, m
+                    ),
+                )
+            } else if let Some(m) = max.filter(|m| num > *m) {
+                (
+                    Some(m),
+                    format!(
+                        "Parameter '{}' delay_durations row {} value {} above max {}; clamped to {}",
+                        self.name, row, num, m, m
+                    ),
+                )
+            } else {
+                (None, String::new())
+            };
+            if let Some(m) = limit {
+                if let Some(num_value) = json_number_from_f64(m) {
+                    *el = Value::Number(num_value);
+                    clamped_any = true;
+                    let err = (true, message);
+                    if let Some(errors) = block.block_error.as_mut() {
+                        errors.push(err);
+                    } else {
+                        block.block_error = Some(vec![err]);
+                    }
+                }
+            }
+        }
+
+        if clamped_any {
+            let mut new_map = map.clone();
+            new_map.insert("delay_durations".to_string(), Value::Array(updated));
+            block
+                .block_parameters
+                .insert(self.name.clone(), Value::Object(new_map));
+        }
     }
 }
 
@@ -246,28 +439,13 @@ impl Catalog {
                 if let Some(event_def) = self.trigger_events.get(event_type) {
                     event_def.validate(event_obj, block, self)?;
                 } else {
-                    let err = (true, format!("Unknown event type '{}'", event_type));
-                    if let Some(errors) = block.block_error.as_mut() {
-                        errors.push(err);
-                    } else {
-                        block.block_error = Some(vec![err]);
-                    }
+                    block.add_error(format!("Unknown event type '{}'", event_type));
                 }
             } else {
-                let err = (true, "Event object missing 'type' field".to_string());
-                if let Some(errors) = block.block_error.as_mut() {
-                    errors.push(err);
-                } else {
-                    block.block_error = Some(vec![err]);
-                }
+                block.add_error(format!("Event object missing 'type' field"));
             }
         } else {
-            let err = (true, "Event parameter must be a JSON object".to_string());
-            if let Some(errors) = block.block_error.as_mut() {
-                errors.push(err);
-            } else {
-                block.block_error = Some(vec![err]);
-            }
+            block.add_error(format!("Event parameter must be a JSON object"));
         }
         Ok(())
     }
@@ -303,15 +481,7 @@ impl EventDefinition {
             let param_value = params_map.get(&param.name);
 
             if param_value.is_none() && param.required {
-                let err = (
-                    true,
-                    format!("Missing required event parameter '{}'", param.name),
-                );
-                if let Some(errors) = block.block_error.as_mut() {
-                    errors.push(err);
-                } else {
-                    block.block_error = Some(vec![err]);
-                }
+                block.add_error(format!("Missing required event parameter '{}'", param.name));
                 continue;
             }
 

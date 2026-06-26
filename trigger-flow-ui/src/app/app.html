@@ -1,7 +1,19 @@
-<!-- @if (catalog$()) {
+@if (slotChannelList$()) {
   <app-main-flow></app-main-flow>
 } @else {
-  <div class="loading">Loading...System Configuration is invalid</div>
-} -->
+  <div class="loading">
+    <p>
+  TriggerFlow requires channels from a selected system configuration.
+  <br><br>
+  Please select a system configuration that includes:
+  <br>
+  • An MP5103 mainframe
+  <br>
+  • Either MPSU50-2ST or MSMU60-2 modules installed in slots
+  <br>
+  • Located in the localnode or one of the TSP-Link nodes
+</p>
+  </div>
+}
 
-<app-main-flow></app-main-flow>
+<!-- <app-main-flow></app-main-flow> -->
