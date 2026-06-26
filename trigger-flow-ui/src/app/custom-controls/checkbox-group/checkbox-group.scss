@@ -6,9 +6,9 @@
 }
 
 .checkbox-group-label {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--vscode-editor-foreground);
+  font-size: var(--vscode-font-size, 13px);
+  font-weight: var(--vscode-font-weight, 500);
+  color: var(--vscode-foreground);
 }
 
 .checkbox-group-options {
@@ -25,21 +25,64 @@
   user-select: none;
 }
 
+// VS Code-style checkbox
 .checkbox-group-input {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
   width: 1rem;
   height: 1rem;
+  margin: 0;
   cursor: pointer;
-  accent-color: #0969da;
+
+  background-color: var(--vscode-checkbox-background);
+  border: 1px solid var(--vscode-checkbox-border);
+  border-radius: 3px;
+
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
 }
 
-.checkbox-group-input:focus {
-  outline: 2px solid var(--vscode-focusBorder, #0969da);
+.checkbox-group-input:hover:not(:disabled) {
+  border-color: var(--vscode-focusBorder, var(--vscode-checkbox-border));
+}
+
+.checkbox-group-input:checked {
+  background-color: var(--vscode-checkbox-selectBackground, var(--vscode-checkbox-background));
+  border-color: var(--vscode-checkbox-selectBorder, var(--vscode-checkbox-border));
+}
+
+.checkbox-group-input:checked::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 8px;
+  border: solid var(--vscode-checkbox-foreground, var(--vscode-foreground));
+  border-width: 0 1.5px 1.5px 0;
+  transform: translate(-50%, -60%) rotate(45deg);
+}
+
+.checkbox-group-input:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
   outline-offset: 2px;
 }
 
+.checkbox-group-input:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .checkbox-group-text {
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-size: var(--vscode-font-size, 13px);
+  font-weight: var(--vscode-font-weight, 500);
+  color: var(--vscode-foreground);
 }
 
 .checkbox-group-item.disabled,
