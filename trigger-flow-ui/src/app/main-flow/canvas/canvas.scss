@@ -51,6 +51,7 @@ f-canvas {
     linear-gradient(90deg, var(--vscode-editorWidget-border) 1px, transparent 1px);
   padding: 0 10px;
   pointer-events: none;
+  width: 390px;
 }
 
 .title-left,
@@ -60,6 +61,8 @@ f-canvas {
   gap: 8px;
   min-width: 0;
 }
+
+
 
 .title-right {
   margin-left: auto;
@@ -72,10 +75,17 @@ f-canvas {
   color: var(--vscode-editor-foreground);
   font-size: 12px;
   white-space: nowrap;
+  display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: top;
+  width: 100px;
 }
 
 .title-chip-primary {
   font-weight: 600;
+  width: 180px;
 }
 
 .title-btn {
