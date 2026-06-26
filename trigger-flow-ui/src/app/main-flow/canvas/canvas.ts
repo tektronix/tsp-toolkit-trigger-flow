@@ -402,6 +402,7 @@ export class Canvas implements AfterViewInit {
     };
 
     this.canvasBlocksService.sections.update((current) => [...current, newSection]);
+    this.canvasBlocksService.newModel(modelName, result.slot, result.nodeId);
 
     // Resume deferred first-drop node creation into this new section.
     if (this.pendingCreateNodeEvent) {
