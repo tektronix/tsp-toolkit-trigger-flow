@@ -32,7 +32,6 @@ pub enum ParamTypeName {
     TsplinkTriggerLine,
     #[serde(rename = "triggerLine")]
     TriggerLine,
-    #[serde(rename = "blockReference")]
     BlockReference,
     EventItem,
     EventList,

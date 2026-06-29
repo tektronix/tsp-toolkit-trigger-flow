@@ -3,7 +3,7 @@
     <section class="tf-modal tf-delay-list-modal" role="dialog" aria-modal="true" aria-label="Delay List">
       <header class="tf-modal__header">
         <h2>Delay List</h2>
-        <button type="button" class="icon-btn" (click)="onCancel()" aria-label="Close">
+        <button type="button" class="icon-btn" (click)="onCancel()" aria-label="Close delay list dialog" automationID="Button-Close-Delay-List" title="Close">
           <img class="icon-img" src="assets/shapes/Icons/X.svg" alt="Close" />
         </button>
       </header>
@@ -37,6 +37,8 @@
                       [unit]="'s'"
                       [ngModel]="getDelayDurationAsText(rowIndex)"
                       (inputChange)="updateDelayDuration(rowIndex, $event)"
+                      [attr.aria-label]="'Delay duration for row ' + (rowIndex + 1)"
+                      [automationID]="'Input-Delay-Duration-' + (rowIndex + 1)"
                     />
                   </td>
                 </tr>
@@ -46,8 +48,8 @@
         </div>
 
         <div class="tf-modal__actions">
-          <button type="button" class="btn ghost" (click)="onCancel()">Cancel</button>
-          <button type="button" class="btn primary" (click)="onApply()">Apply</button>
+          <button type="button" class="btn ghost" (click)="onCancel()" automationID="Button-Cancel-Delay-List" title="Cancel">Cancel</button>
+          <button type="button" class="btn primary" (click)="onApply()" automationID="Button-Apply-Delay-List" title="Apply">Apply</button>
         </div>
       </div>
     </section>
