@@ -586,6 +586,7 @@ export class BlockParameters {
       const updatedConfig: DelayListConfig = {
         delay_count: event.delayCount,
         delay_durations: [...event.delayDurations],
+        requested_delay_count: event.requestedDelayCount,
       };
       listConfigParam.value = updatedConfig;
     }

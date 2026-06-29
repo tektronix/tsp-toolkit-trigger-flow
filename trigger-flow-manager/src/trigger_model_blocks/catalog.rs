@@ -1,5 +1,5 @@
 use super::param_types::ParamTypeName;
-use crate::model::trigger_model_block::{TemplateBlockGroup, TriggerModelBlock};
+use crate::{api::request, model::trigger_model_block::{TemplateBlockGroup, TriggerModelBlock}};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -39,10 +39,17 @@ pub struct Catalog {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct CustomType {
     pub item: Option<CustomTypeItem>,
+    pub fields: Option<Vec<CustomTypeField>>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct CustomTypeItem {
+    pub range: Option<ParameterRange>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct CustomTypeField {
+    pub name: String,
     pub range: Option<ParameterRange>,
 }
 
@@ -115,6 +122,7 @@ impl Parameter {
         block: &mut TriggerModelBlock,
         catalog: &Catalog,
     ) -> Result<()> {
+        println!("Validating param: {}", self.name);
         // 1. Required-value check for all mandatory parameters.
         // Treat missing, null, empty/placeholder strings, and empty arrays as invalid.
         if self.required {
@@ -202,6 +210,8 @@ impl Parameter {
         // parameter itself.
         if matches!(self.param_type, ParamTypeName::DelayListConfig) {
             if let Some(Value::Object(map)) = value {
+                println!("DelayListConfig validation triggered for parameter: {}", self.name);
+                self.clamp_delay_count(map, block, catalog);
                 self.clamp_delay_durations(map, block, catalog);
             }
         }
@@ -292,6 +302,133 @@ impl Parameter {
             _ => {}
         }
         Ok(())
+    }
+
+    fn get_delay_count_range(
+        catalog: &Catalog,
+    ) -> Option<&ParameterRange> {
+        catalog
+            .custom_types
+            .get("DelayListConfig")
+            .and_then(|t| t.fields.as_ref())
+            .and_then(|fields| fields.iter().find(|f| f.name == "delay_count"))
+            .and_then(|f| f.range.as_ref())
+    }
+
+    fn clamp_delay_count(
+        &self,
+        map: &serde_json::Map<String, Value>,
+        block: &mut TriggerModelBlock,
+        catalog: &Catalog,
+    ) {
+        println!("Clamping delay_count for parameter: {}", self.name);
+
+        let requested_delay_count = map
+            .get("requested_delay_count")
+            .and_then(|v| v.as_f64());
+
+
+        let Some(Value::Number(count)) = map.get("delay_count") else {
+            println!("delay_count missing");
+            return;
+        };
+
+        println!("delay_count raw value = {:?}", count);
+
+        let Some(delay_count) = count.as_f64() else {
+            println!("delay_count not convertible to f64");
+            return;
+        };
+
+        println!("delay_count = {}", delay_count);
+
+        let effective_delay_count = requested_delay_count.unwrap_or(delay_count);
+
+        let Some(range) = Self::get_delay_count_range(catalog) else {
+            println!("get_delay_count_range returned None");
+            return;
+        };
+        
+        println!("range = {:?}", range);
+
+        let min = range.min.as_ref().and_then(|v| v.as_f64());
+        let max = range.max.as_ref().and_then(|v| v.as_f64());
+
+        let (clamped_value, message) =
+            if let Some(m) = min.filter(|m| effective_delay_count < *m) {
+                (
+                    Some(m),
+                    format!(
+                        "Parameter '{}' delay_count {} below min {}; clamped to {}",
+                        self.name,
+                        effective_delay_count,
+                        m,
+                        m
+                    ),
+                )
+            } else if let Some(m) = max.filter(|m| effective_delay_count > *m) {
+                (
+                    Some(m),
+                    format!(
+                        "Parameter '{}' delay_count {} above max {}; clamped to {}",
+                        self.name,
+                        effective_delay_count,
+                        m,
+                        m
+                    ),
+                )
+            } else {
+                (None, String::new())
+            };
+
+        println!(
+            "clamped_value={:?}, message={}",
+            clamped_value,
+            message
+        );
+
+        let Some(clamped_value) = clamped_value else {
+            return;
+        };
+
+        println!(
+            "delay_count={}, min={:?}, max={:?}, clamped_value={:?}",
+            delay_count,
+            min,
+            max,
+            clamped_value
+        );
+
+        let mut new_map = map.clone();
+
+        if let Some(number) = json_number_from_f64(clamped_value) {
+            new_map.insert(
+                "delay_count".to_string(),
+                Value::Number(number),
+            );
+
+            if let Some(Value::Array(durations)) =
+                new_map.get_mut("delay_durations")
+            {
+                durations.truncate(clamped_value as usize);
+            }
+
+            new_map.remove("requested_delay_count");
+
+            block
+                .block_parameters
+                .insert(self.name.clone(), Value::Object(new_map));
+
+            println!("Adding delay_count error: {}", message);
+            block.add_error(message);
+            println!("After add_error: {:?}", block.block_error);
+        }
+        println!(
+            "json_number_from_f64({}) -> {:?}",
+            clamped_value,
+            json_number_from_f64(clamped_value)
+        );
+
     }
 
     fn clamp_delay_durations(

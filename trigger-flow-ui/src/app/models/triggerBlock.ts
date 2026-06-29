@@ -277,6 +277,7 @@ export interface EventListItem {
 export interface DelayListConfig {
   delay_count: number;
   delay_durations: number[];
+  requested_delay_count?: number;
 }
 
 export interface SourceOutputStateValue {
