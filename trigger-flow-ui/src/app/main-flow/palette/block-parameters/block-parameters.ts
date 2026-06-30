@@ -70,6 +70,7 @@ export class BlockParameters {
   blockTypeSvgPath = '';
   actualParameters: ActualParameter[] = [];
   blockNotes = '';
+  modelName = '';
   /**
    * Snapshot of the selected block's `trigger_block_name` value taken when
    * the right panel last loaded it. Used by `onParameterValueChange` to
@@ -99,6 +100,7 @@ export class BlockParameters {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((blockId) => {
         this.selectedBlockId = blockId;
+        this.modelName = this.canvasBlocksService.getBlockModel(blockId) || '';
         this.updateBlockControls();
       });
 
