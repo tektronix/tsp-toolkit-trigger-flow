@@ -43,9 +43,12 @@ script_template:
     -- Alternatively, you could use defbuffers instead
     -- slot[SLOT_INDEX].smu[CHANNEL_INDEX].trigger.measure.iv(slot[SLOT_INDEX].smu[CHANNEL_INDEX].defbuffer1, slot[SLOT_INDEX].smu[CHANNEL_INDEX].defbuffer2)
 
+    -----------------------------------
     {{> begin_sentinel}}
   postamble: |
     {{> end_sentinel}}
+
+    ---------------------------------
 
     -- REQUIRED: Choose one of the options below to wait for your trigger model to complete before trying to access any
     --           readings or data from the trigger model execution
@@ -69,6 +72,7 @@ script_template:
     -- Process and/or print your data as needed after this point.
     -- e.g. printbuffer(startIndex, endIndex, buffername)
   contents: |
+    -----------------------------------
     -- The lines between "BEGIN GENERATED TRIGGER MODEL" and "END GENERATED TRIGGER MODEL"
     -- are auto-generated and will be replaced when the trigger model is edited in the
     -- TriggerFlow UI in TSP Toolkit. Any manual changes between these two comments will
@@ -89,14 +93,9 @@ script_template:
     {{/each}}
 
     -- do not remove the line below
-  begin_sentinel: |
-    -----------------------------------
-    -- BEGIN GENERATED TRIGGER MODEL --
-    -----------------------------------
-  end_sentinel: |
-    -----------------------------------
-    -- END GENERATED TRIGGER MODEL --
-    -----------------------------------
+    ---------------------------------
+  begin_sentinel: -- BEGIN GENERATED TRIGGER MODEL --
+  end_sentinel: -- END GENERATED TRIGGER MODEL --
 blocks:
   always:
     parameters:
