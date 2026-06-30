@@ -222,7 +222,7 @@ export class CanvasBlocksService {
                 }
               }
               if (paramValue !== null && paramValue !== undefined) {
-                actual.value = paramValue as any;
+                actual.value = paramValue as ParameterValue;
               }
               return actual;
             }),
@@ -381,6 +381,18 @@ export class CanvasBlocksService {
           : 'right';
   }
 
+  newModel(modelName: string, slotIndex: number, nodeId: string) {
+    if (!this.models[modelName]) {
+      this.models[modelName] = {
+        trigger_model_name: modelName,
+        slot_index: slotIndex,
+        node_id: nodeId,
+        blocks: [],
+      };
+    }
+    this.updateAndPrint();
+  }
+
 
   addBlock(
     blockId: string,
@@ -447,13 +459,13 @@ export class CanvasBlocksService {
   }
 
   addBlocksFromTemplate(
-    blocks: Array<{
-      templateBlockId: string; 
+    blocks: {
+      templateBlockId: string;
       type: string;
       block_parameters?: Record<string, unknown>;
-    }>,
+    }[],
     runtimeBlockIds: string[],
-    positions: Array<{ x: number; y: number }>,
+    positions: { x: number; y: number }[],
     modelName: string,
     slotIndex: number,
     nodeId: string,
@@ -539,18 +551,6 @@ export class CanvasBlocksService {
     uniqueName = `${baseName} ${count}`;
     this.blockNamesSet.set(baseName, count + 1);
     return uniqueName;
-  }
-
-  newModel(modelName: string, slotIndex: number, nodeId: string) {
-    if (!this.models[modelName]) {
-      this.models[modelName] = {
-        trigger_model_name: modelName,
-        slot_index: slotIndex,
-        node_id: nodeId,
-        blocks: [],
-      };
-    }
-    this.updateAndPrint();
   }
 
   removeModel(modelId: string): void {
@@ -738,8 +738,10 @@ export class CanvasBlocksService {
 
   private toBlockParameters(actualParameters: ActualParameter[]): Record<string, JsonValue> {
     return actualParameters.reduce((acc: Record<string, JsonValue>, param) => {
-      const value = param.value ?? param.default ?? null;
-      acc[param.name] = value as JsonValue;
+      // Send the raw value (including null for cleared fields) to the server.
+      // The server is responsible for substituting parameter defaults and
+      // attaching validation errors when a value is empty.
+      acc[param.name] = (param.value ?? null) as JsonValue;
       return acc;
     }, {});
   }

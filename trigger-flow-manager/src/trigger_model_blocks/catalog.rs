@@ -76,6 +76,22 @@ impl BlockDefinition {
     pub fn validate(&self, block: &mut TriggerModelBlock, catalog: &Catalog) -> Result<()> {
         // For each parameter in the catalog definition
         for param in &self.parameters {
+            // Substitute the catalog default when the incoming value is
+            // missing or null. Writing the default back into the block lets
+            // the rest of the pipeline (script generation and the UI
+            // round-trip) see a concrete value.
+            let is_nullish = matches!(
+                block.block_parameters.get(&param.name),
+                None | Some(Value::Null)
+            );
+            if is_nullish {
+                if let Some(default) = &param.default {
+                    block
+                        .block_parameters
+                        .insert(param.name.clone(), default.clone());
+                }
+            }
+
             let value = block.block_parameters.get(&param.name).cloned();
             param.validate(value.as_ref(), block, catalog)?;
         }
@@ -116,7 +132,10 @@ impl Parameter {
         catalog: &Catalog,
     ) -> Result<()> {
         // 1. Required-value check for all mandatory parameters.
-        // Treat missing, null, empty/placeholder strings, and empty arrays as invalid.
+        // Catalog defaults are substituted upstream in `BlockDefinition::validate`,
+        // so reaching this point with a null value means no default was available
+        // and the rendered script will contain a blank slot for this parameter.
+        // Treats missing, null, empty/placeholder strings, and empty arrays as invalid.
         if self.required {
             let is_missing_required = match value {
                 None => true,
