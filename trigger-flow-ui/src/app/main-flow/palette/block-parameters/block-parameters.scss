@@ -33,6 +33,12 @@
   color: var(--vscode-editorError-foreground, red)
 }
 
+::ng-deep .required .input-multiline .label-row > label::after {
+  content: "*";
+  font-style: italic;
+  color: var(--vscode-editorError-foreground, red);
+}
+
 .empty-state h3 {
   margin: 0 0 $spacing-xs 0;
 }

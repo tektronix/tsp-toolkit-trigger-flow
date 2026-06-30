@@ -64,11 +64,15 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  width: 90%;
 }
 
 .model-name {
   font-size: 12px;
-//   font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  width: 50%
 }
 
 .model-details {
