@@ -88,7 +88,7 @@ export class BlockParameters {
   channelItemOptions: RadioOption[] = [];
   showDelayListModal = false;
   delayListModalDelayCount = 1;
-  delayListModalDelayDurations: number[] = [1];
+  delayListModalDelayDurations: (number | null)[] = [1];
   selectedBlockNodeId = 'localnode';
   selectedBlockSlotIndex = 1;
   private previousDelayListConfig: DelayListConfig | null = null;
@@ -619,8 +619,17 @@ export class BlockParameters {
 
     const candidate = raw as Partial<DelayListConfig>;
     const delayCount = Number(candidate.delay_count);
+    // Preserve null entries so the modal can show cleared rows as empty and
+    // the server can emit per-row "is required" errors. Non-finite numbers
+    // are normalized to null for consistency.
     const delayDurations = Array.isArray(candidate.delay_durations)
-      ? candidate.delay_durations.map((value) => Number(value)).filter((value) => Number.isFinite(value))
+      ? candidate.delay_durations.map((value) => {
+          if (value === null || value === undefined) {
+            return null;
+          }
+          const num = Number(value);
+          return Number.isFinite(num) ? num : null;
+        })
       : [];
 
     if (!Number.isFinite(delayCount) || delayCount < 1) {
