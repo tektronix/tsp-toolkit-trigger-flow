@@ -52,6 +52,7 @@
     <app-model-settings-modal
       [open]="showModelSettingsModal"
       [models]="modelSettingsList"
+      [maxModels]="modelSettingsMaxModels"
       (close)="closeModelSettings()"
       (addModel)="onAddModelFromSettings()"
       (deleteModel)="onDeleteModel($event)"
