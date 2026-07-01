@@ -192,6 +192,7 @@
 
     <app-delay-list-modal [open]="showDelayListModal" [delayCount]="delayListModalDelayCount"
       [delayDurations]="delayListModalDelayDurations" (cancelled)="onDelayListCancel()"
+      (verifyList)="onDelayListVerify($event)"
       (applyList)="onDelayListApply($event)" />
   </div>
 </section>
