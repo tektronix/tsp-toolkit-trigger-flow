@@ -276,7 +276,9 @@ export interface EventListItem {
 
 export interface DelayListConfig {
   delay_count: number;
-  delay_durations: number[];
+  // Cells the user has cleared are stored as null so the server can flag
+  // them with a per-row "is required" error (parity with scalar delay_time).
+  delay_durations: (number | null)[];
 }
 
 export interface SourceOutputStateValue {
