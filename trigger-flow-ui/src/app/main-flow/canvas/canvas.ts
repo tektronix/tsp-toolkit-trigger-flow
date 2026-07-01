@@ -1356,7 +1356,7 @@ export class Canvas implements AfterViewInit {
     if (DEBUG) console.warn('groupQueries', groupQueries);
     for (const query of groupQueries) {
       svgRoot.querySelectorAll(`g ${query}`).forEach((g) => {
-        if(!hidden) {console.warn("Showing", g)}
+        if (!hidden) { console.warn("Showing", g) }
         g.classList.toggle('hidden', hidden);
       });
     }
@@ -1445,7 +1445,7 @@ export class Canvas implements AfterViewInit {
       selectedFromCanvas.length > 0
         ? selectedFromCanvas
         : selectedFromService &&
-            this.sectionNodes().some((node) => node.blockId === selectedFromService)
+          this.sectionNodes().some((node) => node.blockId === selectedFromService)
           ? [selectedFromService]
           : [];
 

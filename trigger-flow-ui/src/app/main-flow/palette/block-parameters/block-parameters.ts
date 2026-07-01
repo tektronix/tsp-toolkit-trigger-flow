@@ -70,6 +70,7 @@ export class BlockParameters {
   blockTypeSvgPath = '';
   actualParameters: ActualParameter[] = [];
   blockNotes = '';
+  modelName = '';
   /**
    * Snapshot of the selected block's `trigger_block_name` value taken when
    * the right panel last loaded it. Used by `onParameterValueChange` to
@@ -88,10 +89,15 @@ export class BlockParameters {
   channelItemOptions: RadioOption[] = [];
   showDelayListModal = false;
   delayListModalDelayCount = 1;
-  delayListModalDelayDurations: number[] = [1];
+  delayListModalDelayDurations: (number | null)[] = [1];
+  delayListModalMaxDelayCount = 10000;
   selectedBlockNodeId = 'localnode';
   selectedBlockSlotIndex = 1;
   private previousDelayListConfig: DelayListConfig | null = null;
+
+  get nodeInfo(): string {
+    return `${this.selectedBlockNodeId}.slot[${this.selectedBlockSlotIndex}]`;
+  }
 
   constructor() {
     // Reacts to both: new block added (auto-select) and existing block clicked.
@@ -99,6 +105,7 @@ export class BlockParameters {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((blockId) => {
         this.selectedBlockId = blockId;
+        this.modelName = this.canvasBlocksService.getBlockModel(blockId) || '';
         this.updateBlockControls();
       });
 
@@ -540,6 +547,7 @@ export class BlockParameters {
     const config = this.getDelayListConfigValue() ?? this.seedDelayListConfig();
     this.delayListModalDelayCount = config.delay_count;
     this.delayListModalDelayDurations = [...config.delay_durations];
+    this.delayListModalMaxDelayCount = this.getMaxDelayCount();
     this.showDelayListModal = true;
   }
 
@@ -586,6 +594,7 @@ export class BlockParameters {
       const updatedConfig: DelayListConfig = {
         delay_count: event.delayCount,
         delay_durations: [...event.delayDurations],
+        requested_delay_count: event.requestedDelayCount,
       };
       listConfigParam.value = updatedConfig;
     }
@@ -619,8 +628,17 @@ export class BlockParameters {
 
     const candidate = raw as Partial<DelayListConfig>;
     const delayCount = Number(candidate.delay_count);
+    // Preserve null entries so the modal can show cleared rows as empty and
+    // the server can emit per-row "is required" errors. Non-finite numbers
+    // are normalized to null for consistency.
     const delayDurations = Array.isArray(candidate.delay_durations)
-      ? candidate.delay_durations.map((value) => Number(value)).filter((value) => Number.isFinite(value))
+      ? candidate.delay_durations.map((value) => {
+          if (value === null || value === undefined) {
+            return null;
+          }
+          const num = Number(value);
+          return Number.isFinite(num) ? num : null;
+        })
       : [];
 
     if (!Number.isFinite(delayCount) || delayCount < 1) {
@@ -646,6 +664,18 @@ export class BlockParameters {
       delay_count: value.delay_count,
       delay_durations: [...value.delay_durations],
     };
+  }
+
+  private getMaxDelayCount(): number {
+    const catalog = this.triggerFlowDataService.catalog$();
+    const delayListConfigType = catalog?.custom_types?.['DelayListConfig'];
+    if (!delayListConfigType?.fields) {
+      return 10000; // fallback default
+    }
+
+    const delayCountField = delayListConfigType.fields.find((f) => f.name === 'delay_count');
+    const max = delayCountField?.range?.max;
+    return typeof max === 'number' ? max : 10000; // fallback default
   }
 
   private findParameter(name: string): ActualParameter | null {
