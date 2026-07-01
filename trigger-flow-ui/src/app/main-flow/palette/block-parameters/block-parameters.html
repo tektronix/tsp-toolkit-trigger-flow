@@ -191,8 +191,12 @@
         automationID="block-notes"
       />
 
-    <app-delay-list-modal [open]="showDelayListModal" [delayCount]="delayListModalDelayCount"
-      [delayDurations]="delayListModalDelayDurations" (cancelled)="onDelayListCancel()"
+    <app-delay-list-modal
+      [open]="showDelayListModal"
+      [delayCount]="delayListModalDelayCount"
+      [delayDurations]="delayListModalDelayDurations"
+      [maxDelayCount]="delayListModalMaxDelayCount"
+      (cancelled)="onDelayListCancel()"
       (applyList)="onDelayListApply($event)" />
   </div>
 </section>

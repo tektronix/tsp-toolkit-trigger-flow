@@ -6,10 +6,21 @@ export interface IInitialPayload {
   catalog: ICatalog;
 }
 
+export interface ICustomTypeField {
+  name: string;
+  range?: IParameterRange;
+}
+
+export interface ICustomType {
+  item?: { range?: IParameterRange };
+  fields?: ICustomTypeField[];
+}
+
 export interface ICatalog {
   blocks: Record<string, IBlockDefinition>;
   trigger_events: Record<string, IEventDefinition>;
   templates?: Record<string, ITemplate>;
+  custom_types?: Record<string, ICustomType>;
 }
 
 export interface ITemplateBlock {
@@ -114,6 +125,7 @@ export class Catalog {
   blocks: Record<string, BlockDefinition> = {};
   trigger_events: Record<string, EventDefinition> = {};
   templates: Record<string, ITemplate> = {};
+  custom_types: Record<string, ICustomType> = {};
 
   constructor(data: ICatalog) {
     for (const blockName of Object.keys(data.blocks)) {
@@ -128,6 +140,10 @@ export class Catalog {
 
     if (data.templates) {
       this.templates = { ...data.templates };
+    }
+
+    if (data.custom_types) {
+      this.custom_types = { ...data.custom_types };
     }
   }
 }
@@ -279,6 +295,7 @@ export interface DelayListConfig {
   // Cells the user has cleared are stored as null so the server can flag
   // them with a per-row "is required" error (parity with scalar delay_time).
   delay_durations: (number | null)[];
+  requested_delay_count?: number;
 }
 
 export interface SourceOutputStateValue {
