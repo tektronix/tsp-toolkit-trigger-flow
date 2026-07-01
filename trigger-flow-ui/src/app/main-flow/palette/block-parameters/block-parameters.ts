@@ -94,6 +94,10 @@ export class BlockParameters {
   selectedBlockSlotIndex = 1;
   private previousDelayListConfig: DelayListConfig | null = null;
 
+  get nodeInfo(): string {
+    return `${this.selectedBlockNodeId}.slot[${this.selectedBlockSlotIndex}]`;
+  }
+
   constructor() {
     // Reacts to both: new block added (auto-select) and existing block clicked.
     this.canvasBlocksService.selectedBlock$

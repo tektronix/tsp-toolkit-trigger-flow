@@ -27,7 +27,7 @@
       </button>
     </header>
     <!-- show label of triggermodel for selected block -->
-    <span class="model-name">Trigger Model: {{ modelName }}</span>
+    <span class="model-name">Trigger Model: <em>{{ modelName }}, {{nodeInfo}}</em></span>
     <div class="params-body">
       @for (param of actualParameters; track param.name) {
         @if (shouldShowInUI(param)) {
