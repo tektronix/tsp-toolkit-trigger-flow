@@ -10,6 +10,7 @@ export interface DelayListModalValue {
   // to the server so it can emit per-row required errors (parity with the
   // scalar delay_time handling).
   delayDurations: (number | null)[];
+  requestedDelayCount?: number;
 }
 
 @Component({
@@ -23,12 +24,15 @@ export class DelayListModal implements OnChanges {
   @Input() open = false;
   @Input() delayCount = 1;
   @Input() delayDurations: (number | null)[] = [];
+  @Input() maxDelayCount = 10000;
 
   @Output() cancelled = new EventEmitter<void>();
   @Output() applyList = new EventEmitter<DelayListModalValue>();
 
+  private rawDelayCount = 1;
   localDelayCount = 1;
   localDelayDurations: (number | null)[] = [1];
+  delayCountError = '';
 
   getLocalDelayCountAsText(): string {
     return `${this.localDelayCount}`;
@@ -43,13 +47,25 @@ export class DelayListModal implements OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['open'] && this.open) {
       // Rehydrate local editable state every time the modal opens.
+      this.delayCountError = '';
       this.localDelayCount = this.sanitizeDelayCount(this.delayCount);
+      this.rawDelayCount = this.delayCount;
       this.localDelayDurations = this.resizeRows(this.delayDurations, this.localDelayCount);
     }
   }
 
   onDelayCountChange(rawValue: string): void {
     const parsed = Number(rawValue);
+
+    this.rawDelayCount = parsed;
+
+    if (parsed > this.maxDelayCount) {
+      this.delayCountError =
+        `Maximum ${this.maxDelayCount} delays are allowed.`;
+    } else {
+      this.delayCountError = '';
+    }
+
     // Resize the table to match the count; sanitize floors at 1 so the
     // list always has at least one entry.
     this.localDelayCount = this.sanitizeDelayCount(parsed);
@@ -70,6 +86,7 @@ export class DelayListModal implements OnChanges {
     this.applyList.emit({
       delayCount: this.localDelayCount,
       delayDurations: [...this.localDelayDurations],
+      requestedDelayCount: this.rawDelayCount,
     });
   }
 
@@ -80,7 +97,10 @@ export class DelayListModal implements OnChanges {
       return 1;
     }
 
-    return Math.floor(value);
+    return Math.min(
+      Math.floor(value),
+      this.maxDelayCount
+    );
   }
 
   private resizeRows(
