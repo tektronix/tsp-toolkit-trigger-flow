@@ -336,9 +336,19 @@ impl Parameter {
         let mut updated = elements.clone();
         let mut clamped_any = false;
         for (idx, el) in updated.iter_mut().enumerate() {
-            let Some(num) = el.as_f64() else { continue };
             // Row numbers in error messages are 1-based to match the modal UI.
             let row = idx + 1;
+            // Per-row required check. Null or non-numeric entries originate
+            // from cleared cells in the delay-list modal; surface a row-level
+            // error so the user sees what needs filling, matching the way
+            // scalar delay_time reports an empty field.
+            let Some(num) = el.as_f64() else {
+                block.add_error(format!(
+                    "Parameter '{}' delay_durations row {} is required",
+                    self.name, row
+                ));
+                continue;
+            };
             let (limit, message) = if let Some(m) = min.filter(|m| num < *m) {
                 (
                     Some(m),
