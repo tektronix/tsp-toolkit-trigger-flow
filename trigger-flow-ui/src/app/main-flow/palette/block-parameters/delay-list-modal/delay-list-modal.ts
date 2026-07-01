@@ -20,6 +20,7 @@ export class DelayListModal implements OnChanges {
   @Input() open = false;
   @Input() delayCount = 1;
   @Input() delayDurations: number[] = [];
+  @Input() maxDelayCount = 10000;
 
   @Output() cancelled = new EventEmitter<void>();
   @Output() applyList = new EventEmitter<DelayListModalValue>();
@@ -27,7 +28,6 @@ export class DelayListModal implements OnChanges {
   private rawDelayCount = 1;
   localDelayCount = 1;
   localDelayDurations: number[] = [1];
-  private static readonly MAX_DELAY_COUNT = 10000;
   delayCountError = '';
 
   getLocalDelayCountAsText(): string {
@@ -55,9 +55,9 @@ export class DelayListModal implements OnChanges {
 
     this.rawDelayCount = parsed;
 
-    if (parsed > DelayListModal.MAX_DELAY_COUNT) {
+    if (parsed > this.maxDelayCount) {
       this.delayCountError =
-        `Maximum ${DelayListModal.MAX_DELAY_COUNT} delays are allowed.`;
+        `Maximum ${this.maxDelayCount} delays are allowed.`;
     } else {
       this.delayCountError = '';
     }
@@ -99,7 +99,7 @@ export class DelayListModal implements OnChanges {
 
     return Math.min(
       Math.floor(value),
-      DelayListModal.MAX_DELAY_COUNT
+      this.maxDelayCount
     );
   }
 

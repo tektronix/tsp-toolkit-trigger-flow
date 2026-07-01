@@ -89,6 +89,7 @@ export class BlockParameters {
   showDelayListModal = false;
   delayListModalDelayCount = 1;
   delayListModalDelayDurations: number[] = [1];
+  delayListModalMaxDelayCount = 10000;
   selectedBlockNodeId = 'localnode';
   selectedBlockSlotIndex = 1;
   private previousDelayListConfig: DelayListConfig | null = null;
@@ -540,6 +541,7 @@ export class BlockParameters {
     const config = this.getDelayListConfigValue() ?? this.seedDelayListConfig();
     this.delayListModalDelayCount = config.delay_count;
     this.delayListModalDelayDurations = [...config.delay_durations];
+    this.delayListModalMaxDelayCount = this.getMaxDelayCount();
     this.showDelayListModal = true;
   }
 
@@ -647,6 +649,18 @@ export class BlockParameters {
       delay_count: value.delay_count,
       delay_durations: [...value.delay_durations],
     };
+  }
+
+  private getMaxDelayCount(): number {
+    const catalog = this.triggerFlowDataService.catalog$();
+    const delayListConfigType = catalog?.custom_types?.['DelayListConfig'];
+    if (!delayListConfigType?.fields) {
+      return 10000; // fallback default
+    }
+
+    const delayCountField = delayListConfigType.fields.find((f) => f.name === 'delay_count');
+    const max = delayCountField?.range?.max;
+    return typeof max === 'number' ? max : 10000; // fallback default
   }
 
   private findParameter(name: string): ActualParameter | null {
