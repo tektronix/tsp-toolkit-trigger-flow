@@ -170,6 +170,7 @@ export class Canvas implements AfterViewInit {
   private svgVisibilityRefreshQueued = false;
 
   private nodeCounter = 0;
+  private groupCounter = 0;
 
   canvasSize = signal(this.getCanvasSize());
   selectedNodeIds = signal<string[]>([]);
@@ -381,8 +382,9 @@ export class Canvas implements AfterViewInit {
   }
 
   createModelAndContinue(result: ModelModalValue): void {
-    const sectionId = `group-${this.sections().length + 1}`;
-    const modelName = result.name.trim() || `Model${this.sections().length + 1}`;
+    const sectionId = `group-${this.groupCounter}`;
+    const modelName = result.name.trim() || `Model${this.groupCounter}`;
+    this.groupCounter++;
 
     // Assign a stable horizontal slot (max existing + 1) so that deleting
     // a model later does not shift remaining sections leftward.
