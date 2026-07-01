@@ -70,6 +70,7 @@ export class BlockParameters {
   blockTypeSvgPath = '';
   actualParameters: ActualParameter[] = [];
   blockNotes = '';
+  modelName = '';
   /**
    * Snapshot of the selected block's `trigger_block_name` value taken when
    * the right panel last loaded it. Used by `onParameterValueChange` to
@@ -94,12 +95,17 @@ export class BlockParameters {
   selectedBlockSlotIndex = 1;
   private previousDelayListConfig: DelayListConfig | null = null;
 
+  get nodeInfo(): string {
+    return `${this.selectedBlockNodeId}.slot[${this.selectedBlockSlotIndex}]`;
+  }
+
   constructor() {
     // Reacts to both: new block added (auto-select) and existing block clicked.
     this.canvasBlocksService.selectedBlock$
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((blockId) => {
         this.selectedBlockId = blockId;
+        this.modelName = this.canvasBlocksService.getBlockModel(blockId) || '';
         this.updateBlockControls();
       });
 
