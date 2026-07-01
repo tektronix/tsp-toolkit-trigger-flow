@@ -21,10 +21,10 @@ export class InputNumeric implements ControlValueAccessor, OnInit {
   @Input() disabled = false;
   @Input() automationID: string | undefined;
   @Input() floatAllowed = false;
-  @Output() inputChange = new EventEmitter<number>();
+  @Output() inputChange = new EventEmitter<number | null>();
 
   private _value: number | undefined;
-  private onChange: ((value: number) => void) | undefined;
+  private onChange: ((value: number | null) => void) | undefined;
 
   ngOnInit(): void {
     console.log('InputNumericComponent initialized with label:', this.label);
@@ -62,7 +62,7 @@ export class InputNumeric implements ControlValueAccessor, OnInit {
     }
   }
 
-  registerOnChange(fn: ((value: number) => void) | undefined): void {
+  registerOnChange(fn: ((value: number | null) => void) | undefined): void {
     this.onChange = fn;
   }
 
@@ -77,6 +77,21 @@ export class InputNumeric implements ControlValueAccessor, OnInit {
   onInputChange(event: Event): void {
     const inputElement = event.target as HTMLInputElement;
     const previousValue = this.displayValue;
+    const rawValue = this.stripUnitSuffix(inputElement.value);
+
+    // An empty field is a valid "no value" state.
+    // The server is responsible for validating empty
+    // values and substituting defaults if present.
+    if (rawValue === '') {
+      if (this._value !== undefined) {
+        this._value = undefined;
+        this.onChange?.(null);
+        this.inputChange.emit(null);
+      }
+      inputElement.value = '';
+      return;
+    }
+
     const parsedValue = this.parseValue(inputElement.value);
 
     if (parsedValue === null) {
@@ -102,6 +117,14 @@ export class InputNumeric implements ControlValueAccessor, OnInit {
   private parseValue(value: string | number): number | null {
     const rawValue = typeof value === 'number' ? `${value}` : value;
     const cleanedValue = this.stripUnitSuffix(rawValue);
+
+    // Number("") evaluates to 0, which would silently turn a cleared field
+    // into a real zero. Reject empties here so callers treat them as
+    // "no input" rather than valid numeric data.
+    if (cleanedValue === '') {
+      return null;
+    }
+
     const parsedValue = Number(cleanedValue);
 
     if (Number.isNaN(parsedValue)) {
