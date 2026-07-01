@@ -3,7 +3,7 @@
     <section class="tf-modal tf-delay-list-modal" role="dialog" aria-modal="true" aria-label="Delay List">
       <header class="tf-modal__header">
         <h2>Delay List</h2>
-        <button type="button" class="icon-btn" (click)="onCancel()" aria-label="Close delay list dialog" automationID="Button-Close-Delay-List">
+        <button type="button" class="icon-btn" (click)="onCancel()" aria-label="Close delay list dialog" automationID="Button-Close-Delay-List" title="Close">
           <img class="icon-img" src="assets/shapes/Icons/X.svg" alt="Close" />
         </button>
       </header>
@@ -15,6 +15,8 @@
           label="Number of Delays"
           [ngModel]="getLocalDelayCountAsText()"
           (inputChange)="onDelayCountChange($event)"
+          [invalid]="!!delayCountError"
+          [errorMessage]="delayCountError"
           automationID="Input-Number-Of-Delays"
         />
 
@@ -31,12 +33,13 @@
                 <tr>
                   <td>{{ rowIndex + 1 }}</td>
                   <td class="delay-cell">
-                    <app-textbox
+                    <app-input-numeric
                       class="delay-input"
                       [label]="''"
                       [unit]="'s'"
-                      [ngModel]="getDelayDurationAsText(rowIndex)"
-                      (inputChange)="updateDelayDuration(rowIndex, $event)"
+                      [floatAllowed]="true"
+                      [ngModel]="getDelayDuration(rowIndex)"
+                      (inputChange)="onDelayDurationChange(rowIndex, $event)"
                       [attr.aria-label]="'Delay duration for row ' + (rowIndex + 1)"
                       [automationID]="'Input-Delay-Duration-' + (rowIndex + 1)"
                     />
@@ -48,8 +51,8 @@
         </div>
 
         <div class="tf-modal__actions">
-          <button type="button" class="btn ghost" (click)="onCancel()" automationID="Button-Cancel-Delay-List">Cancel</button>
-          <button type="button" class="btn primary" (click)="onApply()" automationID="Button-Apply-Delay-List">Apply</button>
+          <button type="button" class="btn ghost" (click)="onCancel()" automationID="Button-Cancel-Delay-List" title="Cancel">Cancel</button>
+          <button type="button" class="btn primary" (click)="onApply()" automationID="Button-Apply-Delay-List" title="Apply">Apply</button>
         </div>
       </div>
     </section>
