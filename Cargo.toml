@@ -12,7 +12,7 @@ serde-saphyr = "0.0.21"
 
 
 [workspace.package]
-version = "0.2.0"
+version = "0.2.1"
 
 [workspace.lints.rust]
 warnings = "deny"
