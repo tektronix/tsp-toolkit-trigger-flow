@@ -39,10 +39,17 @@ pub struct Catalog {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct CustomType {
     pub item: Option<CustomTypeItem>,
+    pub fields: Option<Vec<CustomTypeField>>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct CustomTypeItem {
+    pub range: Option<ParameterRange>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct CustomTypeField {
+    pub name: String,
     pub range: Option<ParameterRange>,
 }
 
@@ -221,6 +228,7 @@ impl Parameter {
         // parameter itself.
         if matches!(self.param_type, ParamTypeName::DelayListConfig) {
             if let Some(Value::Object(map)) = value {
+                self.clamp_delay_count(map, block, catalog);
                 self.clamp_delay_durations(map, block, catalog);
             }
         }
@@ -313,6 +321,87 @@ impl Parameter {
         Ok(())
     }
 
+    fn get_delay_count_range(catalog: &Catalog) -> Option<&ParameterRange> {
+        catalog
+            .custom_types
+            .get("DelayListConfig")
+            .and_then(|t| t.fields.as_ref())
+            .and_then(|fields| fields.iter().find(|f| f.name == "delay_count"))
+            .and_then(|f| f.range.as_ref())
+    }
+
+    fn clamp_delay_count(
+        &self,
+        map: &serde_json::Map<String, Value>,
+        block: &mut TriggerModelBlock,
+        catalog: &Catalog,
+    ) {
+        let requested_delay_count = map.get("requested_delay_count").and_then(|v| v.as_f64());
+
+        let Some(delay_count_value) = map.get("delay_count") else {
+            return;
+        };
+
+        let Some(delay_count) = delay_count_value.as_f64() else {
+            block.add_error(format!(
+                "Parameter '{}' delay_count must be a number",
+                self.name
+            ));
+            return;
+        };
+
+        let effective_delay_count = requested_delay_count.unwrap_or(delay_count);
+
+        let Some(range) = Self::get_delay_count_range(catalog) else {
+            return;
+        };
+
+        let min = range.min.as_ref().and_then(|v| v.as_f64());
+        let max = range.max.as_ref().and_then(|v| v.as_f64());
+
+        let (clamped_value, message) = if let Some(m) = min.filter(|m| effective_delay_count < *m) {
+            (
+                Some(m),
+                format!(
+                    "Parameter '{}' delay_count {} below min {}; clamped to {}",
+                    self.name, effective_delay_count, m, m
+                ),
+            )
+        } else if let Some(m) = max.filter(|m| effective_delay_count > *m) {
+            (
+                Some(m),
+                format!(
+                    "Parameter '{}' delay_count {} above max {}; clamped to {}",
+                    self.name, effective_delay_count, m, m
+                ),
+            )
+        } else {
+            (None, String::new())
+        };
+
+        let Some(clamped_value) = clamped_value else {
+            return;
+        };
+
+        let mut new_map = map.clone();
+
+        if let Some(number) = json_number_from_f64(clamped_value) {
+            new_map.insert("delay_count".to_string(), Value::Number(number));
+
+            if let Some(Value::Array(durations)) = new_map.get_mut("delay_durations") {
+                durations.truncate(clamped_value as usize);
+            }
+
+            new_map.remove("requested_delay_count");
+
+            block
+                .block_parameters
+                .insert(self.name.clone(), Value::Object(new_map));
+
+            block.add_error(message);
+        }
+    }
+
     fn clamp_delay_durations(
         &self,
         map: &serde_json::Map<String, Value>,
@@ -336,9 +425,19 @@ impl Parameter {
         let mut updated = elements.clone();
         let mut clamped_any = false;
         for (idx, el) in updated.iter_mut().enumerate() {
-            let Some(num) = el.as_f64() else { continue };
             // Row numbers in error messages are 1-based to match the modal UI.
             let row = idx + 1;
+            // Per-row required check. Null or non-numeric entries originate
+            // from cleared cells in the delay-list modal; surface a row-level
+            // error so the user sees what needs filling, matching the way
+            // scalar delay_time reports an empty field.
+            let Some(num) = el.as_f64() else {
+                block.add_error(format!(
+                    "Parameter '{}' delay_durations row {} is required",
+                    self.name, row
+                ));
+                continue;
+            };
             let (limit, message) = if let Some(m) = min.filter(|m| num < *m) {
                 (
                     Some(m),

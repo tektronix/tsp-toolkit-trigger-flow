@@ -69,25 +69,19 @@
   width: 96px;
 }
 
-:host ::ng-deep app-textbox.delay-input .textbox {
+:host ::ng-deep app-input-numeric.delay-input .input-numeric {
   width: 84px;
 }
 
-:host ::ng-deep app-textbox.delay-input .textbox label {
+:host ::ng-deep app-input-numeric.delay-input .input-numeric label {
   display: none;
 }
 
-:host ::ng-deep app-textbox.delay-input .textbox input {
+:host ::ng-deep app-input-numeric.delay-input .input-numeric input {
   width: 84px;
   padding: 3px 6px;
   font-size: 12px;
 }
-
-// .delay-input {
-//   width: 84px;
-//   padding: 3px 6px;
-//   font-size: 12px;
-// }
 
 .table-wrap {
   border: 1px solid var(--vscode-editorWidget-border);
