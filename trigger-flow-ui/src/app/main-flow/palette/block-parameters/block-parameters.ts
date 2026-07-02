@@ -154,14 +154,14 @@ export class BlockParameters {
         this.blockTypeSvgPath = CATEGORY_ICON_PATHS[category];
       }
 
-        this.actualParameters = canvasBlock.actual_parameters;
-        // Snapshot the current name so a subsequent edit can be detected as a
-        // rename and propagated to referencing BlockReference param.
-        this.previousBlockName = this.readTriggerBlockName(this.actualParameters);
-        const linkParam = this.getPrimaryBlockReferenceParam(this.actualParameters);
-        this.previousBranchReferenceValue = linkParam?.value
-          ? String(linkParam.value)
-          : '';
+      this.actualParameters = canvasBlock.actual_parameters;
+      // Snapshot the current name so a subsequent edit can be detected as a
+      // rename and propagated to referencing BlockReference param.
+      this.previousBlockName = this.readTriggerBlockName(this.actualParameters);
+      const linkParam = this.getPrimaryBlockReferenceParam(this.actualParameters);
+      this.previousBranchReferenceValue = linkParam?.value
+        ? String(linkParam.value)
+        : '';
 
       // Resolve model context from the owning model
       const model = this.canvasBlocksService.getModelForBlock(this.selectedBlockId);
@@ -201,6 +201,13 @@ export class BlockParameters {
     }
 
     this.actualParameters = canvasBlock.actual_parameters;
+    if (this.showDelayListModal) {
+      const config = this.getDelayListConfigValue();
+      if (config) {
+        this.delayListModalDelayCount = config.delay_count;
+        this.delayListModalDelayDurations = [...config.delay_durations];
+      }
+    }
   }
 
   /**
@@ -551,6 +558,8 @@ export class BlockParameters {
     this.showDelayListModal = true;
   }
 
+
+
   onDelayListCheckedChange(checked: boolean): void {
     const listConfigParam = this.findParameter('list_config');
     if (!listConfigParam) {
@@ -583,6 +592,14 @@ export class BlockParameters {
   }
 
   onDelayListApply(event: DelayListModalValue): void {
+
+    this.onDelayListVerify(event);
+    this.showDelayListModal = false;
+    this.previousDelayListConfig = null;
+
+  }
+
+  onDelayListVerify(event: DelayListModalValue): void {
     // Update local UI state (so reopening shows latest values).
     this.delayListModalDelayCount = event.delayCount;
     this.delayListModalDelayDurations = [...event.delayDurations];
@@ -598,10 +615,10 @@ export class BlockParameters {
       };
       listConfigParam.value = updatedConfig;
     }
-
-    this.showDelayListModal = false;
-    this.previousDelayListConfig = null;
     this.onParameterValueChange();
+    const config = this.getDelayListConfigValue() ?? this.seedDelayListConfig();
+    this.delayListModalDelayCount = config.delay_count;
+    this.delayListModalDelayDurations = [...config.delay_durations];
   }
 
   private seedDelayListConfig(): DelayListConfig {
@@ -633,12 +650,12 @@ export class BlockParameters {
     // are normalized to null for consistency.
     const delayDurations = Array.isArray(candidate.delay_durations)
       ? candidate.delay_durations.map((value) => {
-          if (value === null || value === undefined) {
-            return null;
-          }
-          const num = Number(value);
-          return Number.isFinite(num) ? num : null;
-        })
+        if (value === null || value === undefined) {
+          return null;
+        }
+        const num = Number(value);
+        return Number.isFinite(num) ? num : null;
+      })
       : [];
 
     if (!Number.isFinite(delayCount) || delayCount < 1) {

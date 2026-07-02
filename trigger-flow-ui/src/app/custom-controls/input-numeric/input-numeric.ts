@@ -94,7 +94,7 @@ export class InputNumeric implements ControlValueAccessor, OnInit {
 
     const parsedValue = this.parseValue(inputElement.value);
 
-    if (parsedValue === null) {
+    if (parsedValue === null || parsedValue === Infinity || parsedValue === -Infinity) {
       inputElement.value = previousValue;
       return;
     }

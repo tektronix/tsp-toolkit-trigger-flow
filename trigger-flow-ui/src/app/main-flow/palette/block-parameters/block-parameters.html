@@ -197,6 +197,7 @@
       [delayDurations]="delayListModalDelayDurations"
       [maxDelayCount]="delayListModalMaxDelayCount"
       (cancelled)="onDelayListCancel()"
+      (verifyList)="onDelayListVerify($event)"
       (applyList)="onDelayListApply($event)" />
   </div>
 </section>

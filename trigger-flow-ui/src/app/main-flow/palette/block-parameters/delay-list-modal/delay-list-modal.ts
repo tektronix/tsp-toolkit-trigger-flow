@@ -1,7 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Textbox } from '../../../../custom-controls/textbox/textbox';
 import { InputNumeric } from '../../../../custom-controls/input-numeric/input-numeric';
 
 export interface DelayListModalValue {
@@ -16,7 +15,7 @@ export interface DelayListModalValue {
 @Component({
   selector: 'app-delay-list-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule, Textbox, InputNumeric],
+  imports: [CommonModule, FormsModule, InputNumeric],
   templateUrl: './delay-list-modal.html',
   styleUrl: './delay-list-modal.scss',
 })
@@ -28,6 +27,7 @@ export class DelayListModal implements OnChanges {
 
   @Output() cancelled = new EventEmitter<void>();
   @Output() applyList = new EventEmitter<DelayListModalValue>();
+  @Output() verifyList = new EventEmitter<DelayListModalValue>();
 
   private rawDelayCount = 1;
   localDelayCount = 1;
@@ -45,8 +45,14 @@ export class DelayListModal implements OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['open'] && this.open) {
-      // Rehydrate local editable state every time the modal opens.
+    if (!this.open) return;
+
+    const shouldRehydrate =
+      (changes['open'] && this.open) ||
+      !!changes['delayCount'] ||
+      !!changes['delayDurations'];
+
+    if (shouldRehydrate) {
       this.delayCountError = '';
       this.localDelayCount = this.sanitizeDelayCount(this.delayCount);
       this.rawDelayCount = this.delayCount;
@@ -54,7 +60,7 @@ export class DelayListModal implements OnChanges {
     }
   }
 
-  onDelayCountChange(rawValue: string): void {
+  onDelayCountChange(rawValue: number | null): void {
     const parsed = Number(rawValue);
 
     this.rawDelayCount = parsed;
@@ -76,6 +82,10 @@ export class DelayListModal implements OnChanges {
     // Store as-is. Empty cells flow through as null and are caught by the
     // server's per-row validation, matching the scalar delay_time path.
     this.localDelayDurations[index] = value;
+    this.verifyList.emit({
+      delayCount: this.localDelayCount,
+      delayDurations: [...this.localDelayDurations],
+    });
   }
 
   onCancel(): void {

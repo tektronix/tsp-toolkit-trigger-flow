@@ -11,12 +11,10 @@
       <div class="tf-modal__body">
         <div class="tf-modal__divider tf-modal__divider--header"></div>
 
-        <app-textbox
+        <app-input-numeric
           label="Number of Delays"
           [ngModel]="getLocalDelayCountAsText()"
           (inputChange)="onDelayCountChange($event)"
-          [invalid]="!!delayCountError"
-          [errorMessage]="delayCountError"
           automationID="Input-Number-Of-Delays"
         />
 
