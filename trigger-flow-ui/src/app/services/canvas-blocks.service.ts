@@ -621,6 +621,16 @@ export class CanvasBlocksService {
     });
   }
 
+  //Return the model name of selected block nodeId
+  getBlockModel(nodeId: string | null): string | null {
+    for (const [modelName, model] of Object.entries(this.models)) {
+      if (model.blocks.some((b) => b.block_id === nodeId)) {
+        return modelName;
+      }
+    }
+    return null;
+  }
+
   getModels() {
     return this.models;
   }

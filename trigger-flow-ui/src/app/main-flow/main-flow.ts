@@ -46,6 +46,7 @@ export class MainFlow {
   showModelSettingsModal = false;
 
   modelSettingsList: ModelSettingsItem[] = [];
+  modelSettingsMaxModels = 0;
 
   slotOptions: ModelSlotOption[] = [];
 
@@ -250,6 +251,8 @@ export class MainFlow {
       nodeId: section.nodeId,
       slotIndex: section.slotIndex,
     }));
+
+    this.modelSettingsMaxModels = this.modelResourceAllocationService.getMaxModels();
   }
 
   closeModelSettings(): void {
