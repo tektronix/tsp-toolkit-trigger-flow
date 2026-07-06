@@ -34,12 +34,14 @@ export class ModelModal {
 
   @Input() slotOptions: ModelSlotOption[] = [];
   @Input() existingModelNames: string[] = [];
+  @Input() disableCreate = false;
 
   @Output() closeWithValue = new EventEmitter<ModelModalValue>();
   @Output() deleteClicked = new EventEmitter<void>();
   @Output() slotChanged = new EventEmitter<ModelSlotOption>();
 
   nameError = '';
+  private nameInputError = '';
 
   get slotOptionsAsString(): string[] {
     return this.slotOptions.map((o) => o.label);
@@ -66,6 +68,12 @@ export class ModelModal {
   }
 
   validateName(): boolean {
+    if (this.nameInputError) {
+      this.nameError = this.nameInputError;
+      this.disableCreate = true;
+      return false;
+    }
+
     const trimmed = this.name.trim();
 
     if (!trimmed) {
@@ -83,7 +91,13 @@ export class ModelModal {
     }
 
     this.nameError = '';
+    this.disableCreate = false;
     return true;
+  }
+
+  onNamespecialCharError(errorMessage: string): void {
+    this.nameInputError = errorMessage;
+    this.validateName();
   }
 
   onCreate(): void {
