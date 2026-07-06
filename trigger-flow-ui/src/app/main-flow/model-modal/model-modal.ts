@@ -95,7 +95,7 @@ export class ModelModal {
     return true;
   }
 
-  onNamespecialCharError(errorMessage: string): void {
+  onNameSpecialCharError(errorMessage: string): void {
     this.nameInputError = errorMessage;
     this.validateName();
   }
