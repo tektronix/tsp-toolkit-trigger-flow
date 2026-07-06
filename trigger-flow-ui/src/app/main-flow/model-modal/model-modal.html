@@ -16,7 +16,7 @@
         label="Name"
         [(ngModel)]="name"
         (ngModelChange)="validateName()"
-        (specialCharError)="onNamespecialCharError($event)"
+        (specialCharError)="onNameSpecialCharError($event)"
         [invalid]="!!nameError"
         [errorMessage]="nameError"
         automationID="Input-Model-Name">
