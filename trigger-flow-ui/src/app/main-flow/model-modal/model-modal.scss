@@ -111,6 +111,13 @@
   cursor: pointer;
   position: relative;
 }
+
+.action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  border-color: #5a5a5a;
+  color: #7a7a7a;
+}
 // .field-error {
 //   margin-top: 4px;
 //   color: #d32f2f;
