@@ -1122,7 +1122,7 @@ dependencies = [
 
 [[package]]
 name = "kic-trigger-flow"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "actix",
  "actix-cors",
@@ -1848,7 +1848,7 @@ dependencies = [
 
 [[package]]
 name = "trigger-flow-manager"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "handlebars",
