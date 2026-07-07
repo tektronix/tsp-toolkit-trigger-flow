@@ -24,6 +24,7 @@ export class Textbox implements ControlValueAccessor, OnInit {
   @Input() errorMessage = '';
   @Input() automationID: string | undefined;
   @Output() inputChange = new EventEmitter<string>();
+  @Output() specialCharError = new EventEmitter<string>();
 
   private _value = '';
   private onChange: ((value: string) => void) | undefined;
@@ -110,12 +111,14 @@ export class Textbox implements ControlValueAccessor, OnInit {
     const specialChars = '"/';
     const regex = new RegExp(`[${specialChars}]`, 'g');
     if (regex.test(value)) {
-      const match= new Set(value.match(regex));
+      const match = new Set(value.match(regex));
       this.invalid = true;
       this.errorMessage = `Input contains special characters ${Array.from(match)}, which are not allowed.`;
+      this.specialCharError.emit(this.errorMessage);
     } else {
       this.invalid = false;
       this.errorMessage = '';
+      this.specialCharError.emit('');
     }
   }
 }

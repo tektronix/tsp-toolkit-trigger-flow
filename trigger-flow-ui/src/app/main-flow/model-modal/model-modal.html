@@ -16,6 +16,7 @@
         label="Name"
         [(ngModel)]="name"
         (ngModelChange)="validateName()"
+        (specialCharError)="onNameSpecialCharError($event)"
         [invalid]="!!nameError"
         [errorMessage]="nameError"
         automationID="Input-Model-Name">
@@ -57,9 +58,10 @@
 
       <div class="tf-modal__footer-icons">
       <button
-        title="Create Trigger Model"
+        [title]="disableCreate ? 'Special character error in trigger model name' : 'Create New Model'"
         [attr.aria-label]="'Create-Model-Settings'"
         class="action-btn"
+        [disabled]="disableCreate"
         (click)="onCreate()"
         automationID="Button-Create-Model-Settings"
       >
