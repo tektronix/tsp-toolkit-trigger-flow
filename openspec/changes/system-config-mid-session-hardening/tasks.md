@@ -1,45 +1,49 @@
-## 1. Phase 0 - Catalog audit and shared plumbing
+## 1. Error IPC and `request_type` unification
 
-- [ ] 1.1 Read `BlockDefinition` in `trigger-flow-manager/src/trigger_model_blocks/catalog.rs` and `triggerBlocks.yaml`; determine whether module compatibility per block type already exists (field name, encoding, coverage)
-- [ ] 1.2 If missing, propose the field shape (name, position, default) and add it to `BlockDefinition` and `triggerBlocks.yaml` for all existing block types
-- [ ] 1.3 Extend `Catalog` accessors so a validator can cheaply look up compatible modules by `block_type`
+- [x] 1.1 Rename Rust's `"empty_config_response"` string to `"empty_system_config_error"` in `TriggerFlowState::process_system_config` and `IpcData` conversion for `ResponseType::EmptyConfigResponse`
+- [ ] 1.2 Replace both `Err(_e) => "".to_string()` sinks in `TriggerFlowState::process_system_config` with a structured IPC payload of the form `{"request_type":"empty_system_config_error","additional_info":"","json_value":"{\"error\":\"...\"}"}`
+- [ ] 1.3 Verify `should_trigger_script` in `kic-trigger-flow/src/back_end/client_server.rs::StdinLine::Systems` now correctly evaluates to `false` on the error path
 
-## 2. Error IPC and `request_type` unification
+## 2. In-session validity gate and atomic update
 
-- [ ] 2.1 Replace both `Err(_e) => "".to_string()` sinks in `TriggerFlowState::process_system_config` with a structured IPC payload of the form `{"request_type":"empty_system_config_error","additional_info":"","json_value":"{\"error\":\"...\"}"}`
-- [ ] 2.2 Rename Rust's `"empty_config_response"` string to `"empty_system_config_error"` in `process_system_config`
-- [ ] 2.3 Verify `should_trigger_script` in `kic-trigger-flow/src/back_end/client_server.rs::StdinLine::Systems` now correctly evaluates to `false` on the error path
-- [ ] 2.4 Add a UI-side integration test (or manual smoke test) that a non-MP5 fresh-init payload lands in the `empty_system_config_error` case of the switch in `trigger-flow-ui/src/app/app.ts` and displays a user-visible message
+- [ ] 2.1 In `TriggerFlowState::process_system_config` else branch, call `self.slot_channel_list.is_valid_config()` on the freshly built list before persisting; if false, keep the previous state and return the `empty_system_config_error` IPC
+- [ ] 2.2 In `SlotChannelList::update_slot_channel_list` `SystemConfig` arm, parse `slots` and `nodes` into locals first; assign to `self.slots`/`self.nodes`/`self.localnode`/`self.is_valid` only if both parses succeed
+- [ ] 2.3 Add unit tests: (a) valid update accepted, (b) non-MP5 mid-session update rejected and prior state preserved, (c) update with malformed nodes slot rejected and `self.slots` unchanged
 
-## 3. In-session validity gate and atomic update
+## 3. Slot-level `is_valid` and `in_use`
 
-- [ ] 3.1 In `TriggerFlowState::process_system_config` else branch, call `self.slot_channel_list.is_valid_config()` on the freshly built list before persisting; if false, keep the previous state and return the same `empty_system_config_error` IPC
-- [ ] 3.2 In `SlotChannelList::update_slot_channel_list` `SystemConfig` arm, parse `slots` and `nodes` into locals first; assign to `self.slots`/`self.nodes`/`self.localnode`/`self.is_valid` only if both parses succeed
-- [ ] 3.3 Add unit tests covering: (a) valid update, (b) non-MP5 mid-session update (rejected, state unchanged), (c) update with malformed nodes slot (rejected, `self.slots` unchanged)
+- [ ] 3.1 Add `pub is_valid: bool` and `pub in_use: bool` on `Slot` in `trigger-flow-manager/src/api/slot_channel_list.rs`; default both to `true` and `false` respectively; the existing `#[serde(rename_all = "camelCase")]` will emit `isValid` / `inUse`
+- [ ] 3.2 Update `impl TryFrom<&SlotJson> for Slot` to set `is_valid: true, in_use: false` on construction
+- [ ] 3.3 Update the two `SlotChannelList` builder sites (`new` fresh-init and the `SystemConfig` arm of `update_slot_channel_list`) to include the fields; keep the MP5-drop-nodes guard intact
+- [ ] 3.4 Add a `Slot` unit test asserting the default flag values
 
-## 4. Module-drift detection (Phase 1 - detection only)
+## 4. Merge logic on Systems update
 
-- [ ] 4.1 Create `trigger-flow-manager/src/validator/module_compat_validator.rs` implementing `Validator` trait; for each block, look up `compatible_modules` via the catalog and compare against `slot_channel_list.slots[i].module`
-- [ ] 4.2 Wire the new validator into the chain in `RequestProcessor::new`, after `InstrumentValidator`
-- [ ] 4.3 On drift, push a `(true, "Module changed from X to Y on slot N; this block is no longer valid")` entry into `block.block_error`
-- [ ] 4.4 Ensure the validator runs during `handle_evaluate_request` and `handle_recall_request`, and after `process_system_config` in-session updates
-- [ ] 4.5 Add unit tests for drift detection: unchanged slot (no error), swapped module (error), slot became Empty (error)
+- [ ] 4.1 In `SlotChannelList::update_slot_channel_list` `SystemConfig` arm, replace the wholesale `self.slots = new_slots;` write with a merge-by-`slot_id`:
+    - For each new slot, look up any existing slot with the same `slot_id`.
+    - Not present before -> keep new slot as-is (`is_valid = true`).
+    - Same module -> preserve the existing `is_valid` value.
+    - Different module -> set `is_valid = false`.
+- [ ] 4.2 After merging, recompute `Slot.in_use` for every slot from `trigger_flow_state.models` (extend the update signature or add a follow-up call site to pass models into the function)
+- [ ] 4.3 Apply the delete rule: retain only slots where `is_valid || in_use`. Log each dropped slot to stderr with `slot_id`, previous module, and reason
+- [ ] 4.4 Unit tests: (a) same module preserves flag, (b) different module flips flag with `in_use` preserved, (c) different module with no `in_use` drops the slot, (d) fresh slot_id added as valid, (e) missing slot_id from payload is dropped
 
-## 5. Classification and auto-remove (Phase 2-3)
+## 5. Evaluate-cycle delete step
 
-- [ ] 5.1 Add a helper on `TriggerModelBlock` (or a free function) that reports whether a block is "in use" per the design decision: `incoming.is_some() || outgoing.is_some() || parameters_differ_from_default(catalog, block_type, block_parameters)`
-- [ ] 5.2 On successful `Systems` update inside `process_system_config`, iterate `models`, run module-drift detection, and remove blocks classified as "unused" whose slot's module changed
-- [ ] 5.3 Log each removal to stderr with block id, model name, slot, old module, new module
-- [ ] 5.4 Emit the resulting `evaluate_response` reflecting removed blocks; do not emit a separate notification
-- [ ] 5.5 Unit tests: (a) unused drifted block removed, (b) wired drifted block kept with error, (c) parameterized drifted block kept with error, (d) unaffected blocks untouched
+- [ ] 5.1 In the `TriggerFlowState` arm of `SlotChannelList::update_slot_channel_list`, after the existing `in_use` refresh on `Channel`, also recompute `Slot.in_use` for each slot
+- [ ] 5.2 Apply the delete rule (retain only `is_valid || in_use`). Do not touch `is_valid`
+- [ ] 5.3 Unit tests: (a) slot flagged invalid remains while `in_use` is true, (b) slot flagged invalid dropped when `in_use` becomes false, (c) valid slots never dropped
 
-## 6. UI copy and follow-up (Phase 4)
+## 6. UI type updates (surface only)
 
-- [ ] 6.1 Review the way `block_error` is rendered in `trigger-flow-ui` and confirm module-drift errors read acceptably
-- [ ] 6.2 If needed, distinguish "module changed" errors from "channel conflict" errors visually (icon or label)
-- [ ] 6.3 Document the new behavior in the change spec and archive
+- [ ] 6.1 Add `isValid: boolean` and `inUse: boolean` on `ISlot` and `Slot` in `trigger-flow-ui/src/app/models/slotChannelModel.ts`; copy them through in the constructor
+- [ ] 6.2 Do not add UI behaviour yet; that lands in a follow-up change
+- [ ] 6.3 Manual smoke test: `evaluate_response` payload from Rust now carries `isValid` / `inUse` fields on every slot, both defaulting to `true` / `false` under happy path
 
 ## 7. Cross-referenced follow-ups (outside this change)
 
-- [ ] 7.1 Draft a separate change proposal for TS-side gaps: gate `sendConfigData` in `triggerFlowWebViewManager.ts::listenToConfigChanges` on `existingSystems.some(s => s.isActive === true)`; fix `ConifgWebView.ts` delete case to promote-in-single-write and guard `systemInfo[0].name` when deleting last
-- [ ] 7.2 Track the "is_valid field write inconsistency and unread" cleanup as a separate small change if it does not fall out of tasks 3.x above
+- [ ] 7.1 Draft a follow-up change proposal for UI reaction: disable block panel and offer model reassignment when a model's slot is `!isValid`; also render slots with `!isValid` distinctly in the palette
+- [ ] 7.2 Draft a separate change proposal for TS-side gaps: gate `sendConfigData` on `existingSystems.some(s => s.isActive === true)`; fix `ConifgWebView.ts` delete-last-system to guard `systemInfo[0].name`
+- [ ] 7.3 Track the "SlotChannelList.is_valid field write inconsistency and unread" cleanup as a small change if it does not fall out of tasks 2.x above
+- [ ] 7.4 Track future iteration: channel-level `is_valid`, block-level `block_error` for module drift, per-block-type compatibility in the catalog
+

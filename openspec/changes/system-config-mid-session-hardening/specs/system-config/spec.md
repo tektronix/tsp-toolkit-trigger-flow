@@ -2,23 +2,39 @@
 
 ### Requirement: In-session configuration reconciliation
 
-On any subsequent `Systems` payload, the system SHALL replace
-`slot_channel_list.slots`, `nodes`, and `localnode` atomically and only if
-`is_valid_config()` returns `true` on the result. If the incoming payload
-is invalid, the system MUST reject the update, keep the previous
-`slot_channel_list`, and emit the `empty_system_config_error` IPC payload.
-`SlotChannelList::update_slot_channel_list` MUST parse `slots` and `nodes`
-into locals first, assigning to `self.*` only when both parses succeed;
-partial mutation on a mid-parse failure is prohibited. Existing trigger
-models MUST NOT be silently mutated by the update itself, but blocks
-affected by module drift SHALL be flagged per the "Module drift detection"
-requirement below.
+The system SHALL reconcile any subsequent `Systems` payload into
+`slot_channel_list` atomically and only if `is_valid_config()` returns
+`true` on the result. `SlotChannelList::update_slot_channel_list` MUST
+parse `slots` and `nodes` into locals first, assigning to `self.*` only
+when both parses succeed; partial mutation on a mid-parse failure is
+prohibited. For each incoming slot, the system MUST merge by `slot_id`
+against the previously stored slot: if the module differs, set
+`is_valid = false` on the merged slot; if the module matches, preserve
+the existing `is_valid` value. Slots not present in the incoming payload
+MUST be removed. After merging, the system MUST recompute each slot's
+`in_use` from `TriggerFlowState.models` and drop every slot where
+`!is_valid && !in_use`. If the incoming payload as a whole fails
+`is_valid_config()`, the previous `slot_channel_list` MUST be retained
+unchanged and the `empty_system_config_error` IPC payload emitted.
+Existing trigger models MUST NOT be mutated by this update.
 
-#### Scenario: Valid in-session update rewrites slots
+#### Scenario: Same module preserves the slot as valid
 
-- **WHEN** state already has an MP5103 with MPSU50_2ST in slot 1 and a new payload changes slot 1 to MSMU60_2
+- **WHEN** state has slot 1 with `MPSU50_2ST` and `is_valid: true`, and a new payload has slot 1 with `MPSU50_2ST`
+- **THEN** `slot_channel_list.slots[0].is_valid` remains `true`
+- **AND** the slot is retained regardless of `in_use`
+
+#### Scenario: Different module with in_use flags the slot
+
+- **WHEN** state has slot 1 with `MPSU50_2ST` and a model with `slot_index == 1`, and a new payload changes slot 1 to `MSMU60_2`
 - **THEN** `slot_channel_list.slots[0].module` becomes `Module::MSMU60_2`
-- **AND** existing entries in `models` are preserved
+- **AND** `slot_channel_list.slots[0].is_valid` becomes `false`
+- **AND** the slot is retained because `in_use` is `true`
+
+#### Scenario: Different module without in_use drops the slot
+
+- **WHEN** state has slot 1 with `MPSU50_2ST` and no model has `slot_index == 1`, and a new payload changes slot 1 to `MSMU60_2`
+- **THEN** slot 1 is not present in `slot_channel_list.slots` after the update
 
 #### Scenario: Invalid in-session update rejected
 
@@ -38,10 +54,10 @@ The system SHALL produce a serialized `IpcData` payload for every failure
 inside `process_system_config` (no active system, unknown module type,
 invalid slot index, invalid overall config on either branch) with
 `request_type: "empty_system_config_error"` and a `json_value` containing
-an `"error"` key with a human-readable reason. The system MUST NOT emit an
-empty WebSocket text frame or trigger script regeneration on error. The
-Angular UI switch in `trigger-flow-ui/src/app/app.ts` MUST dispatch this
-`request_type` into a user-visible handler.
+an `"error"` key with a human-readable reason. The system MUST NOT emit
+an empty WebSocket text frame or trigger script regeneration on error.
+The Angular UI switch in `trigger-flow-ui/src/app/app.ts` MUST dispatch
+this `request_type` into a user-visible handler.
 
 #### Scenario: Error swallowing is prohibited
 
@@ -75,54 +91,61 @@ condition to the user.
 
 ## ADDED Requirements
 
-### Requirement: Module drift detection on trigger blocks
+### Requirement: Slot carries validity and usage flags
 
-The system SHALL, on every `Systems` update (both fresh-init and
-in-session) and on every `EvaluateRequest`/`RecallRequest`, compare each
-`TriggerModelBlock` in `TriggerFlowState.models` against the current
-`slot_channel_list`. If the module in the block's referenced slot differs
-from a module the block is defined to support (per the catalog's
-per-block-type compatibility metadata), the system MUST push a descriptive
-error entry into that block's `block_error` naming the previous and
-current module and the affected slot.
+The system SHALL add two boolean fields to `Slot`: `is_valid` (default
+`true`, JSON key `isValid`) and `in_use` (default `false`, JSON key
+`inUse`). `is_valid` MUST be set only during `Systems` update processing.
+`in_use` MUST be derived from `TriggerFlowState.models`: it is `true`
+when at least one `TriggerModelState.slot_index` equals this slot's
+`slot_id`, otherwise `false`. Both fields MUST be serialized on every
+`SlotChannelList` payload sent to the UI.
 
-#### Scenario: Swapped module flags affected block
+#### Scenario: Fresh slot construction has default flags
 
-- **WHEN** state has a block on `slot_index: 1` that supports only `MPSU50_2ST`, and a new `Systems` payload changes slot 1 to `MSMU60_2`
-- **THEN** after `process_system_config` returns, the block's `block_error` contains an entry describing the module change and marking the block as invalid
+- **WHEN** a slot is created via `Slot::try_from(&SlotJson)`
+- **THEN** its `is_valid` is `true` and its `in_use` is `false`
 
-#### Scenario: Unchanged slot not flagged
+#### Scenario: in_use reflects model presence
 
-- **WHEN** state has a block on slot 1 and a new `Systems` payload keeps slot 1 as the same module
-- **THEN** the block's `block_error` is unchanged
+- **WHEN** `TriggerFlowState.models` contains a model with `slot_index == 2`
+- **THEN** after the next reconciliation, `slot_channel_list.slots` for slot 2 has `in_use == true`
 
-#### Scenario: Slot becoming Empty flags block
+### Requirement: Slot deletion on evaluate cycle
 
-- **WHEN** state has a block on slot 2 and a new `Systems` payload sets slot 2's module to `Empty`
-- **THEN** the block's `block_error` contains an entry indicating the module was removed
+The system SHALL, on every evaluate cycle
+(`SlotChannelListUpdate::TriggerFlowState`), recompute each slot's
+`in_use` from `TriggerFlowState.models` and drop every slot where
+`!is_valid && !in_use`. The system MUST NOT modify any slot's `is_valid`
+during this cycle.
 
-### Requirement: Unused-block auto-removal on drift
+#### Scenario: Flagged slot with in_use survives evaluate cycle
 
-The system SHALL, when a module drift is detected on a block classified as
-"unused" (both `incoming` and `outgoing` are `None` AND `block_parameters`
-equal the catalog's default for that block type), remove the block from
-its containing model instead of flagging it. Removal MUST be logged to
-stderr with the model name, block id, slot, previous module, and new
-module. Blocks not meeting the "unused" criteria MUST be retained and
-flagged per the drift detection requirement.
+- **WHEN** slot 1 has `is_valid: false, in_use: true` and an evaluate cycle runs
+- **THEN** slot 1 remains in `slot_channel_list.slots`
+- **AND** its `is_valid` remains `false`
 
-#### Scenario: Unused drifted block is removed
+#### Scenario: Flagged slot without in_use is dropped on evaluate cycle
 
-- **WHEN** an affected block has `incoming: None`, `outgoing: None`, and default parameters
-- **THEN** it is removed from `TriggerFlowState.models[model_name].blocks`
-- **AND** a stderr log line records the removal
+- **WHEN** slot 1 has `is_valid: false, in_use: true` and the user removes the only model referencing slot 1, then an evaluate cycle runs
+- **THEN** the recompute sets `in_use` to `false`
+- **AND** slot 1 is not present in `slot_channel_list.slots` after the cycle
 
-#### Scenario: Wired drifted block is retained with error
+#### Scenario: Valid slot never dropped by evaluate cycle
 
-- **WHEN** an affected block has `incoming: Some(_)` or `outgoing: Some(_)`
-- **THEN** it remains in `models` and has a `block_error` entry
+- **WHEN** slot 1 has `is_valid: true, in_use: false` and an evaluate cycle runs
+- **THEN** slot 1 remains in `slot_channel_list.slots`
 
-#### Scenario: Parameterized drifted block is retained with error
+### Requirement: Recovery via delete and re-add
 
-- **WHEN** an affected block has default wiring but any parameter differs from the catalog default
-- **THEN** it remains in `models` and has a `block_error` entry
+The system SHALL recover a flagged slot only through the delete-then-readd
+cycle: a `!is_valid && !in_use` slot is dropped on the next trigger, and
+the following `Systems` payload treats its `slot_id` as a fresh addition
+with `is_valid: true`. Model reassignment MUST NOT clear `is_valid`
+directly; the flag persists until the slot is deleted and re-added.
+
+#### Scenario: Slot recovers only after delete and re-add
+
+- **WHEN** slot 1 is dropped from `slot_channel_list.slots` (via evaluate cycle after `in_use` became false), and the next `Systems` payload includes slot 1 with `MSMU60_2`
+- **THEN** slot 1 reappears with `is_valid: true, in_use: false, module: Module::MSMU60_2`
+

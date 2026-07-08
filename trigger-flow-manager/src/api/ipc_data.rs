@@ -104,7 +104,7 @@ impl TryFrom<&ResponseType> for IpcData {
                 })
             }
             ResponseType::EmptyConfigResponse => Ok(IpcData {
-                request_type: "empty_config_response".to_string(),
+                request_type: "empty_system_config_error".to_string(),
                 additional_info: "No devices found".to_string(),
                 json_value: "".to_string(),
             }),

@@ -6,7 +6,9 @@ use serde::{Deserialize, Serialize};
 use crate::{
     api::{
         request::ResponseType,
-        slot_channel_list::{ChannelIndex, SlotChannelList, SlotChannelListUpdate, SlotIndex},
+        slot_channel_list::{
+            ChannelIndex, SlotChannelList, SlotChannelListUpdate, SlotIndex, Systems,
+        },
     },
     debug::DEBUG,
     model::trigger_model_block::TriggerModelBlock,
@@ -31,7 +33,7 @@ impl TriggerFlowState {
     //only when the system_config is updated
     pub fn process_system_config(
         &mut self,
-        system_config: &str,
+        systems: &Systems,
         catalog: &'static Catalog,
     ) -> String {
         //if slot_channel_list does not exist for self, initialize
@@ -44,7 +46,7 @@ impl TriggerFlowState {
             );
         }
         if self.slot_channel_list.slots.is_empty() && self.slot_channel_list.nodes.is_empty() {
-            match SlotChannelList::new(system_config) {
+            match SlotChannelList::new(systems) {
                 Ok(list) => {
                     self.slot_channel_list = list;
                     if self.slot_channel_list.is_valid_config() {
@@ -72,7 +74,7 @@ impl TriggerFlowState {
                         match serde_json::to_string(&response) {
                             Ok(_) => {
                                 let ipc_response = IpcData {
-                                    request_type: "empty_config_response".to_string(),
+                                    request_type: "empty_system_config_error".to_string(),
                                     additional_info: "".to_string(),
                                     json_value: "".to_string(),
                                 };
@@ -98,7 +100,7 @@ impl TriggerFlowState {
             let is_recall_completion = !self.models.is_empty();
             match SlotChannelList::update_slot_channel_list(
                 &mut self.slot_channel_list,
-                SlotChannelListUpdate::SystemConfig(system_config.to_string()),
+                SlotChannelListUpdate::SystemConfig(systems.clone()),
             ) {
                 Ok(list) => {
                     self.slot_channel_list = list;

@@ -73,7 +73,7 @@ pub struct SystemConfigJson {
 
 #[derive(Debug, Clone)]
 pub enum SlotChannelListUpdate {
-    SystemConfig(String),
+    SystemConfig(Systems),
     TriggerFlowState(TriggerFlowState),
 }
 
@@ -98,9 +98,7 @@ impl Default for SlotChannelList {
 }
 
 impl SlotChannelList {
-    pub fn new(system_config_json: &str) -> Result<Self, String> {
-        let config_json: Systems = serde_json::from_str(system_config_json)
-            .map_err(|e| format!("Failed to parse system configuration JSON: {}", e))?;
+    pub fn new(config_json: &Systems) -> Result<Self, String> {
         let active_system = config_json
             .systems
             .iter()
@@ -115,13 +113,22 @@ impl SlotChannelList {
             .map(Slot::try_from)
             .collect::<Result<Vec<_>, _>>()?;
 
-        let _nodes = active_system
-            .nodes
-            .as_deref()
-            .unwrap_or_default()
-            .iter()
-            .map(Nodes::try_from)
-            .collect::<Result<Vec<_>, _>>()?;
+        // When the localnode is an MP5 mainframe with at least one installed module,
+        // treat it as a standalone system and drop any TSP-Link nodes from the payload.
+        // All-Empty local slots do not qualify - a valid TSP-Link configuration must be preserved.
+        let _nodes = if active_system.localnode.starts_with("MP5")
+            && _slots.iter().any(|s| s.module != Module::Empty)
+        {
+            Vec::new()
+        } else {
+            active_system
+                .nodes
+                .as_deref()
+                .unwrap_or_default()
+                .iter()
+                .map(Nodes::try_from)
+                .collect::<Result<Vec<_>, _>>()?
+        };
 
         Ok(SlotChannelList {
             localnode: active_system.localnode.clone(),
@@ -136,10 +143,7 @@ impl SlotChannelList {
         update: SlotChannelListUpdate,
     ) -> Result<Self, String> {
         match update {
-            SlotChannelListUpdate::SystemConfig(system_config) => {
-                let config_json: Systems = serde_json::from_str(&system_config)
-                    .map_err(|e| format!("Failed to parse system configuration JSON: {}", e))?;
-
+            SlotChannelListUpdate::SystemConfig(config_json) => {
                 let active_system = config_json
                     .systems
                     .iter()
@@ -154,13 +158,22 @@ impl SlotChannelList {
                     .map(Slot::try_from)
                     .collect::<Result<Vec<_>, _>>()?;
 
-                self.nodes = active_system
-                    .nodes
-                    .as_deref()
-                    .unwrap_or_default()
-                    .iter()
-                    .map(Nodes::try_from)
-                    .collect::<Result<Vec<_>, _>>()?;
+                // When the localnode is an MP5 mainframe with at least one installed module,
+                // treat it as a standalone system and drop any TSP-Link nodes from the payload.
+                // All-Empty local slots do not qualify - a valid TSP-Link configuration must be preserved.
+                self.nodes = if active_system.localnode.starts_with("MP5")
+                    && self.slots.iter().any(|s| s.module != Module::Empty)
+                {
+                    Vec::new()
+                } else {
+                    active_system
+                        .nodes
+                        .as_deref()
+                        .unwrap_or_default()
+                        .iter()
+                        .map(Nodes::try_from)
+                        .collect::<Result<Vec<_>, _>>()?
+                };
 
                 self.localnode = active_system.localnode.clone();
 

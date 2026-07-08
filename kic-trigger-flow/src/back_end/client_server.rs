@@ -508,10 +508,8 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                         let mut triggerflow_state: tokio::sync::MutexGuard<'_, TriggerFlowState> =
                             app_state.trigger_flow_state.lock().await;
 
-                        // Pass the entire Systems structure to process_system_config
-                        let systems_json = serde_json::to_string(&msg).unwrap();
                         let response = triggerflow_state
-                            .process_system_config(&systems_json, app_state.catalog);
+                            .process_system_config(&msg, app_state.catalog);
 
                         let should_trigger_script =
                             serde_json::from_str::<serde_json::Value>(&response)
