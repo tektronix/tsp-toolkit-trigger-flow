@@ -130,6 +130,28 @@ export class ModelResourceAllocationService {
     return slot?.module ?? null;
   }
 
+  /**
+   * Total model capacity across the entire system, derived from channels on all
+   * installed (non-Empty) slots on localnode and child nodes.
+   */
+  getMaxModels(): number {
+    const slotChannelList = this.triggerFlowDataService.getSlotChannelList();
+    if (!slotChannelList) {
+      return 0;
+    }
+
+    const localChannels = (slotChannelList.slots ?? [])
+      .filter((slot) => slot.module !== 'Empty')
+      .reduce((sum, slot) => sum + (slot.channels?.length ?? 0), 0);
+
+    const nodeChannels = (slotChannelList.nodes ?? [])
+      .flatMap((node) => node.slots ?? [])
+      .filter((slot) => slot.module !== 'Empty')
+      .reduce((sum, slot) => sum + (slot.channels?.length ?? 0), 0);
+
+    return localChannels + nodeChannels;
+  }
+
   /** Channels claimed by ALL models on a given slot, as a Set of "<channel>" strings. */
   private usedChannelsOnSlot(nodeId: string, slotIndex: number): Set<string> {
     const used = new Set<string>();

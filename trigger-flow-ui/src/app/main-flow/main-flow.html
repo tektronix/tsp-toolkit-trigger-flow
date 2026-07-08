@@ -22,7 +22,7 @@
       </div>
 
       <!-- Collapse button on right -->
-      <button class="collapse-btn" (click)="toggleSidebar()" [attr.aria-label]="'left-panel-collapse-button'">
+      <button class="collapse-btn" (click)="toggleSidebar()" [attr.aria-label]="'left-panel-collapse-button'" title="{{sidebarCollapsed ? 'Show Panel' : 'Hide Panel'}}">
         <mat-icon>{{ sidebarCollapsed ? 'chevron_right' : 'chevron_left' }}</mat-icon>
       </button>
     </div>
@@ -52,6 +52,7 @@
     <app-model-settings-modal
       [open]="showModelSettingsModal"
       [models]="modelSettingsList"
+      [maxModels]="modelSettingsMaxModels"
       (close)="closeModelSettings()"
       (addModel)="onAddModelFromSettings()"
       (deleteModel)="onDeleteModel($event)"
@@ -68,7 +69,7 @@
         class="parameters-collapse-btn"
         (click)="toggleParametersSidebar()"
         [attr.aria-label]="'right-panel-collapse-button'"
-        title="{{ parametersCollapsed ? 'Expand' : 'Collapse' }}"
+        title="{{ parametersCollapsed ? 'Show Panel' : 'Hide Panel' }}"
       >
         <mat-icon>{{ parametersCollapsed ? 'chevron_left' : 'chevron_right' }}</mat-icon>
       </button>

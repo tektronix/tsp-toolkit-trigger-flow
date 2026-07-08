@@ -4,6 +4,7 @@
     [attr.aria-label]="automationID"
     [type]="unit ? 'text' : 'number'"
     [attr.inputmode]="floatAllowed ? 'decimal' : 'numeric'"
+    [attr.step]="floatAllowed ? 'any' : '1'"
     [value]="displayValue"
     (blur)="onBlur($event)"
     (keydown)="onKeyDown($event)"

@@ -15,6 +15,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { AngularSvgIconModule } from 'angular-svg-icon';
+import { SvgIdNamespaceDirective } from '../../directives/svg-id-namespace.directive';
 import { CanvasBlocksService } from '../../services/canvas-blocks.service';
 import { TriggerFlowDataService } from '../../services/triggerFlowDataService';
 import { TemplateInstantiationService } from '../../services/template-instantiation.service';
@@ -34,38 +35,38 @@ import { DEBUG } from '../../debug';
 const DEFAULT_HIDDEN_SELECTORS: string[] = [
   ...(() => {
     const selectors: string[] = [];
-    for (const any_all of ['.EventsAll', '.EventsAny']) {
+    for (const any_all of ['EventsAll', 'EventsAny']) {
       selectors.push(any_all);
-      for (const event of ['.Event1', '.Event2', '.Event3', '.Event4']) {
+      for (const event of ['Event1', 'Event2', 'Event3', 'Event4']) {
         selectors.push(event);
-        selectors.push([any_all, event].join(' '));
+        selectors.push([any_all, event].join('+'));
         for (const type of [
-          '.DigitalIO',
-          '.TSPLink',
-          '.Notify',
-          '.Blender',
-          '.Generator',
-          '.Timer',
-          '.AtLimit',
+          'DigitalIO',
+          'TSPLink',
+          'Notify',
+          'Blender',
+          'Generator',
+          'Timer',
+          'AtLimit',
         ]) {
-          selectors.push([event, type].join(' '));
-          selectors.push([any_all, event, type].join(' '));
+          selectors.push([event, type].join('+'));
+          selectors.push([any_all, event, type].join('+'));
           for (let s = 1; s <= 3; s++) {
             for (let c = 1; c <= 2; c++) {
-              const str = `.s${s}c${c}`;
-              selectors.push([event, type, str].join(' '));
-              selectors.push([any_all, event, type, str].join(' '));
+              const str = `s${s}c${c}`;
+              selectors.push([event, type, str].join('+'));
+              selectors.push([any_all, event, type, str].join('+'));
             }
             for (let id = 1; id <= 16; id++) {
-              const str = `.s${s}id${id}`;
-              selectors.push([event, type, str].join(' '));
-              selectors.push([any_all, event, type, str].join(' '));
+              const str = `s${s}id${id}`;
+              selectors.push([event, type, str].join('+'));
+              selectors.push([any_all, event, type, str].join('+'));
             }
           }
           for (let n = 1; n <= 18; n++) {
-            const str = `._${n}`;
-            selectors.push([event, type, str].join(' '));
-            selectors.push([any_all, event, type, str].join(' '));
+            const str = `_${n}`;
+            selectors.push([event, type, str].join('+'));
+            selectors.push([any_all, event, type, str].join('+'));
           }
         }
       }
@@ -139,7 +140,7 @@ interface InsertionIndicator {
 
 @Component({
   selector: 'app-canvas',
-  imports: [FFlowModule, CommonModule, AngularSvgIconModule],
+  imports: [FFlowModule, CommonModule, AngularSvgIconModule, SvgIdNamespaceDirective],
   templateUrl: './canvas.html',
   styleUrl: './canvas.scss',
 })
@@ -1192,58 +1193,58 @@ export class Canvas implements AfterViewInit {
     }
     switch (eventType) {
       case 'event_at_limit': {
-        const type = '.AtLimit';
-        visibleGroups.push([parentSelector, type].join(' '));
+        const type = 'AtLimit';
+        visibleGroups.push([parentSelector, type].join('+'));
         const channel = eventParam.params?.['channel_index'];
         const slot = eventParam.params?.['slot_index'];
         if (channel && slot) {
-          visibleGroups.push([parentSelector, type, `.s${slot}c${channel}`].join(' '));
+          visibleGroups.push([parentSelector, type, `s${slot}c${channel}`].join('+'));
         }
         break;
       }
       case 'event_tsplink': {
-        const type = '.TSPLink';
-        visibleGroups.push([parentSelector, type].join(' '));
+        const type = 'TSPLink';
+        visibleGroups.push([parentSelector, type].join('+'));
         const triggerLine = eventParam.params?.['trigger_line'];
         if (triggerLine) {
-          visibleGroups.push([parentSelector, type, `._${triggerLine}`].join(' '));
+          visibleGroups.push([parentSelector, type, `_${triggerLine}`].join('+'));
         }
         break;
       }
       case 'event_timer': {
-        const type = '.Timer';
-        visibleGroups.push([parentSelector, type].join(' '));
+        const type = 'Timer';
+        visibleGroups.push([parentSelector, type].join('+'));
         const timer = eventParam.params?.['trigger_timer_number'];
         if (timer) {
-          visibleGroups.push([parentSelector, type, `._${timer}`].join(' '));
+          visibleGroups.push([parentSelector, type, `_${timer}`].join('+'));
         }
         break;
       }
       case 'event_generator': {
-        const type = '.Generator';
-        visibleGroups.push([parentSelector, type].join(' '));
+        const type = 'Generator';
+        visibleGroups.push([parentSelector, type].join('+'));
         const generator = eventParam.params?.['generator_number'];
         if (generator) {
-          visibleGroups.push([parentSelector, type, `._${generator}`].join(' '));
+          visibleGroups.push([parentSelector, type, `_${generator}`].join('+'));
         }
         break;
       }
       case 'event_digio': {
-        const type = '.DigitalIO';
-        visibleGroups.push([parentSelector, type].join(' '));
+        const type = 'DigitalIO';
+        visibleGroups.push([parentSelector, type].join('+'));
         const digioLine = eventParam.params?.['digio_trigger_line'];
         if (digioLine) {
-          visibleGroups.push([parentSelector, type, `._${digioLine}`].join(' '));
+          visibleGroups.push([parentSelector, type, `_${digioLine}`].join('+'));
         }
         break;
       }
       case 'event_notify_n': {
-        const type = '.Notify';
-        visibleGroups.push([parentSelector, type].join(' '));
+        const type = 'Notify';
+        visibleGroups.push([parentSelector, type].join('+'));
         const slot = eventParam.params?.['slot_index'];
         const eventNum = eventParam.params?.['notify_event_number'];
         if (slot && eventNum) {
-          visibleGroups.push([parentSelector, type, `.s${slot}id${eventNum}`].join(' '));
+          visibleGroups.push([parentSelector, type, `s${slot}id${eventNum}`].join('+'));
         }
         break;
       }
@@ -1255,7 +1256,7 @@ export class Canvas implements AfterViewInit {
     showGroupSelectors: string[];
   } {
     // Generate all groups that might have toggle-able visibility
-    const hideGroupSelectors: string[] = DEFAULT_HIDDEN_SELECTORS;
+    const hideGroupSelectors: string[] = DEFAULT_HIDDEN_SELECTORS.map((e) => {return `${node.blockId}+${e}`});
     const showGroupSelectors: string[] = [];
 
     // TODO: Implement your rule selection here.
@@ -1287,9 +1288,9 @@ export class Canvas implements AfterViewInit {
           ) {
             const type = event_id.value?.type;
             if (type) {
-              showGroupSelectors.push('.Event1');
+              showGroupSelectors.push('Event1');
               showGroupSelectors.push(
-                ...this.svgVisibleGroupsFromActualParams(type, event_id.value, '.Event1'),
+                ...this.svgVisibleGroupsFromActualParams(type, event_id.value, `${node.blockId}+Event1`),
               );
             }
           }
@@ -1300,7 +1301,7 @@ export class Canvas implements AfterViewInit {
           const event_id = block.actual_parameters.find((param) => param.name === 'event');
           let logic = block.actual_parameters.find((param) => param.name === 'Logic')?.value;
           if (logic && typeof logic === 'string') {
-            logic = logic === 'AND' ? '.EventsAny' : '.EventsAll';
+            logic = logic === 'AND' ? `${node.blockId}+EventsAny` : `${node.blockId}+EventsAll`;
             showGroupSelectors.push(logic)
           }
 
@@ -1323,12 +1324,12 @@ export class Canvas implements AfterViewInit {
                 if (count > 4) {
                   continue;
                 }
-                showGroupSelectors.push([logic, `.Event${count}`].join(' '));
+                showGroupSelectors.push([logic, `Event${count}`].join('+'));
                 showGroupSelectors.push(
                   ...this.svgVisibleGroupsFromActualParams(
                     type,
                     event,
-                    [logic, `.Event${count}`].join(' '),
+                    [logic, `Event${count}`].join('+'),
                   ),
                 );
               }
@@ -1353,12 +1354,14 @@ export class Canvas implements AfterViewInit {
     if (!groupQueries.length) {
       return;
     }
-    if (DEBUG) console.warn('groupQueries', groupQueries);
+    //if (DEBUG) console.warn('groupQueries', groupQueries);
     for (const query of groupQueries) {
-      svgRoot.querySelectorAll(`g ${query}`).forEach((g) => {
-        if(!hidden) {console.warn("Showing", g)}
+      const g = document.getElementById(query);
+      // if (!hidden) { console.warn("Showing",query, g) }
+      // else {console.warn("Hiding:", query, g)}
+      if (g) {
         g.classList.toggle('hidden', hidden);
-      });
+      }
     }
   }
 
@@ -1445,7 +1448,7 @@ export class Canvas implements AfterViewInit {
       selectedFromCanvas.length > 0
         ? selectedFromCanvas
         : selectedFromService &&
-            this.sectionNodes().some((node) => node.blockId === selectedFromService)
+          this.sectionNodes().some((node) => node.blockId === selectedFromService)
           ? [selectedFromService]
           : [];
 
