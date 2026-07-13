@@ -2,6 +2,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { Catalog, BlockDefinition, ActualParameter, ParameterValue } from '../models/triggerBlock';
 import { BlockErrorEntry, JsonValue, TriggerModel } from '../models/triggerFlowState';
+import { Module } from '../models/slotChannelModel';
 import { Websocket } from './websocket';
 import { TriggerFlowDataService } from './triggerFlowDataService';
 import { FlowNode, FlowSection, FlowConnection } from '../main-flow/canvas/canvas';
@@ -57,6 +58,7 @@ export class CanvasBlocksService {
       slot_index: number;
       node_id: string;
       blocks: CanvasBlock[];
+      slot_module: Module | null;
     }
   > = {};
   private selectedBlockSubject = new BehaviorSubject<string | null>(null);
@@ -189,6 +191,7 @@ export class CanvasBlocksService {
         node_id: string;
         slot_index: number;
         blocks: CanvasBlock[];
+        slot_module: Module | null;
       }
     > = {};
 
@@ -237,6 +240,9 @@ export class CanvasBlocksService {
         slot_index: model.slot_index,
         node_id: model.node_id,
         blocks,
+        // Round-trip the snapshot verbatim on recall/evaluate; Rust owns
+        // backfill for legacy sessions where this arrives as null.
+        slot_module: model.slot_module ?? null,
       };
     }
 
@@ -381,6 +387,21 @@ export class CanvasBlocksService {
           : 'right';
   }
 
+  /**
+   * Snapshot the module currently installed at `(slotIndex, nodeId)`.
+   * Returns null when the slot is not present in the current slot_channel_list.
+   * Used at model-creation sites to seed `slot_module` so subsequent hardware
+   * changes surface as staleness on that specific model.
+   */
+  private snapshotSlotModule(slotIndex: number, nodeId: string): Module | null {
+    const list = this.triggerFlowDataService.getSlotChannelList();
+    const slots =
+      nodeId === 'localnode'
+        ? (list?.slots ?? [])
+        : (list?.nodes.find((n) => n.nodeId === nodeId)?.slots ?? []);
+    return slots.find((s) => s.slotId === slotIndex)?.module ?? null;
+  }
+
   newModel(modelName: string, slotIndex: number, nodeId: string) {
     if (!this.models[modelName]) {
       this.models[modelName] = {
@@ -388,6 +409,7 @@ export class CanvasBlocksService {
         slot_index: slotIndex,
         node_id: nodeId,
         blocks: [],
+        slot_module: this.snapshotSlotModule(slotIndex, nodeId),
       };
     }
     this.updateAndPrint();
@@ -483,6 +505,7 @@ export class CanvasBlocksService {
         slot_index: slotIndex,
         node_id: nodeId,
         blocks: [],
+        slot_module: this.snapshotSlotModule(slotIndex, nodeId),
       };
     }
 
@@ -892,13 +915,14 @@ export class CanvasBlocksService {
   logIpcDataFormat(): void {
     const slot_channel_list = this.triggerFlowDataService.getSlotChannelList() || { slots: [] };
     // Build models object, omitting syntax, description, and shape from blocks
-    const filteredModels: Record<string, { trigger_model_name: string; slot_index: number; node_id: string; blocks: Record<string, unknown>[] }> = {};
+    const filteredModels: Record<string, { trigger_model_name: string; slot_index: number; node_id: string; blocks: Record<string, unknown>[]; slot_module: Module | null }> = {};
 
     for (const [modelName, model] of Object.entries(this.models)) {
       filteredModels[modelName] = {
         trigger_model_name: model.trigger_model_name,
         slot_index: model.slot_index,
         node_id: model.node_id,
+        slot_module: model.slot_module,
         blocks: model.blocks.map((block) => {
           return {
             type: block.type,

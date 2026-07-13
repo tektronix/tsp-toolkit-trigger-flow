@@ -97,6 +97,28 @@ impl Default for SlotChannelList {
     }
 }
 
+// Filter the incoming nodes to at most one entry: the first node whose
+// mainframe starts with "MP5" and has at least one non-Empty slot. Preserves
+// the node's identity (node_id) so any block referencing it keeps resolving,
+// while pruning non-MP5 nodes and additional MP5s.
+fn select_first_mp5_node(active_nodes: &[NodeJson]) -> Result<Vec<Nodes>, String> {
+    let parsed_nodes: Vec<Nodes> = active_nodes
+        .iter()
+        .map(Nodes::try_from)
+        .collect::<Result<Vec<_>, _>>()?;
+
+    Ok(parsed_nodes
+        .into_iter()
+        .find(|n| {
+            n.mainframe.starts_with("MP5")
+                && n.slots
+                    .as_ref()
+                    .is_some_and(|slots| slots.iter().any(|s| s.module != Module::Empty))
+        })
+        .into_iter()
+        .collect())
+}
+
 impl SlotChannelList {
     pub fn new(config_json: &Systems) -> Result<Self, String> {
         let active_system = config_json
@@ -113,29 +135,26 @@ impl SlotChannelList {
             .map(Slot::try_from)
             .collect::<Result<Vec<_>, _>>()?;
 
-        // When the localnode is an MP5 mainframe with at least one installed module,
-        // treat it as a standalone system and drop any TSP-Link nodes from the payload.
-        // All-Empty local slots do not qualify - a valid TSP-Link configuration must be preserved.
+        // If the localnode is an MP5 mainframe with at least one installed module,
+        // treat it as a standalone system: drop all nodes.
+        // Otherwise, keep only the first node whose mainframe is MP5 and has at
+        // least one non-Empty slot; drop every other node.
         let _nodes = if active_system.localnode.starts_with("MP5")
             && _slots.iter().any(|s| s.module != Module::Empty)
         {
             Vec::new()
         } else {
-            active_system
-                .nodes
-                .as_deref()
-                .unwrap_or_default()
-                .iter()
-                .map(Nodes::try_from)
-                .collect::<Result<Vec<_>, _>>()?
+            select_first_mp5_node(active_system.nodes.as_deref().unwrap_or_default())?
         };
 
-        Ok(SlotChannelList {
+        let result = SlotChannelList {
             localnode: active_system.localnode.clone(),
             is_valid: true,
             slots: _slots,
             nodes: _nodes,
-        })
+        };
+        println!("SlotChannelList after new: {:?}", result);
+        Ok(result)
     }
 
     pub fn update_slot_channel_list(
@@ -158,21 +177,18 @@ impl SlotChannelList {
                     .map(Slot::try_from)
                     .collect::<Result<Vec<_>, _>>()?;
 
-                // When the localnode is an MP5 mainframe with at least one installed module,
-                // treat it as a standalone system and drop any TSP-Link nodes from the payload.
-                // All-Empty local slots do not qualify - a valid TSP-Link configuration must be preserved.
+                // If the localnode is an MP5 mainframe with at least one installed module,
+                // treat it as a standalone system: drop all nodes.
+                // Otherwise, keep only the first node whose mainframe is MP5 and has at
+                // least one non-Empty slot; drop every other node.
                 self.nodes = if active_system.localnode.starts_with("MP5")
                     && self.slots.iter().any(|s| s.module != Module::Empty)
                 {
                     Vec::new()
                 } else {
-                    active_system
-                        .nodes
-                        .as_deref()
-                        .unwrap_or_default()
-                        .iter()
-                        .map(Nodes::try_from)
-                        .collect::<Result<Vec<_>, _>>()?
+                    select_first_mp5_node(
+                        active_system.nodes.as_deref().unwrap_or_default(),
+                    )?
                 };
 
                 self.localnode = active_system.localnode.clone();
@@ -188,12 +204,14 @@ impl SlotChannelList {
                 }
             }
         }
-        Ok(SlotChannelList {
+        let result = SlotChannelList {
             localnode: self.localnode.clone(),
             is_valid: self.is_valid,
             slots: self.slots.clone(),
             nodes: self.nodes.clone(),
-        })
+        };
+        println!("SlotChannelList after update: {:?}", result);
+        Ok(result)
     }
 
     pub fn has_mp5103(&self) -> bool {

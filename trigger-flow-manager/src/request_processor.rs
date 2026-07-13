@@ -1,7 +1,7 @@
 use crate::{
     api::{
         request::{RequestType, ResponseType},
-        slot_channel_list::{self},
+        slot_channel_list::{Slot, SlotChannelListUpdate},
         state::TriggerFlowState,
     },
     debug::DEBUG,
@@ -84,7 +84,7 @@ impl RequestProcessor {
 
         let new_slot_channel_list = trigger_flow_state
             .slot_channel_list
-            .update_slot_channel_list(slot_channel_list::SlotChannelListUpdate::TriggerFlowState(
+            .update_slot_channel_list(SlotChannelListUpdate::TriggerFlowState(
                 trigger_flow_state.clone(),
             ));
         trigger_flow_state.slot_channel_list =
@@ -121,11 +121,37 @@ impl RequestProcessor {
         &self,
         trigger_flow_state: &mut TriggerFlowState,
     ) -> Result<String> {
+        // Backfill slot_module for models saved before the field existed.
+        // Source is the saved slot_channel_list in the incoming payload — it
+        // reflects the hardware the user was looking at when they saved. Any
+        // subsequent divergence from current hardware surfaces as staleness
+        // once the follow-up Systems payload arrives.
+        for model in trigger_flow_state.models.values_mut() {
+            if model.slot_module.is_some() {
+                continue;
+            }
+            let slots: &[Slot] = if model.node_id == "localnode" {
+                &trigger_flow_state.slot_channel_list.slots
+            } else {
+                trigger_flow_state
+                    .slot_channel_list
+                    .nodes
+                    .iter()
+                    .find(|n| n.node_id == model.node_id)
+                    .and_then(|n| n.slots.as_deref())
+                    .unwrap_or(&[])
+            };
+            model.slot_module = slots
+                .iter()
+                .find(|s| s.slot_id == model.slot_index)
+                .map(|s| s.module);
+        }
+
         //call process_system_config with update type triggerflowstate
 
         let new_slot_channel_list = trigger_flow_state
             .slot_channel_list
-            .update_slot_channel_list(slot_channel_list::SlotChannelListUpdate::TriggerFlowState(
+            .update_slot_channel_list(SlotChannelListUpdate::TriggerFlowState(
                 trigger_flow_state.clone(),
             ));
         trigger_flow_state.slot_channel_list =

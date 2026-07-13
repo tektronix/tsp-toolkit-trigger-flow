@@ -474,6 +474,7 @@ slot[{{this.slot_index}}].trigger.model.create("{{this.trigger_model_name}}")
             models: IndexMap::from([(
                 "tm1".to_string(),
                 TriggerModelState {
+                    slot_module: None,
                     model_name: "tm1".to_string(),
                     slot_index: SlotIndex(1),
                     node_id: "node[1]".to_string(),
@@ -533,6 +534,7 @@ slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_blo
             models: IndexMap::from([(
                 "tm1".to_string(),
                 TriggerModelState {
+                    slot_module: None,
                     model_name: "tm1".to_string(),
                     slot_index: SlotIndex(1),
                     node_id: "node[1]".to_string(),
@@ -606,6 +608,7 @@ slot[1].trigger.model.addblock.measure("tm1", "tm1_measure_001", { 1 }, 5)
                 (
                     "tm1".to_string(),
                     TriggerModelState {
+                        slot_module: None,
                         model_name: "tm1".to_string(),
                         slot_index: SlotIndex(1),
                         node_id: "node[1]".to_string(),
@@ -628,6 +631,7 @@ slot[1].trigger.model.addblock.measure("tm1", "tm1_measure_001", { 1 }, 5)
                 (
                     "tm2".to_string(),
                     TriggerModelState {
+                        slot_module: None,
                         model_name: "tm2".to_string(),
                         slot_index: SlotIndex(2),
                         node_id: "node[2]".to_string(),
@@ -689,6 +693,7 @@ slot[2].trigger.model.addblock.measure("tm2", "tm2_measure_001", { 1 }, 5)
                 (
                     "tm1".to_string(),
                     TriggerModelState {
+                        slot_module: None,
                         model_name: "tm1".to_string(),
                         slot_index: SlotIndex(1),
                         node_id: "node[1]".to_string(),
@@ -728,6 +733,7 @@ slot[2].trigger.model.addblock.measure("tm2", "tm2_measure_001", { 1 }, 5)
                 (
                     "tm2".to_string(),
                     TriggerModelState {
+                        slot_module: None,
                         model_name: "tm2".to_string(),
                         slot_index: SlotIndex(2),
                         node_id: "node[2]".to_string(),
@@ -814,6 +820,7 @@ slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_blo
             models: IndexMap::from([(
                 "tm2".to_string(),
                 TriggerModelState {
+                    slot_module: None,
                     model_name: "tm2".to_string(),
                     slot_index: SlotIndex(2),
                     node_id: "node[2]".to_string(),
@@ -872,6 +879,7 @@ slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_blo
             models: IndexMap::from([(
                 "tm2".to_string(),
                 TriggerModelState {
+                    slot_module: None,
                     model_name: "tm2".to_string(),
                     slot_index: SlotIndex(2),
                     node_id: "node[2]".to_string(),

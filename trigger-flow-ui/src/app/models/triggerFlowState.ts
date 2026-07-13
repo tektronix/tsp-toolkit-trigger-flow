@@ -1,4 +1,4 @@
-import { ISlotChannelList, SlotChannelList } from "./slotChannelModel";
+import { ISlotChannelList, Module, SlotChannelList } from "./slotChannelModel";
 import { Catalog } from "./triggerBlock";
 
 export type JsonValue =
@@ -20,6 +20,7 @@ export interface ITriggerModel {
   slot_index: number;
   node_id: string;
   blocks: ITriggerModelBlock[];
+  slot_module?: Module | null;
 }
 
 export interface ITriggerModelBlock {
@@ -64,6 +65,7 @@ export class TriggerModel {
   slot_index: number;
   node_id: string;
   blocks: TriggerModelBlock[];
+  slot_module: Module | null;
 
   constructor(data: ITriggerModel) {
     this.trigger_model_name = data.trigger_model_name;
@@ -72,6 +74,9 @@ export class TriggerModel {
     this.blocks = data.blocks.map(
       (block: ITriggerModelBlock) => new TriggerModelBlock(block)
     );
+    // Default null on legacy sessions; Rust backfills on recall from the
+    // saved slot_channel_list in the payload.
+    this.slot_module = data.slot_module ?? null;
   }
 }
 

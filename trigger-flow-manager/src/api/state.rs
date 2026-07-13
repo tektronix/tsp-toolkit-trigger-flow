@@ -7,7 +7,7 @@ use crate::{
     api::{
         request::ResponseType,
         slot_channel_list::{
-            ChannelIndex, SlotChannelList, SlotChannelListUpdate, SlotIndex, Systems,
+            ChannelIndex, Module, SlotChannelList, SlotChannelListUpdate, SlotIndex, Systems,
         },
     },
     debug::DEBUG,
@@ -27,6 +27,12 @@ pub struct TriggerModelState {
     pub slot_index: SlotIndex,
     pub node_id: String,
     pub blocks: Vec<TriggerModelBlock>,
+    /// Module snapshot taken when the model was created or re-assigned
+    /// to a different slot.
+    /// `None` on legacy sessions; backfilled on recall from the saved
+    /// `slot_channel_list` in the payload.
+    #[serde(default)]
+    pub slot_module: Option<Module>,
 }
 
 impl TriggerFlowState {
