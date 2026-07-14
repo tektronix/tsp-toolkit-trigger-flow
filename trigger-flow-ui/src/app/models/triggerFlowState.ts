@@ -40,6 +40,33 @@ export interface IBlockPosition {
 
 export type BlockErrorEntry = [boolean, string];
 
+/**
+ * True when the model's binding no longer matches current hardware.
+ * Stale when the slot at (node_id, slot_index) now holds a different module
+ * (or has been removed) than the `slot_module` snapshot, OR when the snapshot
+ * is null — a broken state that should not occur after creation or recall
+ * backfill; surfacing it as stale prompts the user to rebind rather than
+ * hiding the corruption.
+ *
+ * Accepts any object with the three binding fields so both TriggerModel
+ * class instances and plain-object model types can call it.
+ */
+export function isModelStale(
+  model: Pick<ITriggerModel, 'slot_index' | 'node_id' | 'slot_module'>,
+  list: ISlotChannelList | null,
+): boolean {
+  if (!model.slot_module) return true;
+  if (!list) return true;
+
+  const slots =
+    model.node_id === 'localnode'
+      ? list.slots
+      : (list.nodes.find((n) => n.nodeId === model.node_id)?.slots ?? []);
+  const current = slots.find((s) => s.slotId === model.slot_index)?.module ?? null;
+
+  return current !== model.slot_module;
+}
+
 export class TriggerFlowStatePayload {
   slot_channel_list: SlotChannelList;
   models: Record<string, TriggerModel> = {};

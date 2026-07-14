@@ -34,7 +34,13 @@ impl InstrumentValidator {
 impl Validator for InstrumentValidator {
     fn validate(&self, trigger_state: &mut TriggerFlowState) -> Result<()> {
         let mut validator = SlotChannelHashMap::new();
+        let slot_channel_list = &trigger_state.slot_channel_list;
         for model in trigger_state.models.values_mut() {
+            // Skip stale models: their saved channel assignments must not
+            // be re-validated against hardware they were not bound against.
+            if model.is_stale(slot_channel_list) {
+                continue;
+            }
             for block in &mut model.blocks {
                 let channels = self.extract_channels(block);
 

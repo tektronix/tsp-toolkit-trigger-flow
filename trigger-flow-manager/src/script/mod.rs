@@ -36,6 +36,21 @@ impl Script {
         // round-trips through save/recall unchanged).
         let mut state = state.clone();
         sanitize_unknown_block_references(&mut state, catalog);
+
+        // Skip stale models: remove them from the state clone so templates
+        // don't emit TSP for bindings whose module snapshot no longer matches
+        // current hardware. Retain their names so we can inject skip-markers
+        // into the generated script for user visibility.
+        let skipped: Vec<String> = state
+            .models
+            .iter()
+            .filter(|(_, m)| m.is_stale(&state.slot_channel_list))
+            .map(|(name, _)| name.clone())
+            .collect();
+        for name in &skipped {
+            state.models.shift_remove(name);
+        }
+
         let state = &state;
 
         let mut hb = Handlebars::new();
@@ -138,6 +153,19 @@ impl Script {
         let contents = hb
             .render("contents", state)
             .expect("should render contents");
+
+        // Prepend skip-marker comments for each stale model that was removed
+        // above. The user running the script sees an explicit line per skipped
+        // model in the transcript, so silent-drop cannot happen.
+        let contents = if skipped.is_empty() {
+            contents
+        } else {
+            let markers: String = skipped
+                .iter()
+                .map(|n| format!("-- model '{n}' skipped: stale binding\n"))
+                .collect();
+            format!("{markers}{contents}")
+        };
 
         // render postamble
         let postamble = hb
@@ -474,10 +502,10 @@ slot[{{this.slot_index}}].trigger.model.create("{{this.trigger_model_name}}")
             models: IndexMap::from([(
                 "tm1".to_string(),
                 TriggerModelState {
-                    slot_module: None,
+                    slot_module: Some(Module::MSMU60_2),
                     model_name: "tm1".to_string(),
                     slot_index: SlotIndex(1),
-                    node_id: "node[1]".to_string(),
+                    node_id: "localnode".to_string(),
                     blocks: vec![TriggerModelBlock {
                         block_type: "always".to_string(),
                         block_parameters: HashMap::from([
@@ -534,10 +562,10 @@ slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_blo
             models: IndexMap::from([(
                 "tm1".to_string(),
                 TriggerModelState {
-                    slot_module: None,
+                    slot_module: Some(Module::MSMU60_2),
                     model_name: "tm1".to_string(),
                     slot_index: SlotIndex(1),
-                    node_id: "node[1]".to_string(),
+                    node_id: "localnode".to_string(),
                     blocks: vec![
                         TriggerModelBlock {
                             block_type: "always".to_string(),
@@ -608,10 +636,10 @@ slot[1].trigger.model.addblock.measure("tm1", "tm1_measure_001", { 1 }, 5)
                 (
                     "tm1".to_string(),
                     TriggerModelState {
-                        slot_module: None,
+                        slot_module: Some(Module::MSMU60_2),
                         model_name: "tm1".to_string(),
                         slot_index: SlotIndex(1),
-                        node_id: "node[1]".to_string(),
+                        node_id: "localnode".to_string(),
                         blocks: vec![TriggerModelBlock {
                             block_type: "always".to_string(),
                             block_parameters: HashMap::from([
@@ -631,10 +659,10 @@ slot[1].trigger.model.addblock.measure("tm1", "tm1_measure_001", { 1 }, 5)
                 (
                     "tm2".to_string(),
                     TriggerModelState {
-                        slot_module: None,
+                        slot_module: Some(Module::MPSU50_2ST),
                         model_name: "tm2".to_string(),
                         slot_index: SlotIndex(2),
-                        node_id: "node[2]".to_string(),
+                        node_id: "localnode".to_string(),
                         blocks: vec![TriggerModelBlock {
                             block_type: "measure".to_string(),
                             block_parameters: HashMap::from([
@@ -693,10 +721,10 @@ slot[2].trigger.model.addblock.measure("tm2", "tm2_measure_001", { 1 }, 5)
                 (
                     "tm1".to_string(),
                     TriggerModelState {
-                        slot_module: None,
+                        slot_module: Some(Module::MSMU60_2),
                         model_name: "tm1".to_string(),
                         slot_index: SlotIndex(1),
-                        node_id: "node[1]".to_string(),
+                        node_id: "localnode".to_string(),
                         blocks: vec![
                             TriggerModelBlock {
                                 block_type: "always".to_string(),
@@ -733,10 +761,10 @@ slot[2].trigger.model.addblock.measure("tm2", "tm2_measure_001", { 1 }, 5)
                 (
                     "tm2".to_string(),
                     TriggerModelState {
-                        slot_module: None,
+                        slot_module: Some(Module::MPSU50_2ST),
                         model_name: "tm2".to_string(),
                         slot_index: SlotIndex(2),
-                        node_id: "node[2]".to_string(),
+                        node_id: "localnode".to_string(),
                         blocks: vec![
                             TriggerModelBlock {
                                 block_type: "always".to_string(),
@@ -820,10 +848,10 @@ slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_blo
             models: IndexMap::from([(
                 "tm2".to_string(),
                 TriggerModelState {
-                    slot_module: None,
+                    slot_module: Some(Module::MPSU50_2ST),
                     model_name: "tm2".to_string(),
                     slot_index: SlotIndex(2),
-                    node_id: "node[2]".to_string(),
+                    node_id: "localnode".to_string(),
                     blocks: vec![TriggerModelBlock {
                         block_type: "always".to_string(),
                         block_parameters: HashMap::from([
@@ -879,10 +907,10 @@ slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_blo
             models: IndexMap::from([(
                 "tm2".to_string(),
                 TriggerModelState {
-                    slot_module: None,
+                    slot_module: Some(Module::MPSU50_2ST),
                     model_name: "tm2".to_string(),
                     slot_index: SlotIndex(2),
-                    node_id: "node[2]".to_string(),
+                    node_id: "localnode".to_string(),
                     blocks: vec![TriggerModelBlock {
                         block_type: "always".to_string(),
                         block_parameters: HashMap::from([
@@ -917,5 +945,60 @@ slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_blo
 "#;
 
         assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn stale_model_is_skipped_with_comment() {
+        let catalog = catalog();
+        let slot_channel_list = slot_channel_list();
+
+        // Model bound against SMU (Module::MSMU60_2), but the fixture's slot 1
+        // has been mutated so the model appears stale. Simplest way: point the
+        // snapshot at PSU while slot 1 is still SMU in the fixture.
+        let input = TriggerFlowState {
+            slot_channel_list,
+            catalog: None,
+            models: IndexMap::from([(
+                "tm1".to_string(),
+                TriggerModelState {
+                    // Snapshot expects PSU but current slot 1 is SMU -> stale.
+                    slot_module: Some(Module::MPSU50_2ST),
+                    model_name: "tm1".to_string(),
+                    slot_index: SlotIndex(1),
+                    node_id: "localnode".to_string(),
+                    blocks: vec![TriggerModelBlock {
+                        block_type: "always".to_string(),
+                        block_parameters: HashMap::from([
+                            ("slot_index".to_string(), 1.into()),
+                            ("trigger_model_name".to_string(), "tm1".into()),
+                            ("trigger_block_name".to_string(), "tm1_always_001".into()),
+                            ("branch_to_block_name".to_string(), "other_block".into()),
+                        ]),
+                        incoming: None,
+                        outgoing: None,
+                        block_position: BlockPosition { x: 0.0, y: 0.0 },
+                        block_id: "tm1_always_001".to_string(),
+                        block_error: None,
+                    }],
+                },
+            )]),
+        };
+
+        let Ok(script) = Script::from_state(&catalog, &input) else {
+            panic!("should be able to create script");
+        };
+
+        // Skip marker present.
+        assert!(
+            script.contents.contains("-- model 'tm1' skipped: stale binding"),
+            "expected skip marker in contents, got: {:?}",
+            script.contents
+        );
+        // No TSP emission for the stale model.
+        assert!(
+            !script.contents.contains("trigger.model.create"),
+            "expected no trigger.model.create for stale model, got: {:?}",
+            script.contents
+        );
     }
 }

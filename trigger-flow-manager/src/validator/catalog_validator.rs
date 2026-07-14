@@ -14,8 +14,14 @@ impl CatalogValidator {
 impl Validator for CatalogValidator {
     fn validate(&self, state: &mut TriggerFlowState) -> Result<()> {
         use std::collections::HashSet;
+        let slot_channel_list = &state.slot_channel_list;
         //iterate over the models in triggerflow state
         for model_state in state.models.iter_mut() {
+            // Skip stale models: their saved param values must not be
+            // clamped against hardware they were not bound against.
+            if model_state.1.is_stale(slot_channel_list) {
+                continue;
+            }
             // Uniqueness check for block names (non-empty only)
             let mut seen_names = HashSet::new();
 
