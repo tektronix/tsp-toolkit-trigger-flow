@@ -40,6 +40,9 @@ impl Script {
 
         let mut hb = Handlebars::new();
 
+        // Disable HTML escaping — generated output is Lua/TSP script, not HTML
+        hb.register_escape_fn(handlebars::no_escape);
+
         // load the script templates into hb
         hb.register_template_string("preamble", catalog.script_template.preamble.clone())
             .expect("should have loaded 'preamble' template");

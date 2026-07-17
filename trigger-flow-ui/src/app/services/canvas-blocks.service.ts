@@ -460,7 +460,7 @@ export class CanvasBlocksService {
 
   addBlocksFromTemplate(
     blocks: {
-      templateBlockId: string; 
+      templateBlockId: string;
       type: string;
       block_parameters?: Record<string, unknown>;
     }[],
@@ -621,6 +621,16 @@ export class CanvasBlocksService {
     });
   }
 
+  //Return the model name of selected block nodeId
+  getBlockModel(nodeId: string | null): string | null {
+    for (const [modelName, model] of Object.entries(this.models)) {
+      if (model.blocks.some((b) => b.block_id === nodeId)) {
+        return modelName;
+      }
+    }
+    return null;
+  }
+
   getModels() {
     return this.models;
   }
@@ -738,8 +748,10 @@ export class CanvasBlocksService {
 
   private toBlockParameters(actualParameters: ActualParameter[]): Record<string, JsonValue> {
     return actualParameters.reduce((acc: Record<string, JsonValue>, param) => {
-      const value = param.value ?? param.default ?? null;
-      acc[param.name] = value as JsonValue;
+      // Send the raw value (including null for cleared fields) to the server.
+      // The server is responsible for substituting parameter defaults and
+      // attaching validation errors when a value is empty.
+      acc[param.name] = (param.value ?? null) as JsonValue;
       return acc;
     }, {});
   }

@@ -59,7 +59,7 @@
             (keydown.enter)="onNodeClick(node.blockId)" [attr.data-block-id]="node.blockId"
             [attr.data-section-id]="node.sectionId">
             <div class="node-content">
-              <svg-icon [src]="node.svgPath" class="node-svg {{node.blockType}}" fDragHandle >
+              <svg-icon [src]="node.svgPath" [appSvgIdNamespace]="node.blockId" class="node-svg {{node.blockType}}" fDragHandle >
               </svg-icon>
               @if (hasInputConnector(node)) {
               <div fNodeInput [fInputId]="node.blockId + '-in'" [fInputConnectableSide]="getInputDirection(node)"
