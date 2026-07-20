@@ -206,6 +206,75 @@ non-Empty slot. The chosen node retains its `node_id` intact so
 because it decouples `node_id` from the surviving hardware in a way
 blocks and script generation aren't prepared for.
 
+### Decision: Promote staleness to Rust-owned `model_error` field
+
+`TriggerModelState` gains a `model_error: Vec<(ModelErrorKind, String)>`
+field, populated by Rust at every state-mutation site and consumed by
+validators, script generation, and the UI. The predicate `is_stale`
+becomes a thin wrapper (for existing tests) over the same rule.
+
+Shape:
+
+- Single enum kind `ModelErrorKind::SystemConfig` covers all
+  system-config-driven binding failures (snapshot missing, node
+  missing, slot missing, module mismatch). The message string
+  distinguishes reason. Future kinds (`Validation`, `NameConflict`,
+  etc.) are additive.
+- Field is `#[serde(skip_serializing, default)]`. Derived state,
+  never persisted. Legacy sessions load with `[]` and repopulate on
+  first recompute.
+- Two helpers on the model:
+  `recompute_error(&mut self, &SlotChannelList)` rewrites the vec
+  from scratch; `has_system_config_error()` is the narrow gate that
+  validators and script generation use to skip a model. Only
+  `SystemConfig` kinds gate; future kinds are informational by
+  default.
+- One helper on the aggregate:
+  `TriggerFlowState::recompute_all_model_errors(&mut self)` iterates
+  models with a disjoint borrow.
+
+Call sites (three, all in request handlers):
+
+- `state.rs::process_system_config` — before each `self.clone()` in
+  both success arms.
+- `request_processor.rs::handle_evaluate_request` — after the
+  `slot_channel_list` update, before validation.
+- `request_processor.rs::handle_recall_request` — after backfill and
+  the `slot_channel_list` update, before validation.
+
+**Rationale:** Single source of truth. The predicate previously lived
+in Rust (`is_stale`) and was duplicated in TypeScript (`isModelStale`)
+with the tooltip string re-formatted at the UI layer against a
+signal-read `slot_channel_list`. That layout produced the reactivity
+gap called out in task 11a.1 (`event-block.ts` caching
+`slot_channel_list` in `ngOnChanges`). Promoting the error to a
+Rust-owned field ships the pre-computed tooltip on the wire, deletes
+the TS mirror, and eliminates the reactivity class of bugs. Extending
+to a new rule kind becomes one branch in `recompute_error` with zero
+UI change — needed because §4 (block-param snapshots) will add the
+same pattern to `block_error`.
+
+**Alternative considered:** Keep the UI-derived predicate; fix the
+reactivity gap in place. Rejected: works for one rule; every future
+rule (channel-level, per-block-param, name conflict) has to be added
+in two places and each addition risks the same reactivity class of
+bugs.
+
+**Alternative considered:** Compute lazily on read (getter method).
+Rejected: the wire payload is the UI's only view of state; lazy
+compute means the UI has to trigger a refresh, defeating the
+single-source-of-truth model.
+
+**Alternative considered:** Persist `model_error` in session files.
+Rejected: derived value; a saved error from one machine's hardware
+would be nonsense on a different machine's recall. `skip_serializing`
+plus recompute after backfill covers cross-machine recall correctly.
+
+**Trade-off:** Handler authors must remember to call
+`recompute_all_model_errors()` before responding. Mitigated by
+concentrating the requirement in three visible handler sites and
+enforcing via review.
+
 ### Decision: Save/recall backfill for legacy sessions
 
 Recall payloads may deserialize a `TriggerModelState.slot_module` as

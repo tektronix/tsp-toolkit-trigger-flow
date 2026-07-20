@@ -90,6 +90,9 @@ impl RequestProcessor {
         trigger_flow_state.slot_channel_list =
             new_slot_channel_list.unwrap_or_else(|_| trigger_flow_state.slot_channel_list.clone());
 
+        // Recompute against the updated list before validation.
+        trigger_flow_state.recompute_all_model_errors();
+
         //evaluate models in state
         //validation chain validates the models first, then hashmap
         self.validation_chain.validate(trigger_flow_state)?;
@@ -156,6 +159,9 @@ impl RequestProcessor {
             ));
         trigger_flow_state.slot_channel_list =
             new_slot_channel_list.unwrap_or_else(|_| trigger_flow_state.slot_channel_list.clone());
+
+        // Recompute against the updated list before validation.
+        trigger_flow_state.recompute_all_model_errors();
 
         //evaluate models in state
         //validation chain validates the models first, then hashmap

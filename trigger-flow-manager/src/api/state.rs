@@ -20,6 +20,16 @@ pub struct TriggerFlowState {
     pub slot_channel_list: SlotChannelList,
     pub models: IndexMap<String, TriggerModelState>,
 }
+
+/// Kinds of model-level errors surfaced to the UI.
+/// Reason is encoded in the accompanying message string.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ModelErrorKind {
+    /// Binding no longer resolves against current hardware.
+    SystemConfig,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TriggerModelState {
     #[serde(rename = "trigger_model_name")]
@@ -33,21 +43,18 @@ pub struct TriggerModelState {
     /// `slot_channel_list` in the payload.
     #[serde(default)]
     pub slot_module: Option<Module>,
+    /// Derived errors. Absent from the wire when empty; repopulated by
+    /// `TriggerFlowState::recompute_all_model_errors` after every state change.
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub model_error: Vec<(ModelErrorKind, String)>,
 }
 
 impl TriggerModelState {
-    /// True when the model's binding no longer matches current hardware.
-    /// Stale in either of two cases:
-    ///   - the slot at `(node_id, slot_index)` now holds a different module
-    ///     (or has been removed) than the recorded `slot_module` snapshot;
-    ///   - `slot_module` is `None` — a broken state that should not occur
-    ///     after creation or recall backfill; surfacing it as stale prompts
-    ///     the user to rebind rather than hiding the corruption.
+    /// True when the binding no longer matches current hardware.
+    /// Prefer `has_system_config_error()` for consumers reading the
+    /// derived field; this exists mainly for direct tests of the predicate.
     pub fn is_stale(&self, list: &SlotChannelList) -> bool {
-        let Some(expected) = self.slot_module else {
-            return true;
-        };
-        self.current_module(list) != Some(expected)
+        self.diagnose_system_config(list).is_some()
     }
 
     /// Module currently installed at this model's `(node_id, slot_index)`,
@@ -66,6 +73,55 @@ impl TriggerModelState {
             .iter()
             .find(|s| s.slot_id == self.slot_index)
             .map(|s| s.module)
+    }
+
+    /// `Some(msg)` when the binding is broken; `None` when healthy.
+    /// Checks in order (first match wins): snapshot missing, node missing,
+    /// slot missing, module mismatch.
+    fn diagnose_system_config(&self, list: &SlotChannelList) -> Option<String> {
+        let Some(expected) = self.slot_module else {
+            return Some(format!(
+                "Model '{}' has no slot binding. Rebind to recover.",
+                self.model_name,
+            ));
+        };
+
+        let node_exists = self.node_id == "localnode"
+            || list.nodes.iter().any(|n| n.node_id == self.node_id);
+        if !node_exists {
+            return Some(format!(
+                "TSP-Link node '{}' is no longer connected. Rebind to recover.",
+                self.node_id,
+            ));
+        }
+
+        match self.current_module(list) {
+            None => Some(format!(
+                "Slot {} on '{}' is no longer available. Rebind to recover.",
+                self.slot_index.0, self.node_id,
+            )),
+            Some(m) if m != expected => Some(format!(
+                "Hardware changed since binding. Was: {:?}. Now: {:?}. Rebind to recover.",
+                expected, m,
+            )),
+            Some(_) => None,
+        }
+    }
+
+    /// Rewrites `model_error` from scratch.
+    pub fn recompute_error(&mut self, list: &SlotChannelList) {
+        self.model_error.clear();
+        if let Some(msg) = self.diagnose_system_config(list) {
+            self.model_error.push((ModelErrorKind::SystemConfig, msg));
+        }
+    }
+
+    /// Gate for validators and script generation. Only `SystemConfig`
+    /// blocks; other kinds are informational.
+    pub fn has_system_config_error(&self) -> bool {
+        self.model_error
+            .iter()
+            .any(|(k, _)| matches!(k, ModelErrorKind::SystemConfig))
     }
 }
 
@@ -91,6 +147,8 @@ impl TriggerFlowState {
                     self.slot_channel_list = list;
                     if self.slot_channel_list.is_valid_config() {
                         self.catalog = Some(catalog.clone());
+                        // Recompute before the response clone below.
+                        self.recompute_all_model_errors();
                         let response = ResponseType::EvaluateResponse {
                             trigger_flow_state: self.clone(),
                         };
@@ -158,6 +216,8 @@ impl TriggerFlowState {
                             "###process_system_config returning evaluate_response without catalog (in-session update)"
                         );
                     }
+                    // Recompute before the response clone below.
+                    self.recompute_all_model_errors();
                     let response = ResponseType::EvaluateResponse {
                         trigger_flow_state: self.clone(),
                     };
@@ -202,6 +262,16 @@ impl TriggerFlowState {
         self.slot_channel_list = SlotChannelList::default();
         self.models.clear();
     }
+
+    /// Rewrites every model's `model_error` against current hardware.
+    /// Must run after any mutation to `slot_channel_list` or `models`,
+    /// before validation or response cloning.
+    pub fn recompute_all_model_errors(&mut self) {
+        let list = &self.slot_channel_list;
+        for model in self.models.values_mut() {
+            model.recompute_error(list);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -236,6 +306,7 @@ mod is_stale_tests {
             node_id: node_id.to_string(),
             blocks: vec![],
             slot_module: snapshot,
+            model_error: vec![],
         }
     }
 
@@ -297,5 +368,158 @@ mod is_stale_tests {
         };
         let m = model("node[3]", 1, Some(Module::MSMU60_2));
         assert!(!m.is_stale(&list));
+    }
+}
+
+#[cfg(test)]
+mod model_error_tests {
+    use super::*;
+    use crate::api::slot_channel_list::{Channel, ChannelIndex, Nodes};
+
+    fn slot(id: u8, module: Module) -> Slot {
+        Slot {
+            slot_id: SlotIndex(id),
+            module,
+            channels: vec![Channel {
+                channel_index: ChannelIndex(1),
+                in_use: false,
+            }],
+        }
+    }
+
+    fn list_with_local_slot(id: u8, module: Module) -> SlotChannelList {
+        SlotChannelList {
+            localnode: "MP5".to_string(),
+            is_valid: true,
+            slots: vec![slot(id, module)],
+            nodes: vec![],
+        }
+    }
+
+    fn model(node_id: &str, slot_index: u8, snapshot: Option<Module>) -> TriggerModelState {
+        TriggerModelState {
+            model_name: "tm1".to_string(),
+            slot_index: SlotIndex(slot_index),
+            node_id: node_id.to_string(),
+            blocks: vec![],
+            slot_module: snapshot,
+            model_error: vec![],
+        }
+    }
+
+    #[test]
+    fn recompute_error_empty_when_healthy() {
+        let list = list_with_local_slot(1, Module::MSMU60_2);
+        let mut m = model("localnode", 1, Some(Module::MSMU60_2));
+        m.recompute_error(&list);
+        assert!(m.model_error.is_empty());
+        assert!(!m.has_system_config_error());
+    }
+
+    #[test]
+    fn recompute_error_missing_snapshot_message() {
+        let list = list_with_local_slot(1, Module::MSMU60_2);
+        let mut m = model("localnode", 1, None);
+        m.recompute_error(&list);
+        assert_eq!(m.model_error.len(), 1);
+        assert!(matches!(m.model_error[0].0, ModelErrorKind::SystemConfig));
+        assert!(
+            m.model_error[0].1.contains("no slot binding"),
+            "got: {}",
+            m.model_error[0].1
+        );
+        assert!(m.has_system_config_error());
+    }
+
+    #[test]
+    fn recompute_error_missing_node_message() {
+        let list = SlotChannelList {
+            localnode: "MP5".to_string(),
+            is_valid: true,
+            slots: vec![],
+            nodes: vec![Nodes {
+                node_id: "node[3]".to_string(),
+                mainframe: "MP5".to_string(),
+                slots: Some(vec![slot(1, Module::MSMU60_2)]),
+            }],
+        };
+        let mut m = model("node[5]", 1, Some(Module::MSMU60_2));
+        m.recompute_error(&list);
+        assert_eq!(m.model_error.len(), 1);
+        assert!(
+            m.model_error[0].1.contains("no longer connected"),
+            "got: {}",
+            m.model_error[0].1
+        );
+    }
+
+    #[test]
+    fn recompute_error_missing_slot_message() {
+        let list = list_with_local_slot(2, Module::MSMU60_2);
+        let mut m = model("localnode", 1, Some(Module::MSMU60_2));
+        m.recompute_error(&list);
+        assert_eq!(m.model_error.len(), 1);
+        assert!(
+            m.model_error[0].1.contains("no longer available"),
+            "got: {}",
+            m.model_error[0].1
+        );
+    }
+
+    #[test]
+    fn recompute_error_module_mismatch_message() {
+        let list = list_with_local_slot(1, Module::MPSU50_2ST);
+        let mut m = model("localnode", 1, Some(Module::MSMU60_2));
+        m.recompute_error(&list);
+        assert_eq!(m.model_error.len(), 1);
+        assert!(
+            m.model_error[0].1.contains("Hardware changed"),
+            "got: {}",
+            m.model_error[0].1
+        );
+    }
+
+    #[test]
+    fn recompute_error_clears_on_second_call_when_healed() {
+        let stale_list = list_with_local_slot(1, Module::MPSU50_2ST);
+        let healthy_list = list_with_local_slot(1, Module::MSMU60_2);
+        let mut m = model("localnode", 1, Some(Module::MSMU60_2));
+
+        m.recompute_error(&stale_list);
+        assert!(m.has_system_config_error());
+
+        m.recompute_error(&healthy_list);
+        assert!(m.model_error.is_empty());
+        assert!(!m.has_system_config_error());
+    }
+
+    #[test]
+    fn model_error_absent_from_wire_when_empty() {
+        let m = model("localnode", 1, Some(Module::MSMU60_2));
+        let json = serde_json::to_string(&m).expect("serialize");
+        assert!(
+            !json.contains("model_error"),
+            "empty model_error should be omitted, got: {}",
+            json
+        );
+    }
+
+    #[test]
+    fn model_error_present_on_wire_when_non_empty() {
+        let list = list_with_local_slot(1, Module::MPSU50_2ST);
+        let mut m = model("localnode", 1, Some(Module::MSMU60_2));
+        m.recompute_error(&list);
+        assert!(!m.model_error.is_empty());
+
+        let json = serde_json::to_string(&m).expect("serialize");
+        assert!(
+            json.contains("model_error"),
+            "non-empty model_error should appear on the wire, got: {}",
+            json
+        );
+
+        let round_tripped: TriggerModelState =
+            serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(round_tripped.model_error.len(), 1);
     }
 }

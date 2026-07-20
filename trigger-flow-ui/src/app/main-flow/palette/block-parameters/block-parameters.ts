@@ -99,6 +99,20 @@ export class BlockParameters {
     return `${this.selectedBlockNodeId}.slot[${this.selectedBlockSlotIndex}]`;
   }
 
+  /** True when the owning model has a `model_error`. Disables the params body. */
+  isModelStale(): boolean {
+    if (!this.modelName) return false;
+    const model = this.canvasBlocksService.getModels()[this.modelName];
+    return (model?.model_error?.length ?? 0) > 0;
+  }
+
+  /** First error message on the owning model, for the banner shown above the params body. */
+  modelStaleTooltip(): string {
+    if (!this.modelName) return '';
+    const model = this.canvasBlocksService.getModels()[this.modelName];
+    return model?.model_error?.[0]?.[1] ?? '';
+  }
+
   constructor() {
     // Reacts to both: new block added (auto-select) and existing block clicked.
     this.canvasBlocksService.selectedBlock$

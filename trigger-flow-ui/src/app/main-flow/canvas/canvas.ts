@@ -313,9 +313,9 @@ export class Canvas implements AfterViewInit {
       });
   }
 
-  // Single pass over `models$` builds both the per-model summary (for
-  // section-header error styling) and the per-block index (for node-level
-  // error styling).
+  // Builds per-model summary and per-block index in a single pass.
+  // The section header shows both model and block errors; model errors
+  // first, then block errors.
   private readonly errorMaps = computed<{
     modelSummary: Record<string, { hasError: boolean; tooltip: string }>;
     blockIndex: Record<string, { hasError: boolean; tooltip: string }>;
@@ -325,8 +325,18 @@ export class Canvas implements AfterViewInit {
     const blockIndex: Record<string, { hasError: boolean; tooltip: string }> = {};
 
     for (const [modelName, model] of Object.entries(models)) {
-      const lines: string[] = [];
+      const modelLines: string[] = [];
+      const blockLines: string[] = [];
       let hasAnyError = false;
+
+      // Model-level errors (Rust-owned, from TriggerModelState::model_error).
+      const modelErrors = model.model_error ?? [];
+      if (modelErrors.length > 0) {
+        hasAnyError = true;
+        for (const [, msg] of modelErrors) {
+          modelLines.push(msg);
+        }
+      }
 
       for (const block of model.blocks) {
         const hasError = this.hasBlockErrorItems(block.block_error);
@@ -337,7 +347,7 @@ export class Canvas implements AfterViewInit {
         }
 
         for (const message of messages) {
-          lines.push(`${block.block_id} - ${message}`);
+          blockLines.push(`${block.block_id} - ${message}`);
         }
 
         blockIndex[block.block_id] = {
@@ -346,11 +356,18 @@ export class Canvas implements AfterViewInit {
         };
       }
 
-      modelSummary[modelName] = {
-        hasError: hasAnyError,
-        tooltip:
-          lines.length > 0 ? lines.join('\n') : hasAnyError ? 'Validation errors found' : '',
-      };
+      // Model errors first; blank line separator only when both sides present.
+      const tooltipParts: string[] = [];
+      if (modelLines.length > 0) tooltipParts.push(modelLines.join('\n'));
+      if (blockLines.length > 0) tooltipParts.push(blockLines.join('\n'));
+      const tooltip =
+        tooltipParts.length > 0
+          ? tooltipParts.join('\n\n')
+          : hasAnyError
+            ? 'Validation errors found'
+            : '';
+
+      modelSummary[modelName] = { hasError: hasAnyError, tooltip };
     }
 
     return { modelSummary, blockIndex };
@@ -1547,6 +1564,16 @@ export class Canvas implements AfterViewInit {
 
   getSectionErrorTooltip(modelName: string): string {
     return this.modelErrorSummary()[modelName]?.tooltip ?? 'No validation errors';
+  }
+
+  /**
+   * True when the model carries any `model_error` entry from Rust.
+   * Drives the red border on the section header; error text goes into
+   * the icon tooltip via `errorMaps`.
+   */
+  getSectionHasModelError(modelName: string): boolean {
+    const model = this.canvasBlocksService.getModels()[modelName];
+    return (model?.model_error?.length ?? 0) > 0;
   }
 
   hasNodeError(blockId: string): boolean {

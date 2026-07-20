@@ -1,4 +1,4 @@
-use std::fmt::Display;
+﻿use std::fmt::Display;
 
 use anyhow::Error;
 use handlebars::Handlebars;
@@ -11,7 +11,7 @@ use crate::{
 
 /// Sentinel value used by the UI to mark a `BlockReference` parameter that
 /// has not yet been pointed at a real block. It must NOT leak into generated scripts (a block
-/// literally named "unknown" doesn't exist) — `from_state` rewrites it to
+/// literally named "unknown" doesn't exist) - `from_state` rewrites it to
 /// an empty string before handing the state to the template renderer.
 const BLOCK_REFERENCE_UNKNOWN_VALUE: &str = "unknown";
 
@@ -37,14 +37,15 @@ impl Script {
         let mut state = state.clone();
         sanitize_unknown_block_references(&mut state, catalog);
 
-        // Skip stale models: remove them from the state clone so templates
-        // don't emit TSP for bindings whose module snapshot no longer matches
-        // current hardware. Retain their names so we can inject skip-markers
-        // into the generated script for user visibility.
+        // Skip models with a system-config binding error: remove them from
+        // the state clone so templates don't emit TSP for bindings whose
+        // module snapshot no longer matches current hardware. Retain their
+        // names so we can inject skip-markers into the generated script for
+        // user visibility.
         let skipped: Vec<String> = state
             .models
             .iter()
-            .filter(|(_, m)| m.is_stale(&state.slot_channel_list))
+            .filter(|(_, m)| m.has_system_config_error())
             .map(|(name, _)| name.clone())
             .collect();
         for name in &skipped {
@@ -55,7 +56,7 @@ impl Script {
 
         let mut hb = Handlebars::new();
 
-        // Disable HTML escaping — generated output is Lua/TSP script, not HTML
+        // Disable HTML escaping â€” generated output is Lua/TSP script, not HTML
         hb.register_escape_fn(handlebars::no_escape);
 
         // load the script templates into hb
@@ -503,6 +504,7 @@ slot[{{this.slot_index}}].trigger.model.create("{{this.trigger_model_name}}")
                 "tm1".to_string(),
                 TriggerModelState {
                     slot_module: Some(Module::MSMU60_2),
+                    model_error: vec![],
                     model_name: "tm1".to_string(),
                     slot_index: SlotIndex(1),
                     node_id: "localnode".to_string(),
@@ -563,6 +565,7 @@ slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_blo
                 "tm1".to_string(),
                 TriggerModelState {
                     slot_module: Some(Module::MSMU60_2),
+                    model_error: vec![],
                     model_name: "tm1".to_string(),
                     slot_index: SlotIndex(1),
                     node_id: "localnode".to_string(),
@@ -637,6 +640,7 @@ slot[1].trigger.model.addblock.measure("tm1", "tm1_measure_001", { 1 }, 5)
                     "tm1".to_string(),
                     TriggerModelState {
                         slot_module: Some(Module::MSMU60_2),
+                        model_error: vec![],
                         model_name: "tm1".to_string(),
                         slot_index: SlotIndex(1),
                         node_id: "localnode".to_string(),
@@ -660,6 +664,7 @@ slot[1].trigger.model.addblock.measure("tm1", "tm1_measure_001", { 1 }, 5)
                     "tm2".to_string(),
                     TriggerModelState {
                         slot_module: Some(Module::MPSU50_2ST),
+                        model_error: vec![],
                         model_name: "tm2".to_string(),
                         slot_index: SlotIndex(2),
                         node_id: "localnode".to_string(),
@@ -722,6 +727,7 @@ slot[2].trigger.model.addblock.measure("tm2", "tm2_measure_001", { 1 }, 5)
                     "tm1".to_string(),
                     TriggerModelState {
                         slot_module: Some(Module::MSMU60_2),
+                        model_error: vec![],
                         model_name: "tm1".to_string(),
                         slot_index: SlotIndex(1),
                         node_id: "localnode".to_string(),
@@ -762,6 +768,7 @@ slot[2].trigger.model.addblock.measure("tm2", "tm2_measure_001", { 1 }, 5)
                     "tm2".to_string(),
                     TriggerModelState {
                         slot_module: Some(Module::MPSU50_2ST),
+                        model_error: vec![],
                         model_name: "tm2".to_string(),
                         slot_index: SlotIndex(2),
                         node_id: "localnode".to_string(),
@@ -849,6 +856,7 @@ slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_blo
                 "tm2".to_string(),
                 TriggerModelState {
                     slot_module: Some(Module::MPSU50_2ST),
+                    model_error: vec![],
                     model_name: "tm2".to_string(),
                     slot_index: SlotIndex(2),
                     node_id: "localnode".to_string(),
@@ -908,6 +916,7 @@ slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_blo
                 "tm2".to_string(),
                 TriggerModelState {
                     slot_module: Some(Module::MPSU50_2ST),
+                    model_error: vec![],
                     model_name: "tm2".to_string(),
                     slot_index: SlotIndex(2),
                     node_id: "localnode".to_string(),
@@ -952,10 +961,11 @@ slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_blo
         let catalog = catalog();
         let slot_channel_list = slot_channel_list();
 
-        // Model bound against SMU (Module::MSMU60_2), but the fixture's slot 1
-        // has been mutated so the model appears stale. Simplest way: point the
-        // snapshot at PSU while slot 1 is still SMU in the fixture.
-        let input = TriggerFlowState {
+        // Snapshot expects PSU but current slot 1 is SMU -> stale.
+        // Handlers call `recompute_all_model_errors()` before `Script::from_state`
+        // in production; do the same here so `has_system_config_error()` returns
+        // true for this fixture.
+        let mut input = TriggerFlowState {
             slot_channel_list,
             catalog: None,
             models: IndexMap::from([(
@@ -963,6 +973,7 @@ slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_blo
                 TriggerModelState {
                     // Snapshot expects PSU but current slot 1 is SMU -> stale.
                     slot_module: Some(Module::MPSU50_2ST),
+                    model_error: vec![],
                     model_name: "tm1".to_string(),
                     slot_index: SlotIndex(1),
                     node_id: "localnode".to_string(),
@@ -983,6 +994,7 @@ slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_blo
                 },
             )]),
         };
+        input.recompute_all_model_errors();
 
         let Ok(script) = Script::from_state(&catalog, &input) else {
             panic!("should be able to create script");

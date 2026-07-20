@@ -1,7 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { Catalog, BlockDefinition, ActualParameter, ParameterValue } from '../models/triggerBlock';
-import { BlockErrorEntry, JsonValue, TriggerModel } from '../models/triggerFlowState';
+import { BlockErrorEntry, JsonValue, ModelErrorEntry, TriggerModel } from '../models/triggerFlowState';
 import { Module } from '../models/slotChannelModel';
 import { Websocket } from './websocket';
 import { TriggerFlowDataService } from './triggerFlowDataService';
@@ -59,6 +59,8 @@ export class CanvasBlocksService {
       node_id: string;
       blocks: CanvasBlock[];
       slot_module: Module | null;
+      // Derived errors from Rust; empty until the next evaluate response.
+      model_error: ModelErrorEntry[];
     }
   > = {};
   private selectedBlockSubject = new BehaviorSubject<string | null>(null);
@@ -106,10 +108,15 @@ export class CanvasBlocksService {
    * Apply server-validated parameter values (and the resulting block_error
    * list) onto the existing canvas blocks without rebuilding them. Used on
    * the in-session evaluate path, where the backend may clamp values into
-   * range.
+   * range. Also refreshes `model_error` on the owning model so mid-session
+   * hardware changes surface in the header without a full rebuild.
    */
   applyServerValidationResult(models: Record<string, TriggerModel>): void {
-    for (const model of Object.values(models)) {
+    for (const [modelName, model] of Object.entries(models)) {
+      const localModel = this.models[modelName];
+      if (localModel) {
+        localModel.model_error = model.model_error ?? [];
+      }
       for (const serverBlock of model.blocks) {
         const canvasBlock = this.getBlockById(serverBlock.block_id);
         if (!canvasBlock) continue;
@@ -192,6 +199,7 @@ export class CanvasBlocksService {
         slot_index: number;
         blocks: CanvasBlock[];
         slot_module: Module | null;
+        model_error: ModelErrorEntry[];
       }
     > = {};
 
@@ -243,6 +251,8 @@ export class CanvasBlocksService {
         // Round-trip the snapshot verbatim on recall/evaluate; Rust owns
         // backfill for legacy sessions where this arrives as null.
         slot_module: model.slot_module ?? null,
+        // Rust recomputes on every state change; copy incoming.
+        model_error: model.model_error ?? [],
       };
     }
 
@@ -410,6 +420,8 @@ export class CanvasBlocksService {
         node_id: nodeId,
         blocks: [],
         slot_module: this.snapshotSlotModule(slotIndex, nodeId),
+        // Populated by the next evaluate response from Rust.
+        model_error: [],
       };
     }
     this.updateAndPrint();
@@ -506,6 +518,8 @@ export class CanvasBlocksService {
         node_id: nodeId,
         blocks: [],
         slot_module: this.snapshotSlotModule(slotIndex, nodeId),
+        // Populated by the next evaluate response from Rust.
+        model_error: [],
       };
     }
 
