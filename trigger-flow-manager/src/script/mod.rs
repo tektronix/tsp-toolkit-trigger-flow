@@ -429,7 +429,6 @@ slot[{{this.slot_index}}].trigger.model.create("{{this.trigger_model_name}}")
     fn slot_channel_list() -> SlotChannelList {
         SlotChannelList {
             localnode: "localnode".to_string(),
-            is_valid: true,
             slots: vec![
                 Slot {
                     slot_id: SlotIndex(1),

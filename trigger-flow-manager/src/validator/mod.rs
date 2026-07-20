@@ -80,7 +80,6 @@ mod stale_wipe_tests {
     fn list_with_local_slot(id: u8, module: Module) -> SlotChannelList {
         SlotChannelList {
             localnode: "MP5".to_string(),
-            is_valid: true,
             slots: vec![slot(id, module)],
             nodes: vec![],
         }

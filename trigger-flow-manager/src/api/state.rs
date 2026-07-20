@@ -126,122 +126,116 @@ impl TriggerModelState {
 }
 
 impl TriggerFlowState {
-    //only when the system_config is updated
+    /// Recompute the response payload after a Systems message arrives.
+    ///
+    /// Semantics:
+    /// - Valid config: replaces `slot_channel_list`, recomputes model errors,
+    ///   emits `evaluate_response`. Catalog is attached on fresh init or when
+    ///   models are already present (recall completion); otherwise cleared.
+    /// - Invalid config (parse-fail or `!is_valid_config()`): resets
+    ///   `slot_channel_list` to default, mass-stales every model, emits
+    ///   `empty_system_config_error` with the reason in `additional_info` and
+    ///   the updated state in `json_value` (empty when no models exist).
     pub fn process_system_config(
         &mut self,
         systems: &Systems,
-        catalog: &'static Catalog,
+        catalog: &Catalog,
     ) -> String {
-        //if slot_channel_list does not exist for self, initialize
-        //initialize the slot_channel_list with the new system_config
-        //sent as initial_response
         if DEBUG {
             println!(
                 "###process_system_config called with system_config: {:?}",
                 self.slot_channel_list
             );
         }
-        if self.slot_channel_list.slots.is_empty() && self.slot_channel_list.nodes.is_empty() {
-            match SlotChannelList::new(systems) {
-                Ok(list) => {
-                    self.slot_channel_list = list;
-                    if self.slot_channel_list.is_valid_config() {
-                        self.catalog = Some(catalog.clone());
-                        // Recompute before the response clone below.
-                        self.recompute_all_model_errors();
-                        let response = ResponseType::EvaluateResponse {
-                            trigger_flow_state: self.clone(),
-                        };
 
-                        match serde_json::to_string(&response) {
-                            Ok(response_json) => {
-                                let ipc_response = IpcData {
-                                    request_type: "evaluate_response".to_string(),
-                                    additional_info: "".to_string(),
-                                    json_value: response_json,
-                                };
-                                serde_json::to_string(&ipc_response).unwrap_or_else(|_| {
-                                    "{\"error\":\"Serialization failed\"}".to_string()
-                                })
-                            }
-                            Err(_) => "{\"error\":\"Response serialization failed\"}".to_string(),
-                        }
-                    } else {
-                        let response = ResponseType::EmptyConfigResponse;
-                        self.slot_channel_list = SlotChannelList::default();
-                        match serde_json::to_string(&response) {
-                            Ok(_) => {
-                                let ipc_response = IpcData {
-                                    request_type: "empty_system_config_error".to_string(),
-                                    additional_info: "".to_string(),
-                                    json_value: "".to_string(),
-                                };
-                                serde_json::to_string(&ipc_response).unwrap_or_else(|_| {
-                                    "{\"error\":\"Serialization failed\"}".to_string()
-                                })
-                            }
-                            Err(_) => "{\"error\":\"Response serialization failed\"}".to_string(),
-                        }
-                    }
-                }
-                Err(_e) => {
-                    //ToDo- add error handling
-                    "".to_string()
-                }
-            }
-            //return the response as json string
+        let is_fresh_init =
+            self.slot_channel_list.slots.is_empty() && self.slot_channel_list.nodes.is_empty();
+
+        let build_result = if is_fresh_init {
+            SlotChannelList::new(systems)
         } else {
-            // Recall-completion is detected when slot_channel_list is currently empty
-            // but models are already populated (from a prior RecallRequest). Only in
-            // that case do we want to attach the catalog to the outgoing payload.
-            // Normal in-session config updates should NOT include the catalog.
-            let is_recall_completion = !self.models.is_empty();
-            match SlotChannelList::update_slot_channel_list(
+            SlotChannelList::update_slot_channel_list(
                 &mut self.slot_channel_list,
                 SlotChannelListUpdate::SystemConfig(systems.clone()),
-            ) {
-                Ok(list) => {
-                    self.slot_channel_list = list;
+            )
+        };
 
-                    if is_recall_completion {
-                        // Attach catalog so the recall payload sent to the UI is complete.
-                        self.catalog = Some(catalog.clone());
-                        println!(
-                            "###process_system_config returning evaluate_response with catalog (recall completion)"
-                        );
-                    } else {
-                        // In-session update: ensure no stale catalog is sent.
-                        self.catalog = None;
-                        println!(
-                            "###process_system_config returning evaluate_response without catalog (in-session update)"
-                        );
-                    }
-                    // Recompute before the response clone below.
-                    self.recompute_all_model_errors();
-                    let response = ResponseType::EvaluateResponse {
-                        trigger_flow_state: self.clone(),
-                    };
+        match build_result {
+            Err(e) => {
+                eprintln!(
+                    "process_system_config: failed to parse Systems payload: {e}"
+                );
+                self.emit_empty_config(&e)
+            }
+            Ok(list) if !list.is_valid_config() => {
+                self.emit_empty_config("No valid hardware in system config")
+            }
+            Ok(list) => {
+                self.slot_channel_list = list;
+                // Recall completion: models were populated by a prior
+                // RecallRequest but slot_channel_list was empty until this
+                // Systems arrived. In that case the payload must carry
+                // catalog. Fresh init also always carries catalog.
+                let attach_catalog = is_fresh_init || !self.models.is_empty();
+                if attach_catalog {
+                    self.catalog = Some(catalog.clone());
+                    println!(
+                        "###process_system_config returning evaluate_response with catalog"
+                    );
+                } else {
+                    self.catalog = None;
+                    println!(
+                        "###process_system_config returning evaluate_response without catalog"
+                    );
+                }
+                self.recompute_all_model_errors();
 
-                    match serde_json::to_string(&response) {
-                        Ok(response_json) => {
-                            let ipc_response = IpcData {
-                                request_type: "evaluate_response".to_string(),
-                                additional_info: "".to_string(),
-                                json_value: response_json,
-                            };
-                            serde_json::to_string(&ipc_response).unwrap_or_else(|_| {
-                                "{\"error\":\"Serialization failed\"}".to_string()
-                            })
-                        }
-                        Err(_) => "{\"error\":\"Response serialization failed\"}".to_string(),
+                let response = ResponseType::EvaluateResponse {
+                    trigger_flow_state: self.clone(),
+                };
+                let json_value = match serde_json::to_string(&response) {
+                    Ok(s) => s,
+                    Err(_) => {
+                        return "{\"error\":\"Response serialization failed\"}".to_string()
                     }
-                }
-                Err(_e) => {
-                    //ToDo- add error handling
-                    "".to_string()
-                }
+                };
+                let ipc = IpcData {
+                    request_type: "evaluate_response".to_string(),
+                    additional_info: "".to_string(),
+                    json_value,
+                };
+                serde_json::to_string(&ipc)
+                    .unwrap_or_else(|_| "{\"error\":\"Serialization failed\"}".to_string())
             }
         }
+    }
+
+    /// Common exit for the invalid-config paths (parse-fail and
+    /// `!is_valid_config()`). Resets `slot_channel_list` to default so a
+    /// subsequent recompute mass-flags every model, then emits
+    /// `empty_system_config_error` carrying the state in `json_value` when
+    /// models exist. Catalog is left as-is so the UI can still render the
+    /// stale models.
+    fn emit_empty_config(&mut self, reason: &str) -> String {
+        self.slot_channel_list = SlotChannelList::default();
+        self.recompute_all_model_errors();
+
+        let json_value = if self.models.is_empty() {
+            String::new()
+        } else {
+            let response = ResponseType::EvaluateResponse {
+                trigger_flow_state: self.clone(),
+            };
+            serde_json::to_string(&response).unwrap_or_default()
+        };
+
+        let ipc = IpcData {
+            request_type: "empty_system_config_error".to_string(),
+            additional_info: reason.to_string(),
+            json_value,
+        };
+        serde_json::to_string(&ipc)
+            .unwrap_or_else(|_| "{\"error\":\"Serialization failed\"}".to_string())
     }
 
     pub fn is_channel_in_use(&self, slot_index: SlotIndex, channel_index: ChannelIndex) -> bool {
@@ -293,7 +287,6 @@ mod is_stale_tests {
     fn list_with_local_slot(id: u8, module: Module) -> SlotChannelList {
         SlotChannelList {
             localnode: "MP5".to_string(),
-            is_valid: true,
             slots: vec![slot(id, module)],
             nodes: vec![],
         }
@@ -342,7 +335,6 @@ mod is_stale_tests {
     fn stale_when_referenced_node_missing() {
         let list = SlotChannelList {
             localnode: "MP5".to_string(),
-            is_valid: true,
             slots: vec![],
             nodes: vec![Nodes {
                 node_id: "node[3]".to_string(),
@@ -358,7 +350,6 @@ mod is_stale_tests {
     fn not_stale_on_elevated_node_match() {
         let list = SlotChannelList {
             localnode: "MP5".to_string(),
-            is_valid: true,
             slots: vec![],
             nodes: vec![Nodes {
                 node_id: "node[3]".to_string(),
@@ -390,7 +381,6 @@ mod model_error_tests {
     fn list_with_local_slot(id: u8, module: Module) -> SlotChannelList {
         SlotChannelList {
             localnode: "MP5".to_string(),
-            is_valid: true,
             slots: vec![slot(id, module)],
             nodes: vec![],
         }
@@ -435,7 +425,6 @@ mod model_error_tests {
     fn recompute_error_missing_node_message() {
         let list = SlotChannelList {
             localnode: "MP5".to_string(),
-            is_valid: true,
             slots: vec![],
             nodes: vec![Nodes {
                 node_id: "node[3]".to_string(),
@@ -521,5 +510,318 @@ mod model_error_tests {
         let round_tripped: TriggerModelState =
             serde_json::from_str(&json).expect("deserialize");
         assert_eq!(round_tripped.model_error.len(), 1);
+    }
+}
+
+#[cfg(test)]
+mod process_system_config_tests {
+    use super::*;
+    use crate::api::slot_channel_list::{SlotJson, SystemConfigJson, Systems};
+    use crate::trigger_model_blocks::catalog::ScriptTemplate;
+    use std::collections::HashMap;
+
+    fn empty_catalog() -> Catalog {
+        Catalog {
+            script_template: ScriptTemplate::default(),
+            blocks: HashMap::new(),
+            trigger_events: HashMap::new(),
+            templates: HashMap::new(),
+            custom_types: HashMap::new(),
+        }
+    }
+
+    fn systems_active_mp5_with_module(module: &str) -> Systems {
+        Systems {
+            systems: vec![SystemConfigJson {
+                name: "sys1".to_string(),
+                localnode: "MP5103".to_string(),
+                is_active: Some(true),
+                slots: Some(vec![SlotJson {
+                    slot_id: "slot[1]".to_string(),
+                    module: module.to_string(),
+                }]),
+                nodes: None,
+            }],
+        }
+    }
+
+    fn systems_no_active() -> Systems {
+        Systems {
+            systems: vec![SystemConfigJson {
+                name: "sys1".to_string(),
+                localnode: "MP5103".to_string(),
+                is_active: Some(false),
+                slots: None,
+                nodes: None,
+            }],
+        }
+    }
+
+    fn systems_non_mp5() -> Systems {
+        // Parses fine but is_valid_config() returns false: non-MP5 mainframe.
+        Systems {
+            systems: vec![SystemConfigJson {
+                name: "sys1".to_string(),
+                localnode: "2450".to_string(),
+                is_active: Some(true),
+                slots: None,
+                nodes: None,
+            }],
+        }
+    }
+
+    fn state_with_one_model(snapshot: Option<Module>) -> TriggerFlowState {
+        let mut state = TriggerFlowState {
+            catalog: None,
+            slot_channel_list: SlotChannelList::default(),
+            models: IndexMap::new(),
+        };
+        state.models.insert(
+            "tm1".to_string(),
+            TriggerModelState {
+                model_name: "tm1".to_string(),
+                slot_index: SlotIndex(1),
+                node_id: "localnode".to_string(),
+                blocks: vec![],
+                slot_module: snapshot,
+                model_error: vec![],
+            },
+        );
+        state
+    }
+
+    fn parse_ipc(response: &str) -> serde_json::Value {
+        serde_json::from_str(response).expect("response is valid JSON")
+    }
+
+    #[test]
+    fn fresh_init_valid_config_emits_evaluate_response() {
+        let catalog = empty_catalog();
+        let mut state = TriggerFlowState {
+            catalog: None,
+            slot_channel_list: SlotChannelList::default(),
+            models: IndexMap::new(),
+        };
+
+        let response = state.process_system_config(
+            &systems_active_mp5_with_module("MSMU60-2"),
+            &catalog,
+        );
+        let ipc = parse_ipc(&response);
+
+        assert_eq!(ipc["request_type"], "evaluate_response");
+        assert!(!state.slot_channel_list.slots.is_empty());
+        assert!(state.catalog.is_some());
+    }
+
+    #[test]
+    fn fresh_init_parse_fail_emits_empty_error_without_state() {
+        let catalog = empty_catalog();
+        let mut state = TriggerFlowState {
+            catalog: None,
+            slot_channel_list: SlotChannelList::default(),
+            models: IndexMap::new(),
+        };
+
+        let response = state.process_system_config(&systems_no_active(), &catalog);
+        let ipc = parse_ipc(&response);
+
+        assert_eq!(ipc["request_type"], "empty_system_config_error");
+        assert!(
+            ipc["additional_info"]
+                .as_str()
+                .unwrap_or("")
+                .contains("No active system"),
+            "expected reason in additional_info, got: {}",
+            ipc["additional_info"]
+        );
+        // No models to ship, so json_value stays empty.
+        assert_eq!(ipc["json_value"], "");
+    }
+
+    #[test]
+    fn fresh_init_invalid_config_emits_empty_error_without_state() {
+        let catalog = empty_catalog();
+        let mut state = TriggerFlowState {
+            catalog: None,
+            slot_channel_list: SlotChannelList::default(),
+            models: IndexMap::new(),
+        };
+
+        let response = state.process_system_config(&systems_non_mp5(), &catalog);
+        let ipc = parse_ipc(&response);
+
+        assert_eq!(ipc["request_type"], "empty_system_config_error");
+        assert!(
+            ipc["additional_info"]
+                .as_str()
+                .unwrap_or("")
+                .contains("No valid hardware"),
+            "got: {}",
+            ipc["additional_info"]
+        );
+        assert_eq!(ipc["json_value"], "");
+        // slot_channel_list must be reset so a later Systems retriggers fresh init.
+        assert!(state.slot_channel_list.slots.is_empty());
+        assert!(state.slot_channel_list.nodes.is_empty());
+    }
+
+    #[test]
+    fn in_session_valid_update_keeps_models_healthy() {
+        let catalog = empty_catalog();
+        let mut state = state_with_one_model(Some(Module::MSMU60_2));
+        // Seed prior valid state so we take the in-session branch.
+        state
+            .process_system_config(
+                &systems_active_mp5_with_module("MSMU60-2"),
+                &catalog,
+            );
+        assert!(
+            !state.models["tm1"].has_system_config_error(),
+            "model should be healthy after matching init"
+        );
+
+        // Same module still installed: model stays healthy.
+        let response = state.process_system_config(
+            &systems_active_mp5_with_module("MSMU60-2"),
+            &catalog,
+        );
+        let ipc = parse_ipc(&response);
+        assert_eq!(ipc["request_type"], "evaluate_response");
+        assert!(!state.models["tm1"].has_system_config_error());
+    }
+
+    #[test]
+    fn in_session_parse_fail_mass_stales_and_carries_state() {
+        let catalog = empty_catalog();
+        let mut state = state_with_one_model(Some(Module::MSMU60_2));
+        state
+            .process_system_config(
+                &systems_active_mp5_with_module("MSMU60-2"),
+                &catalog,
+            );
+
+        let response = state.process_system_config(&systems_no_active(), &catalog);
+        let ipc = parse_ipc(&response);
+
+        assert_eq!(ipc["request_type"], "empty_system_config_error");
+        assert!(
+            ipc["additional_info"]
+                .as_str()
+                .unwrap_or("")
+                .contains("No active system"),
+            "got: {}",
+            ipc["additional_info"]
+        );
+
+        // State reset to default; model must now be stale.
+        assert!(state.slot_channel_list.slots.is_empty());
+        assert!(state.models["tm1"].has_system_config_error());
+
+        // json_value must carry the mass-stale state so the UI can render it.
+        let payload_str = ipc["json_value"].as_str().expect("json_value is string");
+        assert!(!payload_str.is_empty());
+        let payload: serde_json::Value =
+            serde_json::from_str(payload_str).expect("json_value is valid JSON");
+        assert!(payload["models"]["tm1"]["model_error"].is_array());
+        assert_eq!(
+            payload["models"]["tm1"]["model_error"]
+                .as_array()
+                .unwrap()
+                .len(),
+            1
+        );
+    }
+
+    #[test]
+    fn in_session_invalid_config_mass_stales_and_carries_state() {
+        let catalog = empty_catalog();
+        let mut state = state_with_one_model(Some(Module::MSMU60_2));
+        state
+            .process_system_config(
+                &systems_active_mp5_with_module("MSMU60-2"),
+                &catalog,
+            );
+
+        let response = state.process_system_config(&systems_non_mp5(), &catalog);
+        let ipc = parse_ipc(&response);
+
+        assert_eq!(ipc["request_type"], "empty_system_config_error");
+        assert!(state.slot_channel_list.slots.is_empty());
+        assert!(state.models["tm1"].has_system_config_error());
+
+        let payload: serde_json::Value =
+            serde_json::from_str(ipc["json_value"].as_str().unwrap()).unwrap();
+        assert!(payload["models"]["tm1"]["model_error"]
+            .as_array()
+            .is_some_and(|a| !a.is_empty()));
+    }
+
+    #[test]
+    fn healed_after_reconfigure_clears_error() {
+        let catalog = empty_catalog();
+        let mut state = state_with_one_model(Some(Module::MSMU60_2));
+        state
+            .process_system_config(
+                &systems_active_mp5_with_module("MSMU60-2"),
+                &catalog,
+            );
+
+        // Break it: mid-session invalid config.
+        state.process_system_config(&systems_non_mp5(), &catalog);
+        assert!(state.models["tm1"].has_system_config_error());
+
+        // Reconfigure: valid MP5 with matching module. Note: state is now
+        // fresh-init-shaped (empty list), so this goes through the fresh-init
+        // path and the recall-completion catalog-attach branch fires.
+        let response = state.process_system_config(
+            &systems_active_mp5_with_module("MSMU60-2"),
+            &catalog,
+        );
+        let ipc = parse_ipc(&response);
+        assert_eq!(ipc["request_type"], "evaluate_response");
+        assert!(!state.models["tm1"].has_system_config_error());
+    }
+
+    #[test]
+    fn recall_completion_attaches_catalog() {
+        let catalog = empty_catalog();
+        // Models present but slot list empty: this is the recall-completion
+        // shape after handle_recall_request set models before Systems arrived.
+        let mut state = state_with_one_model(Some(Module::MSMU60_2));
+        assert!(state.slot_channel_list.slots.is_empty());
+        assert!(state.catalog.is_none());
+
+        let response = state.process_system_config(
+            &systems_active_mp5_with_module("MSMU60-2"),
+            &catalog,
+        );
+        let ipc = parse_ipc(&response);
+        assert_eq!(ipc["request_type"], "evaluate_response");
+        assert!(state.catalog.is_some(), "recall completion must attach catalog");
+    }
+
+    #[test]
+    fn in_session_normal_update_clears_catalog() {
+        let catalog = empty_catalog();
+        let mut state = state_with_one_model(Some(Module::MSMU60_2));
+        state.process_system_config(
+            &systems_active_mp5_with_module("MSMU60-2"),
+            &catalog,
+        );
+        assert!(state.catalog.is_some());
+
+        // Now delete the seeded model so the next update doesn't look like
+        // recall-completion (which would keep catalog attached).
+        state.models.clear();
+
+        state.process_system_config(
+            &systems_active_mp5_with_module("MSMU60-2"),
+            &catalog,
+        );
+        assert!(
+            state.catalog.is_none(),
+            "in-session update with no models must clear catalog"
+        );
     }
 }

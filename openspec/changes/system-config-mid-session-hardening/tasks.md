@@ -86,14 +86,14 @@ Scope pared back to model-level for first delivery. Per-block-param `SlotIndex` 
 
 ## 8. Structured error IPC — still pending
 
-- [ ] 8.1 Replace both `Err(_e) => "".to_string()` sinks in `TriggerFlowState::process_system_config` with a structured IPC payload: `{"request_type":"empty_system_config_error","additional_info":"","json_value":"{\"error\":\"<reason>\"}"}`
-- [ ] 8.2 Verify `should_trigger_script` in `kic-trigger-flow/src/back_end/client_server.rs::StdinLine::Systems` now correctly evaluates to `false` on the error path
+- [x] 8.1 Replace both `Err(_e) => "".to_string()` sinks in `TriggerFlowState::process_system_config` with a structured IPC payload: `{"request_type":"empty_system_config_error","additional_info":"<reason>","json_value":"<serialized state with mass-stale models, or empty>"}`. Extended to also cover the Ok-but-invalid path (see §9.1) via a shared `emit_empty_config` helper.
+- [x] 8.2 `should_trigger_script` helper in `kic-trigger-flow/src/back_end/client_server.rs` now gates on `request_type == "empty_system_config_error"` in addition to top-level `error`. Applied at all three call sites (WebSocket, Stdin Systems, SessionData).
 
 ## 9. In-session validity gate and atomic parse — still pending
 
-- [ ] 9.1 In `TriggerFlowState::process_system_config` else branch, call `self.slot_channel_list.is_valid_config()` on the freshly built list before persisting; if false, keep the previous state and return the `empty_system_config_error` IPC
-- [ ] 9.2 In `SlotChannelList::update_slot_channel_list` `SystemConfig` arm, parse `slots` and `nodes` into locals first; assign to `self.*` only if both parses succeed
-- [ ] 9.3 Unit tests: (a) valid update accepted, (b) non-MP5 mid-session update rejected and prior state preserved, (c) update with malformed nodes slot rejected and `self.slots` unchanged
+- [x] 9.1 In-session update branch now gates on `is_valid_config()` symmetrically with fresh-init. On invalid, resets `slot_channel_list` to `default()`, recomputes to mass-stale every model, and emits `empty_system_config_error` carrying the state in `json_value` so the UI can render the stale flags. Catalog left untouched so the UI still has block metadata.
+- [x] 9.2 In `SlotChannelList::update_slot_channel_list` `SystemConfig` arm, parse `slots` and `nodes` into locals first; assign to `self.*` only if both parses succeed. Makes the method fully transactional: on `Err`, `self` is untouched.
+- [x] 9.3 Unit tests covering: valid update accepted, in-session parse-fail mass-stales + carries state, in-session Ok-but-invalid mass-stales + carries state, fresh-init parse-fail returns empty error without state, fresh-init Ok-but-invalid returns empty error without state, healed-after-reconfigure clears error, recall-completion attaches catalog, in-session normal update clears catalog (`process_system_config_tests` module in `state.rs`, 9 tests)
 
 ## 10. UI — derive virtual invalid dropdown entries — still pending
 

@@ -62,9 +62,24 @@ export class App implements OnInit, OnDestroy {
           vscode.postMessage({ command: 'get_initial_configuration' });
           break;
         // Handle other request types as needed
-        case 'empty_system_config_error':
-          console.log('Received empty system config');
+        case 'empty_system_config_error': {
+          console.warn(
+            'Received empty_system_config_error:',
+            ipcData.additional_info,
+          );
+          // Payload carries updated state when models exist so mass-stale
+          // flags reach the UI. Empty json_value means no models to ship
+          // (fresh init with invalid hardware, or all models already deleted).
+          if (ipcData.json_value) {
+            const data = JSON.parse(ipcData.json_value);
+            if (data.slot_channel_list && data.models) {
+              const statePayload = new TriggerFlowStatePayload(data);
+              this.triggerFlowDataService.updateStatePayload(statePayload);
+              vscode.postMessage({ command: 'update_session', payload: message });
+            }
+          }
           break;
+        }
         default:
           console.warn('Unknown request type:', ipcData.request_type);
       }

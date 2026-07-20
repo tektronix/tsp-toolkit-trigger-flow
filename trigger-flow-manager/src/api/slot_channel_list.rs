@@ -77,24 +77,12 @@ pub enum SlotChannelListUpdate {
     TriggerFlowState(TriggerFlowState),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct SlotChannelList {
     pub localnode: String,
-    pub is_valid: bool,
     pub slots: Vec<Slot>,
     pub nodes: Vec<Nodes>,
-}
-
-impl Default for SlotChannelList {
-    fn default() -> Self {
-        SlotChannelList {
-            localnode: String::new(),
-            is_valid: true,
-            slots: Vec::new(),
-            nodes: Vec::new(),
-        }
-    }
 }
 
 // Filter the incoming nodes to at most one entry: the first node whose
@@ -149,7 +137,6 @@ impl SlotChannelList {
 
         let result = SlotChannelList {
             localnode: active_system.localnode.clone(),
-            is_valid: true,
             slots: _slots,
             nodes: _nodes,
         };
@@ -169,7 +156,7 @@ impl SlotChannelList {
                     .find(|system| system.is_active == Some(true))
                     .ok_or_else(|| "No active system found in configuration".to_string())?;
 
-                self.slots = active_system
+                let parsed_slots: Vec<Slot> = active_system
                     .slots
                     .as_deref()
                     .unwrap_or_default()
@@ -181,8 +168,8 @@ impl SlotChannelList {
                 // treat it as a standalone system: drop all nodes.
                 // Otherwise, keep only the first node whose mainframe is MP5 and has at
                 // least one non-Empty slot; drop every other node.
-                self.nodes = if active_system.localnode.starts_with("MP5")
-                    && self.slots.iter().any(|s| s.module != Module::Empty)
+                let parsed_nodes = if active_system.localnode.starts_with("MP5")
+                    && parsed_slots.iter().any(|s| s.module != Module::Empty)
                 {
                     Vec::new()
                 } else {
@@ -191,9 +178,11 @@ impl SlotChannelList {
                     )?
                 };
 
+                // All parse steps succeeded. Commit atomically so a mid-way
+                // Err never leaves `self` half-updated.
+                self.slots = parsed_slots;
+                self.nodes = parsed_nodes;
                 self.localnode = active_system.localnode.clone();
-
-                self.is_valid = self.is_valid_config();
             }
             SlotChannelListUpdate::TriggerFlowState(triggerflow_state) => {
                 for slot in &mut self.slots {
@@ -206,7 +195,6 @@ impl SlotChannelList {
         }
         let result = SlotChannelList {
             localnode: self.localnode.clone(),
-            is_valid: self.is_valid,
             slots: self.slots.clone(),
             nodes: self.nodes.clone(),
         };
@@ -214,7 +202,7 @@ impl SlotChannelList {
         Ok(result)
     }
 
-    pub fn has_mp5103(&self) -> bool {
+    pub fn has_mp5_mainframe(&self) -> bool {
         self.localnode.starts_with("MP5")
             || self.nodes.iter().any(|n| n.mainframe.starts_with("MP5"))
     }
@@ -229,7 +217,7 @@ impl SlotChannelList {
     }
 
     pub fn is_valid_config(&self) -> bool {
-        self.has_mp5103() && self.has_non_empty_slots()
+        self.has_mp5_mainframe() && self.has_non_empty_slots()
     }
 }
 
@@ -290,5 +278,81 @@ impl TryFrom<&NodeJson> for Nodes {
             mainframe,
             slots,
         })
+    }
+}
+
+#[cfg(test)]
+mod atomic_update_tests {
+    use super::*;
+
+    fn slot_json(id: &str, module: &str) -> SlotJson {
+        SlotJson {
+            slot_id: id.to_string(),
+            module: module.to_string(),
+        }
+    }
+
+    fn systems_local_and_node(
+        localnode: &str,
+        local_slots: Vec<SlotJson>,
+        node_id: &str,
+        node_mainframe: &str,
+        node_slots: Vec<SlotJson>,
+    ) -> Systems {
+        Systems {
+            systems: vec![SystemConfigJson {
+                name: "sys1".to_string(),
+                localnode: localnode.to_string(),
+                is_active: Some(true),
+                slots: Some(local_slots),
+                nodes: Some(vec![NodeJson {
+                    node_id: node_id.to_string(),
+                    mainframe: node_mainframe.to_string(),
+                    slots: Some(node_slots),
+                }]),
+            }],
+        }
+    }
+
+    fn seed_valid_state() -> SlotChannelList {
+        // Non-MP5 local + MP5 elevated node keeps the elevated node in the
+        // list (the localnode-MP5-with-modules short-circuit does not apply).
+        let mut list = SlotChannelList::default();
+        list.update_slot_channel_list(SlotChannelListUpdate::SystemConfig(
+            systems_local_and_node(
+                "2450",
+                vec![slot_json("slot[1]", "Empty")],
+                "node[3]",
+                "MP5103",
+                vec![slot_json("slot[1]", "MSMU60-2")],
+            ),
+        ))
+        .expect("seed update should succeed");
+        list
+    }
+
+    #[test]
+    fn malformed_nodes_update_leaves_self_unchanged() {
+        let mut list = seed_valid_state();
+        let before = list.clone();
+
+        // Well-formed slots on the local mainframe, but the elevated node
+        // carries an unknown module string. The update must be all-or-nothing:
+        // failing on nodes must not leave `self.slots` overwritten.
+        let bad = systems_local_and_node(
+            "2450",
+            vec![slot_json("slot[1]", "MPSU50-2ST")],
+            "node[3]",
+            "MP5103",
+            vec![slot_json("slot[1]", "GARBAGE")],
+        );
+
+        let result = list.update_slot_channel_list(
+            SlotChannelListUpdate::SystemConfig(bad),
+        );
+        assert!(result.is_err(), "malformed nodes must return Err");
+
+        // Every field on `self` must still match the seeded state.
+        assert_eq!(list, before, "self should be unchanged after a failed update");
     }
 }
