@@ -1,73 +1,81 @@
-<div class="tf-modal-backdrop" *ngIf="open">
-  <section class="tf-modal" role="dialog" aria-modal="true" [attr.aria-label]="'New-Model-Settings'">
-    <header class="tf-modal__header">
-      <h2>New Model</h2>
-      <button type="button" class="icon-btn" (click)="onDelete()" automationID="Button-Close-Model-Settings" title="Close">
-        <img class="icon-img" src="assets/shapes/Icons/X.svg" alt="Close" [attr.aria-label]="'Close-Model-Settings'"/>
-      </button>
-    </header>
+@if (open) {
+  <div class="tf-modal-backdrop">
+    <section
+      #modalRoot
+      class="tf-modal"
+      role="dialog"
+      aria-modal="true"
+      [attr.aria-label]="'New-Model-Settings'"
+      (keydown)="onModalKeyDown($event)">
+      <header class="tf-modal__header">
+        <h2>New Model</h2>
+        <button type="button" class="icon-btn" (click)="onDelete()" automationID="Button-Close-Model-Settings" title="Close">
+          <img class="icon-img" src="assets/shapes/Icons/X.svg" alt="Close" [attr.aria-label]="'Close-Model-Settings'"/>
+        </button>
+      </header>
 
-    <div class="tf-modal__body">
+      <div class="tf-modal__body">
 
-      <!-- dedicated divider under header -->
-      <div class="tf-modal__divider tf-modal__divider--header"></div>
+        <!-- dedicated divider under header -->
+        <div class="tf-modal__divider tf-modal__divider--header"></div>
 
-      <app-textbox
-        label="Name"
-        [(ngModel)]="name"
-        (ngModelChange)="validateName()"
-        (specialCharError)="onNameSpecialCharError($event)"
-        [invalid]="!!nameError"
-        [errorMessage]="nameError"
-        automationID="Input-Model-Name">
-      </app-textbox>
+        <app-textbox
+          label="Name"
+          [(ngModel)]="name"
+          (ngModelChange)="validateName()"
+          (specialCharError)="onNameSpecialCharError($event)"
+          [invalid]="!!nameError"
+          [errorMessage]="nameError"
+          automationID="Input-Model-Name">
+        </app-textbox>
 
-      <!-- <div *ngIf="nameError" class="field-error">
-        {{ nameError }}
-      </div> -->
+        <!-- <div *ngIf="nameError" class="field-error">
+          {{ nameError }}
+        </div> -->
 
-      <app-dropdown
-        label="Slot"
-        [options]="slotOptionsAsString"
-        [(ngModel)]="slotValue"
-        automationID ="Model-Slot-Selection">
-      </app-dropdown>
+        <app-dropdown
+          label="Slot"
+          [options]="slotOptionsAsString"
+          [(ngModel)]="slotValue"
+          automationID ="Model-Slot-Selection">
+        </app-dropdown>
 
-        <!-- <app-dropdown
-        label="Channel"
-        [options]="channelOptionsAsString"
-        [(ngModel)]="channelValue">
-      </app-dropdown>
+          <!-- <app-dropdown
+          label="Channel"
+          [options]="channelOptionsAsString"
+          [(ngModel)]="channelValue">
+        </app-dropdown>
 
-      <app-dropdown
-        label="Node"
-        [options]="nodeOptionsAsString"
-        [(ngModel)]="nodeValue">
-      </app-dropdown> -->
+        <app-dropdown
+          label="Node"
+          [options]="nodeOptionsAsString"
+          [(ngModel)]="nodeValue">
+        </app-dropdown> -->
 
-      <!-- <app-textbox label="Notes" [(ngModel)]="notes" automationID ="Input-Model-Notes"></app-textbox> -->
-      <app-multiline-textbox
-        label="Notes"
-        [(ngModel)]="notes"
-        automationID ="Input-Model-Notes">
-      </app-multiline-textbox>
+        <!-- <app-textbox label="Notes" [(ngModel)]="notes" automationID ="Input-Model-Notes"></app-textbox> -->
+        <app-multiline-textbox
+          label="Notes"
+          [(ngModel)]="notes"
+          automationID ="Input-Model-Notes">
+        </app-multiline-textbox>
 
-        <!-- dedicated divider under notes -->
-        <div class="tf-modal__divider tf-modal__divider--notes"></div>
-        <!-- <div class="tf-modal__divider"></div> -->
+          <!-- dedicated divider under notes -->
+          <div class="tf-modal__divider tf-modal__divider--notes"></div>
+          <!-- <div class="tf-modal__divider"></div> -->
 
-      <div class="tf-modal__footer-icons">
-      <button
-        [title]="disableCreate ? 'Special character error in trigger model name' : 'Create New Model'"
-        [attr.aria-label]="'Create-Model-Settings'"
-        class="action-btn"
-        [disabled]="disableCreate"
-        (click)="onCreate()"
-        automationID="Button-Create-Model-Settings"
-      >
-        Create
-      </button>
+        <div class="tf-modal__footer-icons">
+        <button
+          [title]="disableCreate ? 'Special character error in trigger model name' : 'Create New Model'"
+          [attr.aria-label]="'Create-Model-Settings'"
+          class="action-btn"
+          [disabled]="disableCreate"
+          (click)="onCreate()"
+          automationID="Button-Create-Model-Settings"
+        >
+          Create
+        </button>
+        </div>
       </div>
-    </div>
-  </section>
-</div>
+    </section>
+  </div>
+}

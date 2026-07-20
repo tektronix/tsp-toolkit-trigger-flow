@@ -1,5 +1,15 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  EventEmitter,
+  HostListener,
+  Input,
+  OnChanges,
+  Output,
+  SimpleChanges,
+  ViewChild,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Textbox } from '../../custom-controls/textbox/textbox';
 import { Dropdown } from '../../custom-controls/dropdown/dropdown';
@@ -25,7 +35,7 @@ export interface ModelSlotOption {
   templateUrl: './model-modal.html',
   styleUrl: './model-modal.scss',
 })
-export class ModelModal {
+export class ModelModal implements OnChanges {
   @Input() open = false;
   @Input() name = 'MyTriggerModel';
   @Input() notes = '';
@@ -40,8 +50,17 @@ export class ModelModal {
   @Output() deleteClicked = new EventEmitter<void>();
   @Output() slotChanged = new EventEmitter<ModelSlotOption>();
 
+  @ViewChild('modalRoot') modalRoot?: ElementRef<HTMLElement>;
+
   nameError = '';
   private nameInputError = '';
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['open']?.currentValue) {
+      // Wait for the view update so focusable controls are available.
+      setTimeout(() => this.focusFirstFocusableElement(), 0);
+    }
+  }
 
   get slotOptionsAsString(): string[] {
     return this.slotOptions.map((o) => o.label);
@@ -119,5 +138,75 @@ export class ModelModal {
 
   onDelete(): void {
     this.deleteClicked.emit();
+  }
+
+  onModalKeyDown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.onDelete();
+      return;
+    }
+
+    if (event.key === 'Enter' && !event.ctrlKey && !event.altKey && !event.metaKey) {
+      event.preventDefault();
+      this.onCreate();
+      return;
+    }
+
+    if (event.key !== 'Tab') {
+      return;
+    }
+
+    const focusableElements = this.getFocusableElements();
+    if (focusableElements.length === 0) {
+      return;
+    }
+
+    const activeElement = document.activeElement as HTMLElement | null;
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+
+    if (event.shiftKey && activeElement === firstElement) {
+      event.preventDefault();
+      lastElement.focus();
+      return;
+    }
+
+    if (!event.shiftKey && activeElement === lastElement) {
+      event.preventDefault();
+      firstElement.focus();
+    }
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  onDocumentKeyDown(event: KeyboardEvent): void {
+    if (!this.open || event.defaultPrevented || event.key !== 'Escape') {
+      return;
+    }
+
+    event.preventDefault();
+    this.onDelete();
+  }
+
+  private focusFirstFocusableElement(): void {
+    const firstElement = this.getFocusableElements()[0];
+    firstElement?.focus();
+  }
+
+  private getFocusableElements(): HTMLElement[] {
+    const modalElement = this.modalRoot?.nativeElement;
+    if (!modalElement) {
+      return [];
+    }
+
+    const selector = [
+      'button:not([disabled])',
+      'input:not([disabled])',
+      'select:not([disabled])',
+      'textarea:not([disabled])',
+      '[tabindex]:not([tabindex="-1"]):not([disabled])',
+    ].join(',');
+
+    return Array.from(modalElement.querySelectorAll<HTMLElement>(selector));
   }
 }
