@@ -42,7 +42,7 @@
       [slot]="modelSlot"
       [nodeId]="modelNodeId"
       [notes]="modelNotes"
-      [slotOptions]="slotOptions"
+      [slotOptions]="slotOptions()"
       (slotChanged)="onModelModalSlotChanged($event)"
       (closeWithValue)="onModelModalClose($event)"
       (deleteClicked)="onModelModalDelete()"

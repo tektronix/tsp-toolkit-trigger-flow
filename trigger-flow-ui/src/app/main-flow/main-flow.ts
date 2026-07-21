@@ -1,4 +1,4 @@
-import { Component, ViewChild, inject, DestroyRef, effect } from '@angular/core';
+import { Component, ViewChild, inject, DestroyRef, effect, computed } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -48,7 +48,10 @@ export class MainFlow {
   modelSettingsList: ModelSettingsItem[] = [];
   modelSettingsMaxModels = 0;
 
-  slotOptions: ModelSlotOption[] = [];
+  /** Reactive list of slots available for a new model binding. */
+  readonly slotOptions = computed<ModelSlotOption[]>(() =>
+    this.computeSlotOptions(),
+  );
 
   existingModelNames: string[] = [];
 
@@ -78,6 +81,24 @@ export class MainFlow {
         this.refreshModelSettingsList();
       }
     });
+
+    // Keep the current selection valid as slotOptions changes. When the
+    // user's pick disappears (hardware change while modal is open),
+    // snap to the first available option.
+    effect(() => {
+      const options = this.slotOptions();
+      if (!this.showModelModal) {
+        return;
+      }
+      const currentStillValid = options.some(
+        (o) => o.slot === this.modelSlot && o.nodeId === this.modelNodeId,
+      );
+      if (!currentStillValid) {
+        const first = options[0];
+        this.modelSlot = first?.slot ?? 1;
+        this.modelNodeId = first?.nodeId ?? '';
+      }
+    });
   }
 
   toggleSidebar(): void {
@@ -89,7 +110,7 @@ export class MainFlow {
   }
 
   addNewTriggerModel(): void {
-    this.loadSlotOptions();
+    this.initModelSelection();
 
     this.refreshExistingModelNames();
 
@@ -123,7 +144,7 @@ export class MainFlow {
     suggestedSlot: number;
     notes: string;
   }): void {
-    this.loadSlotOptions();
+    this.initModelSelection();
 
     this.refreshExistingModelNames();
 
@@ -183,12 +204,11 @@ export class MainFlow {
     }
   }
 
-  private loadSlotOptions(): void {
-    const slotChannelList = this.triggerFlowDataService.getSlotChannelList();
+  private computeSlotOptions(): ModelSlotOption[] {
+    const slotChannelList = this.triggerFlowDataService.slotChannelList$();
 
     if (!slotChannelList) {
-      this.slotOptions = [];
-      return;
+      return [];
     }
 
     const options: ModelSlotOption[] = [];
@@ -204,15 +224,8 @@ export class MainFlow {
       }
     }
 
-    // child node slots (derive display index from nodeId)
+    // child node slots
     for (const node of slotChannelList.nodes ?? []) {
-      // // Example: "node2" -> 2, "N3" -> 3, fallback to original nodeId label
-      // const parsedNodeIndex = Number.parseInt(String(node.nodeId).replace(/\D/g, ''), 10);
-      // const nodeLabel =
-      //   Number.isFinite(parsedNodeIndex) && parsedNodeIndex > 0
-      //     ? `node${parsedNodeIndex}`
-      //     : `node.${node.nodeId}`;
-
       for (const slot of node.slots ?? []) {
         if (slot.module !== 'Empty') {
           options.push({
@@ -225,15 +238,17 @@ export class MainFlow {
     }
 
     // Hide slots that have already reached the per-slot model cap or whose
-    // channels are fully claimed. Keeps the dropdown in sync with current
-    // canvas state every time the modal is opened.
-    this.slotOptions = options.filter((o) =>
+    // channels are fully claimed. Reading sections() here participates in
+    // signal tracking so the computed re-runs when models are added/removed.
+    this.canvasBlocksService.sections();
+    return options.filter((o) =>
       this.modelResourceAllocationService.canCreateNewModelOnSlot(o.nodeId, o.slot),
     );
+  }
 
-    // Always pick the first available slot from slotOptions; suggestedSlot is
-    // just a number and has no direct relevance to slotChannelList.
-    const first = this.slotOptions[0];
+  /** Seed the modal's selection from the current slotOptions on open. */
+  private initModelSelection(): void {
+    const first = this.slotOptions()[0];
     this.modelSlot = first?.slot ?? 1;
     this.modelNodeId = first?.nodeId ?? '';
   }

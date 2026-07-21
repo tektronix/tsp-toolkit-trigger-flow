@@ -33,12 +33,18 @@
           {{ nameError }}
         </div> -->
 
-        <app-dropdown
-          label="Slot"
-          [options]="slotOptionsAsString"
-          [(ngModel)]="slotValue"
-          automationID ="Model-Slot-Selection">
-        </app-dropdown>
+        @if (noSlotsAvailable) {
+          <p class="tf-modal__empty-slot-message" role="status">
+            No valid slots available. Configure hardware or free a slot to create a model.
+          </p>
+        } @else {
+          <app-dropdown
+            label="Slot"
+            [options]="slotOptionsAsString"
+            [(ngModel)]="slotValue"
+            automationID ="Model-Slot-Selection">
+          </app-dropdown>
+        }
 
           <!-- <app-dropdown
           label="Channel"
@@ -65,7 +71,7 @@
 
         <div class="tf-modal__footer-icons">
         <button
-          [title]="disableCreate ? 'Special character error in trigger model name' : 'Create New Model'"
+          [title]="createDisabledReason"
           [attr.aria-label]="'Create-Model-Settings'"
           class="action-btn"
           [disabled]="disableCreate"

@@ -135,7 +135,8 @@ impl TriggerFlowState {
     /// - Invalid config (parse-fail or `!is_valid_config()`): resets
     ///   `slot_channel_list` to default, mass-stales every model, emits
     ///   `empty_system_config_error` with the reason in `additional_info` and
-    ///   the updated state in `json_value` (empty when no models exist).
+    ///   the updated state in `json_value` (always populated so the UI
+    ///   refreshes its cached `slot_channel_list` even when no models exist).
     pub fn process_system_config(
         &mut self,
         systems: &Systems,
@@ -213,21 +214,19 @@ impl TriggerFlowState {
     /// Common exit for the invalid-config paths (parse-fail and
     /// `!is_valid_config()`). Resets `slot_channel_list` to default so a
     /// subsequent recompute mass-flags every model, then emits
-    /// `empty_system_config_error` carrying the state in `json_value` when
-    /// models exist. Catalog is left as-is so the UI can still render the
-    /// stale models.
+    /// `empty_system_config_error` carrying the full state in `json_value`.
+    /// The state is always shipped (even with an empty models map) so the
+    /// UI sees the reset `slot_channel_list` and refreshes downstream
+    /// widgets like the create-new-model slot dropdown. Catalog is left as-is
+    /// so the UI can still render any pre-existing stale models.
     fn emit_empty_config(&mut self, reason: &str) -> String {
         self.slot_channel_list = SlotChannelList::default();
         self.recompute_all_model_errors();
 
-        let json_value = if self.models.is_empty() {
-            String::new()
-        } else {
-            let response = ResponseType::EvaluateResponse {
-                trigger_flow_state: self.clone(),
-            };
-            serde_json::to_string(&response).unwrap_or_default()
+        let response = ResponseType::EvaluateResponse {
+            trigger_flow_state: self.clone(),
         };
+        let json_value = serde_json::to_string(&response).unwrap_or_default();
 
         let ipc = IpcData {
             request_type: "empty_system_config_error".to_string(),
@@ -635,8 +634,13 @@ mod process_system_config_tests {
             "expected reason in additional_info, got: {}",
             ipc["additional_info"]
         );
-        // No models to ship, so json_value stays empty.
-        assert_eq!(ipc["json_value"], "");
+        // json_value carries the reset state so the UI refreshes its cached
+        // slot_channel_list even though there are no models to ship.
+        let payload: serde_json::Value =
+            serde_json::from_str(ipc["json_value"].as_str().expect("string"))
+                .expect("valid JSON");
+        assert!(payload["slot_channel_list"]["slots"].as_array().unwrap().is_empty());
+        assert!(payload["models"].as_object().unwrap().is_empty());
     }
 
     #[test]
@@ -660,7 +664,11 @@ mod process_system_config_tests {
             "got: {}",
             ipc["additional_info"]
         );
-        assert_eq!(ipc["json_value"], "");
+        // State carries the reset slot list so the UI refreshes.
+        let payload: serde_json::Value =
+            serde_json::from_str(ipc["json_value"].as_str().expect("string"))
+                .expect("valid JSON");
+        assert!(payload["slot_channel_list"]["slots"].as_array().unwrap().is_empty());
         // slot_channel_list must be reset so a later Systems retriggers fresh init.
         assert!(state.slot_channel_list.slots.is_empty());
         assert!(state.slot_channel_list.nodes.is_empty());
