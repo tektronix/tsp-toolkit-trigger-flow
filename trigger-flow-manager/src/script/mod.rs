@@ -960,18 +960,16 @@ slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_blo
         let catalog = catalog();
         let slot_channel_list = slot_channel_list();
 
-        // Snapshot expects PSU but current slot 1 is SMU -> stale.
-        // Handlers call `recompute_all_model_errors()` before `Script::from_state`
-        // in production; do the same here so `has_system_config_error()` returns
-        // true for this fixture.
+        // Missing snapshot -> `SystemConfig` blocking error.
+        // Module mismatch alone is now a `ModuleChanged` warning and would not
+        // trigger the skip path.
         let mut input = TriggerFlowState {
             slot_channel_list,
             catalog: None,
             models: IndexMap::from([(
                 "tm1".to_string(),
                 TriggerModelState {
-                    // Snapshot expects PSU but current slot 1 is SMU -> stale.
-                    slot_module: Some(Module::MPSU50_2ST),
+                    slot_module: None,
                     model_error: vec![],
                     model_name: "tm1".to_string(),
                     slot_index: SlotIndex(1),

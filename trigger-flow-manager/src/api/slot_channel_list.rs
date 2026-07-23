@@ -140,7 +140,6 @@ impl SlotChannelList {
             slots: _slots,
             nodes: _nodes,
         };
-        println!("SlotChannelList after new: {:?}", result);
         Ok(result)
     }
 
@@ -198,7 +197,6 @@ impl SlotChannelList {
             slots: self.slots.clone(),
             nodes: self.nodes.clone(),
         };
-        println!("SlotChannelList after update: {:?}", result);
         Ok(result)
     }
 
@@ -354,5 +352,109 @@ mod atomic_update_tests {
 
         // Every field on `self` must still match the seeded state.
         assert_eq!(list, before, "self should be unchanged after a failed update");
+    }
+}
+
+#[cfg(test)]
+mod system_config_update_tests {
+    use super::*;
+
+    fn slot_json(id: &str, module: &str) -> SlotJson {
+        SlotJson {
+            slot_id: id.to_string(),
+            module: module.to_string(),
+        }
+    }
+
+    fn systems_localnode_only(localnode: &str, slots: Vec<SlotJson>) -> Systems {
+        Systems {
+            systems: vec![SystemConfigJson {
+                name: "sys1".to_string(),
+                localnode: localnode.to_string(),
+                is_active: Some(true),
+                slots: Some(slots),
+                nodes: None,
+            }],
+        }
+    }
+
+    fn systems_local_and_node(
+        localnode: &str,
+        local_slots: Vec<SlotJson>,
+        node_id: &str,
+        node_mainframe: &str,
+        node_slots: Vec<SlotJson>,
+    ) -> Systems {
+        Systems {
+            systems: vec![SystemConfigJson {
+                name: "sys1".to_string(),
+                localnode: localnode.to_string(),
+                is_active: Some(true),
+                slots: Some(local_slots),
+                nodes: Some(vec![NodeJson {
+                    node_id: node_id.to_string(),
+                    mainframe: node_mainframe.to_string(),
+                    slots: Some(node_slots),
+                }]),
+            }],
+        }
+    }
+
+    #[test]
+    fn module_change_on_slot_rebuilds_that_slot() {
+        // Seed: MP5 local with SMU in slot 1.
+        let mut list = SlotChannelList::default();
+        list.update_slot_channel_list(SlotChannelListUpdate::SystemConfig(
+            systems_localnode_only(
+                "MP5103",
+                vec![slot_json("slot[1]", "MSMU60-2")],
+            ),
+        ))
+        .expect("seed update");
+        assert_eq!(list.slots[0].module, Module::MSMU60_2);
+
+        // Swap module at slot 1 to PSU.
+        list.update_slot_channel_list(SlotChannelListUpdate::SystemConfig(
+            systems_localnode_only(
+                "MP5103",
+                vec![slot_json("slot[1]", "MPSU50-2ST")],
+            ),
+        ))
+        .expect("second update");
+        assert_eq!(list.slots.len(), 1);
+        assert_eq!(list.slots[0].slot_id, SlotIndex(1));
+        assert_eq!(list.slots[0].module, Module::MPSU50_2ST);
+    }
+
+    #[test]
+    fn node_identity_change_replaces_node_in_list() {
+        // Seed: non-MP5 local + MP5 elevated node[3].
+        let mut list = SlotChannelList::default();
+        list.update_slot_channel_list(SlotChannelListUpdate::SystemConfig(
+            systems_local_and_node(
+                "2450",
+                vec![slot_json("slot[1]", "Empty")],
+                "node[3]",
+                "MP5103",
+                vec![slot_json("slot[1]", "MSMU60-2")],
+            ),
+        ))
+        .expect("seed update");
+        assert_eq!(list.nodes.len(), 1);
+        assert_eq!(list.nodes[0].node_id, "node[3]");
+
+        // Same shape but node identity changed to node[5].
+        list.update_slot_channel_list(SlotChannelListUpdate::SystemConfig(
+            systems_local_and_node(
+                "2450",
+                vec![slot_json("slot[1]", "Empty")],
+                "node[5]",
+                "MP5103",
+                vec![slot_json("slot[1]", "MSMU60-2")],
+            ),
+        ))
+        .expect("second update");
+        assert_eq!(list.nodes.len(), 1);
+        assert_eq!(list.nodes[0].node_id, "node[5]");
     }
 }

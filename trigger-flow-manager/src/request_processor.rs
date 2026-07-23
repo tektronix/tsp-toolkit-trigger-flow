@@ -189,3 +189,112 @@ impl RequestProcessor {
         }
     }
 }
+
+#[cfg(test)]
+mod recall_backfill_tests {
+    use super::*;
+    use crate::api::slot_channel_list::{
+        Channel, ChannelIndex, Module, SlotChannelList, SlotIndex,
+    };
+    use crate::api::state::{ModelErrorKind, TriggerModelState};
+    use crate::trigger_model_blocks::catalog::ScriptTemplate;
+    use indexmap::IndexMap;
+    use std::collections::HashMap;
+    use std::sync::LazyLock;
+
+    /// Test-only empty catalog. Constructed once per process on first
+    /// access; the `static` binding gives it a `'static` lifetime so
+    /// `&EMPTY_CATALOG` satisfies `RequestProcessor::new`.
+    static EMPTY_CATALOG: LazyLock<Catalog> = LazyLock::new(|| Catalog {
+        script_template: ScriptTemplate::default(),
+        blocks: HashMap::new(),
+        trigger_events: HashMap::new(),
+        templates: HashMap::new(),
+        custom_types: HashMap::new(),
+    });
+
+    fn slot(id: u8, module: Module) -> Slot {
+        Slot {
+            slot_id: SlotIndex(id),
+            module,
+            channels: vec![Channel {
+                channel_index: ChannelIndex(1),
+                in_use: false,
+            }],
+        }
+    }
+
+    fn state_with_legacy_model(
+        list_module: Module,
+    ) -> TriggerFlowState {
+        let mut state = TriggerFlowState {
+            catalog: None,
+            slot_channel_list: SlotChannelList {
+                localnode: "MP5103".to_string(),
+                slots: vec![slot(1, list_module)],
+                nodes: vec![],
+            },
+            models: IndexMap::new(),
+        };
+        state.models.insert(
+            "tm1".to_string(),
+            TriggerModelState {
+                model_name: "tm1".to_string(),
+                slot_index: SlotIndex(1),
+                node_id: "localnode".to_string(),
+                blocks: vec![],
+                // Legacy: no snapshot recorded when the model was saved.
+                slot_module: None,
+                model_error: vec![],
+            },
+        );
+        state
+    }
+
+    #[test]
+    fn recall_backfills_slot_module_from_saved_list() {
+        let processor = RequestProcessor::new(&EMPTY_CATALOG);
+        let mut state = state_with_legacy_model(Module::MSMU60_2);
+
+        processor
+            .handle_recall_request(&mut state)
+            .expect("recall should succeed");
+
+        let model = &state.models["tm1"];
+        assert_eq!(
+            model.slot_module,
+            Some(Module::MSMU60_2),
+            "slot_module must be backfilled from the saved slot_channel_list",
+        );
+        // With a matching backfill, the recompute pass should leave no error.
+        assert!(model.model_error.is_empty());
+    }
+
+    #[test]
+    fn recall_preserves_existing_snapshot() {
+        let processor = RequestProcessor::new(&EMPTY_CATALOG);
+        let mut state = state_with_legacy_model(Module::MSMU60_2);
+        // Existing snapshot from a modern save must not be overwritten.
+        state
+            .models
+            .get_mut("tm1")
+            .expect("seed model exists")
+            .slot_module = Some(Module::MPSU50_2ST);
+
+        processor
+            .handle_recall_request(&mut state)
+            .expect("recall should succeed");
+
+        let model = &state.models["tm1"];
+        assert_eq!(
+            model.slot_module,
+            Some(Module::MPSU50_2ST),
+            "existing snapshot must be preserved",
+        );
+        // Snapshot differs from the current module in the list -> warning.
+        assert!(model
+            .model_error
+            .iter()
+            .any(|(k, _)| matches!(k, ModelErrorKind::ModuleChanged)));
+    }
+}

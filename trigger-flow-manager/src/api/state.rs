@@ -26,8 +26,14 @@ pub struct TriggerFlowState {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ModelErrorKind {
-    /// Binding no longer resolves against current hardware.
+    /// Blocking: binding cannot resolve at all against current hardware
+    /// (no snapshot, node missing, slot missing, or slot vacated to Empty).
+    /// Blocks script generation and validation.
     SystemConfig,
+    /// Warning: slot is still populated but the installed module differs
+    /// from the snapshot taken when the model was bound. Model remains
+    /// functional.
+    ModuleChanged,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -50,11 +56,12 @@ pub struct TriggerModelState {
 }
 
 impl TriggerModelState {
-    /// True when the binding no longer matches current hardware.
-    /// Prefer `has_system_config_error()` for consumers reading the
-    /// derived field; this exists mainly for direct tests of the predicate.
+    /// True when the binding no longer matches current hardware in any way
+    /// (blocking OR warning). Prefer `has_system_config_error()` for the
+    /// script-gen and validator gate; this predicate keeps existing
+    /// direct-diagnose tests short.
     pub fn is_stale(&self, list: &SlotChannelList) -> bool {
-        self.diagnose_system_config(list).is_some()
+        self.diagnose(list).is_some()
     }
 
     /// Module currently installed at this model's `(node_id, slot_index)`,
@@ -75,34 +82,60 @@ impl TriggerModelState {
             .map(|s| s.module)
     }
 
-    /// `Some(msg)` when the binding is broken; `None` when healthy.
-    /// Checks in order (first match wins): snapshot missing, node missing,
-    /// slot missing, module mismatch.
-    fn diagnose_system_config(&self, list: &SlotChannelList) -> Option<String> {
+    /// Classify the binding against `list`. Returns the error kind + message,
+    /// or `None` when the binding is healthy.
+    ///
+    /// Precedence (first match wins):
+    /// 1. Snapshot missing               -> `SystemConfig` (blocking)
+    /// 2. Referenced node missing        -> `SystemConfig` (blocking)
+    /// 3. Referenced slot missing        -> `SystemConfig` (blocking)
+    /// 4. Slot present but module Empty  -> `SystemConfig` (blocking)
+    /// 5. Slot present, module differs   -> `ModuleChanged` (warning)
+    /// 6. Otherwise                      -> None (healthy)
+    fn diagnose(&self, list: &SlotChannelList) -> Option<(ModelErrorKind, String)> {
         let Some(expected) = self.slot_module else {
-            return Some(format!(
-                "Model '{}' has no slot binding. Rebind to recover.",
-                self.model_name,
+            return Some((
+                ModelErrorKind::SystemConfig,
+                format!(
+                    "Model '{}' has no slot binding. Rebind to recover.",
+                    self.model_name,
+                ),
             ));
         };
 
         let node_exists = self.node_id == "localnode"
             || list.nodes.iter().any(|n| n.node_id == self.node_id);
         if !node_exists {
-            return Some(format!(
-                "TSP-Link node '{}' is no longer connected. Rebind to recover.",
-                self.node_id,
+            return Some((
+                ModelErrorKind::SystemConfig,
+                format!(
+                    "TSP-Link node '{}' is no longer connected. Rebind to recover.",
+                    self.node_id,
+                ),
             ));
         }
 
         match self.current_module(list) {
-            None => Some(format!(
-                "Slot {} on '{}' is no longer available. Rebind to recover.",
-                self.slot_index.0, self.node_id,
+            None => Some((
+                ModelErrorKind::SystemConfig,
+                format!(
+                    "Slot {} on '{}' is no longer available. Rebind to recover.",
+                    self.slot_index.0, self.node_id,
+                ),
             )),
-            Some(m) if m != expected => Some(format!(
-                "Hardware changed since binding. Was: {:?}. Now: {:?}. Rebind to recover.",
-                expected, m,
+            Some(Module::Empty) => Some((
+                ModelErrorKind::SystemConfig,
+                format!(
+                    "Slot {} on '{}' is empty. Rebind to recover.",
+                    self.slot_index.0, self.node_id,
+                ),
+            )),
+            Some(m) if m != expected => Some((
+                ModelErrorKind::ModuleChanged,
+                format!(
+                    "Module at slot {} changed from {:?} to {:?}. Some parameters may need adjustment.",
+                    self.slot_index.0, expected, m,
+                ),
             )),
             Some(_) => None,
         }
@@ -111,17 +144,26 @@ impl TriggerModelState {
     /// Rewrites `model_error` from scratch.
     pub fn recompute_error(&mut self, list: &SlotChannelList) {
         self.model_error.clear();
-        if let Some(msg) = self.diagnose_system_config(list) {
-            self.model_error.push((ModelErrorKind::SystemConfig, msg));
+        if let Some(entry) = self.diagnose(list) {
+            self.model_error.push(entry);
         }
     }
 
-    /// Gate for validators and script generation. Only `SystemConfig`
-    /// blocks; other kinds are informational.
+    /// Blocking gate for validators and script generation.
+    /// Warning-only kinds (e.g. `ModuleChanged`) do not fire this.
     pub fn has_system_config_error(&self) -> bool {
         self.model_error
             .iter()
             .any(|(k, _)| matches!(k, ModelErrorKind::SystemConfig))
+    }
+
+    /// True when the model carries a `ModuleChanged` warning (module differs
+    /// from snapshot but slot is still populated). Informational; does not
+    /// gate script generation or the block parameters panel.
+    pub fn has_module_changed_warning(&self) -> bool {
+        self.model_error
+            .iter()
+            .any(|(k, _)| matches!(k, ModelErrorKind::ModuleChanged))
     }
 }
 
@@ -455,21 +497,48 @@ mod model_error_tests {
     }
 
     #[test]
-    fn recompute_error_module_mismatch_message() {
+    fn recompute_error_module_mismatch_is_warning() {
         let list = list_with_local_slot(1, Module::MPSU50_2ST);
         let mut m = model("localnode", 1, Some(Module::MSMU60_2));
         m.recompute_error(&list);
         assert_eq!(m.model_error.len(), 1);
+        assert!(matches!(
+            m.model_error[0].0,
+            ModelErrorKind::ModuleChanged
+        ));
         assert!(
-            m.model_error[0].1.contains("Hardware changed"),
+            m.model_error[0].1.contains("changed from"),
             "got: {}",
             m.model_error[0].1
         );
+        assert!(!m.has_system_config_error());
+        assert!(m.has_module_changed_warning());
+    }
+
+    #[test]
+    fn recompute_error_slot_vacated_to_empty_is_blocking() {
+        let list = list_with_local_slot(1, Module::Empty);
+        let mut m = model("localnode", 1, Some(Module::MSMU60_2));
+        m.recompute_error(&list);
+        assert_eq!(m.model_error.len(), 1);
+        assert!(matches!(
+            m.model_error[0].0,
+            ModelErrorKind::SystemConfig
+        ));
+        assert!(
+            m.model_error[0].1.contains("is empty"),
+            "got: {}",
+            m.model_error[0].1
+        );
+        assert!(m.has_system_config_error());
+        assert!(!m.has_module_changed_warning());
     }
 
     #[test]
     fn recompute_error_clears_on_second_call_when_healed() {
-        let stale_list = list_with_local_slot(1, Module::MPSU50_2ST);
+        // Slot vacated (Module::Empty) is blocking; slot repopulated with the
+        // snapshot module clears the error.
+        let stale_list = list_with_local_slot(1, Module::Empty);
         let healthy_list = list_with_local_slot(1, Module::MSMU60_2);
         let mut m = model("localnode", 1, Some(Module::MSMU60_2));
 
@@ -479,6 +548,20 @@ mod model_error_tests {
         m.recompute_error(&healthy_list);
         assert!(m.model_error.is_empty());
         assert!(!m.has_system_config_error());
+    }
+
+    #[test]
+    fn recompute_error_warning_clears_when_module_restored() {
+        let stale_list = list_with_local_slot(1, Module::MPSU50_2ST);
+        let healthy_list = list_with_local_slot(1, Module::MSMU60_2);
+        let mut m = model("localnode", 1, Some(Module::MSMU60_2));
+
+        m.recompute_error(&stale_list);
+        assert!(m.has_module_changed_warning());
+
+        m.recompute_error(&healthy_list);
+        assert!(m.model_error.is_empty());
+        assert!(!m.has_module_changed_warning());
     }
 
     #[test]

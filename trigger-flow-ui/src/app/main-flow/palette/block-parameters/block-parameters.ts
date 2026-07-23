@@ -99,18 +99,28 @@ export class BlockParameters {
     return `${this.selectedBlockNodeId}.slot[${this.selectedBlockSlotIndex}]`;
   }
 
-  /** True when the owning model has a `model_error`. Disables the params body. */
+  /**
+   * True when the owning model has a blocking `system_config` error.
+   * Disables the params body. Warning-only errors (e.g. `module_changed`)
+   * do not disable the panel.
+   */
   isModelStale(): boolean {
     if (!this.modelName) return false;
     const model = this.canvasBlocksService.getModels()[this.modelName];
-    return (model?.model_error?.length ?? 0) > 0;
+    return (model?.model_error ?? []).some(([kind]) => kind === 'system_config');
   }
 
-  /** First error message on the owning model, for the banner shown above the params body. */
+  /**
+   * Message for the banner shown above the disabled params body.
+   * Prefers the blocking `system_config` message when present; otherwise
+   * falls back to the first entry.
+   */
   modelStaleTooltip(): string {
     if (!this.modelName) return '';
     const model = this.canvasBlocksService.getModels()[this.modelName];
-    return model?.model_error?.[0]?.[1] ?? '';
+    const entries = model?.model_error ?? [];
+    const blocking = entries.find(([kind]) => kind === 'system_config');
+    return blocking?.[1] ?? entries[0]?.[1] ?? '';
   }
 
   constructor() {

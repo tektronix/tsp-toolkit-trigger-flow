@@ -11,7 +11,7 @@
 - [x] 2.3 Remove the merge-by-`slot_id` logic in the `SystemConfig` arm of `update_slot_channel_list`; replace with fresh rebuild (assign `self.slots = parsed_slots` after parsing)
 - [x] 2.4 Remove the slot-level delete rule (`retain(|s| s.is_valid || s.in_use)`) from both arms of `update_slot_channel_list`
 - [x] 2.5 Remove the stderr drop log lines (`Dropping slot ...`)
-- [ ] 2.6 Optional: remove the `println!("SlotChannelList after new/update: {:?}", ...)` debug traces (kept for smoke testing today)
+- [x] 2.6 Optional: remove the `println!("SlotChannelList after new/update: {:?}", ...)` debug traces (kept for smoke testing today)
 - [x] 2.7 Remove `isValid` and `inUse` from `ISlot` and `Slot` in `trigger-flow-ui/src/app/models/slotChannelModel.ts`
 - [x] 2.8 Remove the `slot.inUse = true` write from `canvasBlocksService.newModel` in `trigger-flow-ui/src/app/services/canvas-blocks.service.ts`
 
@@ -36,7 +36,7 @@ Scope pared back to model-level for first delivery. Per-block-param `SlotIndex` 
 
 - [x] 5.1 In `SlotChannelList::update_slot_channel_list::SystemConfig` arm, replaced the earlier merge-by-slot_id + delete rule with fresh rebuild (parse into locals via `Slot::try_from`, apply `select_first_mp5_node` filter, assign `self.slots` / `self.nodes` / `self.localnode` / `self.is_valid`)
 - [x] 5.2 In `SlotChannelListUpdate::TriggerFlowState` arm, kept the per-channel `in_use` refresh. Removed the delete rule and stderr log
-- [ ] 5.3 Unit tests covering the fresh rebuild: (a) module change on slot 1 -> new list has slot 1 with new module, (b) localnode change, (c) node identity change
+- [x] 5.3 Unit tests covering the fresh rebuild in `slot_channel_list.rs::fresh_rebuild_tests`: (a) module change on slot 1 -> new list has slot 1 with new module, (b) localnode identity change -> localnode string updated, (c) node identity change -> node[3] replaced by node[5]
 
 ## 6. Path 2 core — staleness derivation and script gen
 
@@ -82,7 +82,7 @@ Scope pared back to model-level for first delivery. Per-block-param `SlotIndex` 
 
 - [x] 7.1 In `RequestProcessor::handle_recall_request`, walk `trigger_flow_state.models`; for any model with `slot_module.is_none()`, snapshot the currently-referenced slot's module from the saved `slot_channel_list` in the same payload
 - [ ] 7.2 [deferred with §4] Similarly for block `slot_param_bindings`
-- [ ] 7.3 Unit test: recall a state where `slot_module == None` for all models; after recall, all models have `slot_module = Some(<matching slot's module>)`
+- [x] 7.3 Unit tests in `request_processor.rs::recall_backfill_tests`: `recall_backfills_slot_module_from_saved_list` (legacy state where `slot_module == None` gets filled from the saved slot list) and `recall_preserves_existing_snapshot` (existing snapshot untouched; module mismatch surfaces as a `ModuleChanged` warning)
 
 ## 8. Structured error IPC — still pending
 
@@ -97,10 +97,8 @@ Scope pared back to model-level for first delivery. Per-block-param `SlotIndex` 
 
 ## 10. UI — derive virtual invalid dropdown entries — still pending
 
-- [ ] 10.1 Add a helper (say `services/slot-binding-helper.ts` or extend `model-resource-allocation.service.ts`) that, given the current `slot_channel_list` and `models`, returns:
-    - The set of valid slot options (from hardware).
-    - The set of virtual invalid options (one per stale binding, deduped by `(slot_id, node_id, slot_module)`).
-- [ ] 10.2 Use the helper in `main-flow.ts::loadSlotOptions` (create-new-model dropdown) — valid entries only
+- [x] 10.1 `SlotBindingHelperService` in `trigger-flow-ui/src/app/services/slot-binding-helper.service.ts` exposes `validOptions()` (non-Empty slots present in hardware with available capacity). Virtual-invalid options deferred with §10.3 — will land when the model settings rebind picker arrives.
+- [x] 10.2 `main-flow.ts::computeSlotOptions` now delegates to `SlotBindingHelperService.validOptions()`. Same behavior as before (valid entries only); one source of truth going forward
 - [ ] 10.3 Use the helper in the model settings modal slot picker — valid entries + the currently-selected invalid entry rendered read-only
 - [ ] 10.4 [deferred with §4] Use the helper in the block-param editor for `SlotIndex`-typed fields
 - [ ] 10.5 Ensure virtual invalid entries are visually distinct (color, icon, label suffix) and NOT selectable when creating a new binding
@@ -108,7 +106,7 @@ Scope pared back to model-level for first delivery. Per-block-param `SlotIndex` 
 ## 11. UI — grey out affected controls
 
 - [x] 11.1 `getSectionIsStale(modelName)` on canvas component reads `slotChannelList$()` signal + delegates to `isModelStale`. Reactive: Angular's signal-based CD re-invokes the getter on every hardware update — **REPLACED by §6d.3**: reads pre-computed `model.model_error`; no signal read needed
-- [ ] 11.2 Bind the block panel's `disabled` state to `getSectionIsStale(modelName)` for that model. When stale, only the slot dropdown remains interactive
+- [x] 11.2 Block panel `disabled` state bound to `isModelStale()` in `block-parameters.ts`, which narrowed to blocking `system_config` kind only via the taxonomy split. Warning-only entries (`module_changed`) do not disable the panel so the user can adjust module-specific params
 - [ ] 11.3 [deferred with §4] Similarly for block params: bind the individual param editor's disabled state to a per-param staleness check
 - [x] 11.4 Visual indicator: stale section header uses `--vscode-editorError-foreground` red — 2px border + tinted background via `color-mix`. Tooltip via `getSectionStaleTooltip(modelName)` reads `"Hardware changed since binding. Was: X. Now: Y. Rebind to recover."` — uniform with existing error indicators (`.error-icon--has-error`, `.node-wrapper--error`)
 

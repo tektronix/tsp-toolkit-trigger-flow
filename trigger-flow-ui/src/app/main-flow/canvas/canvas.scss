@@ -54,7 +54,7 @@ f-canvas {
   width: 390px;
 }
 
-// Red border when the model carries any `model_error` entry.
+// Red border when the model carries a blocking `system_config` error.
 .section-title--has-model-error {
   border-color: var(--vscode-editorError-foreground, #f14c4c);
   border-width: 2px;

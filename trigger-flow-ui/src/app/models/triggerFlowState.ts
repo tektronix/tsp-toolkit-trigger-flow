@@ -18,8 +18,15 @@ export interface ITriggerFlowStatePayload {
 /**
  * Mirrors the Rust `ModelErrorKind` enum. Reason is encoded in the
  * accompanying message string of each `ModelErrorEntry`.
+ *
+ * - `system_config`: blocking. Binding cannot resolve (no snapshot, node
+ *   missing, slot missing, slot vacated). Blocks script generation and
+ *   disables the block parameters panel.
+ * - `module_changed`: warning. Slot still populated but module differs from
+ *   the snapshot. Model remains functional; module-specific block parameters
+ *   may need adjustment.
  */
-export type ModelErrorKind = 'system_config';
+export type ModelErrorKind = 'system_config' | 'module_changed';
 
 export type ModelErrorEntry = [ModelErrorKind, string];
 

@@ -7,9 +7,9 @@ import { Canvas } from './canvas/canvas';
 import { SidePanelAccordion } from './palette/side-panel-accordion/side-panel-accordion';
 import { BlockParameters } from './palette/block-parameters/block-parameters';
 import { ModelModal, ModelModalValue, ModelSlotOption } from './model-modal/model-modal';
-import { TriggerFlowDataService } from '../services/triggerFlowDataService';
 import { CanvasBlocksService, vscode } from '../services/canvas-blocks.service';
 import { ModelResourceAllocationService } from '../services/model-resource-allocation.service';
+import { SlotBindingHelperService } from '../services/slot-binding-helper.service';
 import {
   ModelSettingsModal,
   ModelSettingsItem,
@@ -55,9 +55,9 @@ export class MainFlow {
 
   existingModelNames: string[] = [];
 
-  private readonly triggerFlowDataService = inject(TriggerFlowDataService);
   private readonly canvasBlocksService = inject(CanvasBlocksService);
   private readonly modelResourceAllocationService = inject(ModelResourceAllocationService);
+  private readonly slotBindingHelper = inject(SlotBindingHelperService);
   private readonly destroyRef = inject(DestroyRef);
 
   constructor() {
@@ -205,45 +205,7 @@ export class MainFlow {
   }
 
   private computeSlotOptions(): ModelSlotOption[] {
-    const slotChannelList = this.triggerFlowDataService.slotChannelList$();
-
-    if (!slotChannelList) {
-      return [];
-    }
-
-    const options: ModelSlotOption[] = [];
-
-    // localnode slots
-    for (const slot of slotChannelList.slots ?? []) {
-      if (slot.module !== 'Empty') {
-        options.push({
-          label: `localnode.slot[${slot.slotId}]`,
-          slot: slot.slotId,
-          nodeId: 'localnode',
-        });
-      }
-    }
-
-    // child node slots
-    for (const node of slotChannelList.nodes ?? []) {
-      for (const slot of node.slots ?? []) {
-        if (slot.module !== 'Empty') {
-          options.push({
-            label: `${node.nodeId}.slot[${slot.slotId}]`,
-            slot: slot.slotId,
-            nodeId: node.nodeId,
-          });
-        }
-      }
-    }
-
-    // Hide slots that have already reached the per-slot model cap or whose
-    // channels are fully claimed. Reading sections() here participates in
-    // signal tracking so the computed re-runs when models are added/removed.
-    this.canvasBlocksService.sections();
-    return options.filter((o) =>
-      this.modelResourceAllocationService.canCreateNewModelOnSlot(o.nodeId, o.slot),
-    );
+    return this.slotBindingHelper.validOptions();
   }
 
   /** Seed the modal's selection from the current slotOptions on open. */

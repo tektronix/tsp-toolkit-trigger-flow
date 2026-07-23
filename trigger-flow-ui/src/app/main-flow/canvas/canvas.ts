@@ -1567,13 +1567,12 @@ export class Canvas implements AfterViewInit {
   }
 
   /**
-   * True when the model carries any `model_error` entry from Rust.
-   * Drives the red border on the section header; error text goes into
-   * the icon tooltip via `errorMaps`.
+   * True when the model carries a blocking `system_config` error.
+   * Drives the red border on the section header.
    */
   getSectionHasModelError(modelName: string): boolean {
     const model = this.canvasBlocksService.getModels()[modelName];
-    return (model?.model_error?.length ?? 0) > 0;
+    return (model?.model_error ?? []).some(([kind]) => kind === 'system_config');
   }
 
   hasNodeError(blockId: string): boolean {
