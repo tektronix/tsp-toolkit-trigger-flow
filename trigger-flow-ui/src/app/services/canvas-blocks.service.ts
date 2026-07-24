@@ -427,6 +427,20 @@ export class CanvasBlocksService {
     this.updateAndPrint();
   }
 
+  editModel(oldModelName: string, newModelName: string, slotIndex: number, nodeId: string) {
+    this.models[oldModelName].trigger_model_name = newModelName;
+    this.models[oldModelName].slot_index = slotIndex;
+    this.models[oldModelName].node_id = nodeId;
+    console.log("Editing model:", oldModelName, "to", newModelName, "slot:", slotIndex, "node:", nodeId);
+      //   node_id: nodeId,
+      //   blocks: [],
+      //   slot_module: this.snapshotSlotModule(slotIndex, nodeId),
+      //   // Populated by the next evaluate response from Rust.
+      //   model_error: [],
+      // };
+    this.updateAndPrint();
+  }
+
 
   addBlock(
     blockId: string,

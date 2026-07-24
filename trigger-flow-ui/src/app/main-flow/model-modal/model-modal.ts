@@ -44,8 +44,10 @@ export class ModelModal implements OnChanges {
 
   @Input() slotOptions: ModelSlotOption[] = [];
   @Input() existingModelNames: string[] = [];
+  @Input() isEdit = false;
 
   @Output() closeWithValue = new EventEmitter<ModelModalValue>();
+  @Output() editWithValue = new EventEmitter<ModelModalValue>()
   @Output() deleteClicked = new EventEmitter<void>();
   @Output() slotChanged = new EventEmitter<ModelSlotOption>();
 
@@ -144,6 +146,23 @@ export class ModelModal implements OnChanges {
 
     if (this.nodeId) {
       this.closeWithValue.emit({
+        name: this.name.trim(),
+        slot: this.slot,
+        nodeId: this.nodeId,
+        notes: this.notes.trim(),
+      });
+    } else {
+      this.deleteClicked.emit();
+    }
+  }
+
+  onEdit(): void {
+    if (!this.validateName()) {
+      return;
+    }
+
+    if (this.nodeId) {
+      this.editWithValue.emit({
         name: this.name.trim(),
         slot: this.slot,
         nodeId: this.nodeId,

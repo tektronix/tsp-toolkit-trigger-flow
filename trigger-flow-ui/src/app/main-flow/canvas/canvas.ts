@@ -434,6 +434,12 @@ export class Canvas implements AfterViewInit {
     queueMicrotask(() => this.focusSection(sectionId));
   }
 
+  editModelAndContinue(model: string,result: ModelModalValue): void {
+    const modelName = result.name.trim();
+
+    this.canvasBlocksService.editModel(model ,modelName, result.slot, result.nodeId);
+  }
+
   /**
    * Returns true when the node's SVG contains a `<g class="Connector">` group
    * (i.e. an input port should be rendered). Triggers a background fetch on

@@ -42,6 +42,7 @@ export class MainFlow {
   modelSlot = 1;
   modelNodeId = '';
   modelNotes = '';
+  isEdit = false;
 
   showModelSettingsModal = false;
 
@@ -181,6 +182,12 @@ export class MainFlow {
     this.showModelModal = false;
   }
 
+  onModelModalEdit(value: ModelModalValue): void {
+
+    this.canvas?.editModelAndContinue(this.modelName,value);
+    this.showModelModal = false;
+  }
+
   // Trash action from modal:
   // Cancels pending block creation in Canvas.
   onModelModalDelete(): void {
@@ -263,7 +270,18 @@ export class MainFlow {
   }
 
   onEditModel(item: ModelSettingsItem): void {
-    console.warn('Edit model:', item);
+    //open the add model window with the model's settings aleady selected in it
+    this.modelName = item.modelName;
+    this.modelSlot = item.slotIndex;
+    this.modelNodeId = item.nodeId;
+    this.isEdit = true;
+    this.openAddModelModal();
+  }
+
+  openAddModelModal(): void {
+    this.refreshExistingModelNames();
+    this.showModelSettingsModal = false;
+    this.showModelModal = true;
   }
 
   openScript(): void {

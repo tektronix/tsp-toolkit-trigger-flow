@@ -43,8 +43,10 @@
       [nodeId]="modelNodeId"
       [notes]="modelNotes"
       [slotOptions]="slotOptions()"
+      [isEdit]="isEdit"
       (slotChanged)="onModelModalSlotChanged($event)"
       (closeWithValue)="onModelModalClose($event)"
+      (editWithValue)="onModelModalEdit($event)"
       (deleteClicked)="onModelModalDelete()"
       (copyClicked)="onModelModalCopy()">
     </app-model-modal>
