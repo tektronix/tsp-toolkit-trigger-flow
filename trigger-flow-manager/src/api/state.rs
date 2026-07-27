@@ -231,7 +231,7 @@ impl TriggerFlowState {
                         "###process_system_config returning evaluate_response without catalog"
                     );
                 }
-                self.recompute_all_model_errors();
+                self.reconcile_derived_state(catalog);
 
                 let response = ResponseType::EvaluateResponse {
                     trigger_flow_state: self.clone(),
@@ -307,6 +307,201 @@ impl TriggerFlowState {
             model.recompute_error(list);
         }
     }
+
+    /// Rebuild all derived state (`model_error`, `block_error` clamp notes)
+    /// against the current `slot_channel_list`. Order-sensitive: model errors
+    /// gate the clamp pass, so recompute must precede clamp.
+    ///
+    /// Must run after any mutation to `slot_channel_list` or `models`,
+    /// before validation or response cloning.
+    pub fn reconcile_derived_state(&mut self, catalog: &Catalog) {
+        self.recompute_all_model_errors();
+        self.clamp_module_constrained_params(catalog);
+    }
+
+    /// Walk every model's event-ref parameters and clamp any value whose
+    /// catalog constraint depends on the module family (SMU/PSU) currently
+    /// installed at the referenced slot. Emits a `block_error` note per
+    /// clamp so the user sees the change on the affected block.
+    ///
+    /// Runs after `recompute_all_model_errors` on any Systems / evaluate /
+    /// recall path. Handles both single event refs (`event_id`) and event
+    /// lists (`event`). Silently no-ops when the referenced slot is missing
+    /// or has no module.
+    pub fn clamp_module_constrained_params(&mut self, catalog: &Catalog) {
+        // Disjoint-field borrow: iterate models while reading slot_channel_list.
+        let TriggerFlowState {
+            slot_channel_list,
+            models,
+            ..
+        } = self;
+        for model in models.values_mut() {
+            // Stale models keep their existing block_error entries. Matches
+            // ValidationChain's skip-stale rule and preserves the last-known
+            // diagnostic context until the user rebinds.
+            if model.has_system_config_error() {
+                continue;
+            }
+            let node_id = model.node_id.as_str();
+            for block in model.blocks.iter_mut() {
+                // Drop only the previous hardware-origin entries (identified
+                // by the `CLAMP_NOTE_PREFIX` marker) before re-adding. This
+                // preserves validator-origin errors and any other note left
+                // on `block_error` by upstream writers
+                if let Some(entries) = block.block_error.as_mut() {
+                    entries.retain(|(_, msg)| !msg.starts_with(CLAMP_NOTE_PREFIX));
+                    if entries.is_empty() {
+                        block.block_error = None;
+                    }
+                }
+                let mut notes: Vec<String> = Vec::new();
+                for value in block.block_parameters.values_mut() {
+                    clamp_event_refs_in(value, node_id, slot_channel_list, catalog, &mut notes);
+                }
+                for note in notes {
+                    block.add_error(note);
+                }
+            }
+        }
+    }
+}
+
+/// Prefix marker for every note added by `clamp_module_constrained_params`.
+/// Lets the clamp pass identify and remove its own prior entries without
+/// touching entries added by validators or other writers.
+///
+/// TODO(follow-up): replace with a typed `BlockErrorKind::Clamp` variant on
+/// the `block_error` tuple. String matching is fragile if another writer
+/// ever produces a message with the same prefix.
+const CLAMP_NOTE_PREFIX: &str = "Hardware: ";
+
+/// Clamp module-constrained fields inside every event ref reachable from
+/// `value`. Handles a single ref (object) or a top-level array of refs.
+fn clamp_event_refs_in(
+    value: &mut serde_json::Value,
+    model_node_id: &str,
+    list: &SlotChannelList,
+    catalog: &Catalog,
+    notes: &mut Vec<String>,
+) {
+    match value {
+        serde_json::Value::Object(_) => {
+            clamp_one_event_ref(value, model_node_id, list, catalog, notes);
+        }
+        serde_json::Value::Array(arr) => {
+            for item in arr {
+                clamp_one_event_ref(item, model_node_id, list, catalog, notes);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Rewrite in place any module-constrained fields on the event ref object
+/// `{ type, params }`. Pushes one note into `notes` per clamped field.
+fn clamp_one_event_ref(
+    event_ref: &mut serde_json::Value,
+    model_node_id: &str,
+    list: &SlotChannelList,
+    catalog: &Catalog,
+    notes: &mut Vec<String>,
+) {
+    let Some(obj) = event_ref.as_object_mut() else { return };
+    let Some(event_type) = obj
+        .get("type")
+        .and_then(|v| v.as_str())
+        .map(String::from)
+    else {
+        return;
+    };
+    let Some(event_def) = catalog.trigger_events.get(&event_type) else { return };
+    let Some(params) = obj.get_mut("params").and_then(|v| v.as_object_mut()) else { return };
+
+    // Event params may serialize `slot_index` as a JSON number or numeric string.
+    let Some(slot_index) = params.get("slot_index").and_then(|v| {
+        v.as_u64()
+            .map(|n| n as u8)
+            .or_else(|| v.as_str().and_then(|s| s.parse::<u8>().ok()))
+    }) else {
+        return;
+    };
+
+    let event_label = event_def.label.as_deref().unwrap_or(&event_type);
+
+    // When the referenced slot has no usable module, emit a note but leave
+    // the stored value alone: we have no valid target to clamp against, and
+    // silently rewriting the slot binding would erase the user's intent.
+    let family = match current_module_at(model_node_id, slot_index, list) {
+        None => {
+            notes.push(format!(
+                "{}{} event references slot {} which is no longer present in the current hardware. Update the slot binding or delete this block.",
+                CLAMP_NOTE_PREFIX, event_label, slot_index,
+            ));
+            return;
+        }
+        Some(Module::Empty) => {
+            notes.push(format!(
+                "{}{} event references slot {} which has no module installed. Update the slot binding, install a module, or delete this block.",
+                CLAMP_NOTE_PREFIX, event_label, slot_index,
+            ));
+            return;
+        }
+        Some(m) => match m.catalog_family() {
+            Some(f) => f,
+            None => return,
+        },
+    };
+
+    for cat_param in &event_def.parameters {
+        let Some(constraints) = &cat_param.constraints else { continue };
+        let Some(branch) = constraints.get(family) else { continue };
+        let Some(allowed) = branch.options.as_ref().filter(|o| !o.is_empty()) else { continue };
+
+        // Compare current value (as a string) against the allowed values.
+        let current_str = params.get(&cat_param.name).and_then(|v| {
+            v.as_str()
+                .map(String::from)
+                .or_else(|| v.as_u64().map(|n| n.to_string()))
+        });
+        if current_str
+            .as_ref()
+            .is_some_and(|s| allowed.iter().any(|opt| &opt.value == s))
+        {
+            continue;
+        }
+
+        // Clamp to first allowed. Stored as string to match on-wire shape
+        // (the UI serializes these as strings; see `notify_event_number`
+        // options in `triggerBlocks.yaml`).
+        let new_value = allowed[0].value.clone();
+        let was = current_str.unwrap_or_else(|| "<missing>".to_string());
+        params.insert(
+            cat_param.name.clone(),
+            serde_json::Value::String(new_value.clone()),
+        );
+        notes.push(format!(
+            "{}Auto-clamped '{}' from '{}' to '{}' (out of range for {})",
+            CLAMP_NOTE_PREFIX, cat_param.name, was, new_value, family
+        ));
+    }
+}
+
+/// Module currently installed at `(node_id, slot_index)` in `list`, or
+/// `None` if the slot is not present.
+fn current_module_at(node_id: &str, slot_index: u8, list: &SlotChannelList) -> Option<Module> {
+    let slots: &[Slot] = if node_id == "localnode" {
+        &list.slots
+    } else {
+        list.nodes
+            .iter()
+            .find(|n| n.node_id == node_id)
+            .and_then(|n| n.slots.as_deref())
+            .unwrap_or(&[])
+    };
+    slots
+        .iter()
+        .find(|s| s.slot_id.0 == slot_index)
+        .map(|s| s.module)
 }
 
 #[cfg(test)]
@@ -913,6 +1108,358 @@ mod process_system_config_tests {
         assert!(
             state.catalog.is_none(),
             "in-session update with no models must clear catalog"
+        );
+    }
+}
+
+#[cfg(test)]
+mod clamp_module_constrained_params_tests {
+    use super::*;
+    use crate::api::slot_channel_list::{Channel, ChannelIndex, SlotChannelList};
+    use crate::trigger_model_blocks::catalog::{
+        EventDefinition, Parameter, ParameterConstraint, ParameterOptions, ScriptTemplate,
+    };
+    use crate::trigger_model_blocks::param_types::ParamTypeName;
+    use crate::model::trigger_model_block::{BlockPosition, TriggerModelBlock};
+    use std::collections::HashMap;
+
+    /// Build a catalog containing only `event_notify_n` with its SMU/PSU
+    /// branched constraints on `notify_event_number`.
+    fn catalog_with_notify_constraints() -> Catalog {
+        fn opt(value: &str) -> ParameterOptions {
+            ParameterOptions {
+                label: value.to_string(),
+                value: value.to_string(),
+            }
+        }
+
+        let smu_options: Vec<ParameterOptions> = (1u8..=8).map(|n| opt(&n.to_string())).collect();
+        let psu_options: Vec<ParameterOptions> =
+            (1u8..=16).map(|n| opt(&n.to_string())).collect();
+
+        let notify_event_number = Parameter {
+            name: "notify_event_number".to_string(),
+            label: Some("Event Number".to_string()),
+            param_type: ParamTypeName::NotifyEventNumber,
+            required: true,
+            options: None,
+            constraints: Some(HashMap::from([
+                (
+                    "SMU".to_string(),
+                    ParameterConstraint {
+                        options: Some(smu_options),
+                    },
+                ),
+                (
+                    "PSU".to_string(),
+                    ParameterConstraint {
+                        options: Some(psu_options),
+                    },
+                ),
+            ])),
+            default: Some(serde_json::json!("1")),
+            range: None,
+        };
+
+        let slot_index = Parameter {
+            name: "slot_index".to_string(),
+            label: Some("Slot".to_string()),
+            param_type: ParamTypeName::SlotIndex,
+            required: true,
+            options: None,
+            constraints: None,
+            default: None,
+            range: None,
+        };
+
+        let event_notify_n = EventDefinition {
+            label: Some("Notify".to_string()),
+            parameters: vec![slot_index, notify_event_number],
+            syntax: "slot[{{slot_index}}].trigger.model.EVENT_NOTIFY{{notify_event_number}}"
+                .to_string(),
+        };
+
+        Catalog {
+            script_template: ScriptTemplate::default(),
+            blocks: HashMap::new(),
+            trigger_events: HashMap::from([("event_notify_n".to_string(), event_notify_n)]),
+            templates: HashMap::new(),
+            custom_types: HashMap::new(),
+        }
+    }
+
+    fn slot(id: u8, module: Module) -> Slot {
+        Slot {
+            slot_id: SlotIndex(id),
+            module,
+            channels: vec![Channel {
+                channel_index: ChannelIndex(1),
+                in_use: false,
+            }],
+        }
+    }
+
+    fn notify_block(event_number: &str) -> TriggerModelBlock {
+        let event_ref = serde_json::json!({
+            "type": "event_notify_n",
+            "params": {
+                "slot_index": "1",
+                "notify_event_number": event_number,
+            }
+        });
+        TriggerModelBlock {
+            block_id: "notify1".to_string(),
+            block_type: "notify".to_string(),
+            block_parameters: HashMap::from([
+                ("trigger_block_name".to_string(), serde_json::json!("Notify")),
+                ("event_id".to_string(), event_ref),
+            ]),
+            incoming: None,
+            outgoing: None,
+            block_position: BlockPosition { x: 0.0, y: 0.0 },
+            block_error: None,
+        }
+    }
+
+    fn state_with_notify(
+        slot_module: Module,
+        stored_event_number: &str,
+    ) -> TriggerFlowState {
+        let mut state = TriggerFlowState {
+            catalog: None,
+            slot_channel_list: SlotChannelList {
+                localnode: "MP5".to_string(),
+                slots: vec![slot(1, slot_module)],
+                nodes: vec![],
+            },
+            models: IndexMap::new(),
+        };
+        state.models.insert(
+            "tm1".to_string(),
+            TriggerModelState {
+                model_name: "tm1".to_string(),
+                slot_index: SlotIndex(1),
+                node_id: "localnode".to_string(),
+                blocks: vec![notify_block(stored_event_number)],
+                slot_module: Some(slot_module),
+                model_error: vec![],
+            },
+        );
+        state
+    }
+
+    fn stored_notify_number(state: &TriggerFlowState) -> String {
+        state.models["tm1"].blocks[0]
+            .block_parameters
+            .get("event_id")
+            .and_then(|v| v.get("params"))
+            .and_then(|v| v.get("notify_event_number"))
+            .and_then(|v| v.as_str())
+            .expect("notify_event_number stored as string")
+            .to_string()
+    }
+
+    #[test]
+    fn clamps_out_of_range_value_for_smu() {
+        // Slot 1 is SMU (max event 8) but the stored notify targets 13 (only valid on PSU).
+        let mut state = state_with_notify(Module::MSMU60_2, "13");
+        state.clamp_module_constrained_params(&catalog_with_notify_constraints());
+
+        assert_eq!(stored_notify_number(&state), "1");
+        let errs = state.models["tm1"].blocks[0]
+            .block_error
+            .as_ref()
+            .expect("block_error should carry the clamp note");
+        assert_eq!(errs.len(), 1);
+        assert!(
+            errs[0].1.contains("13") && errs[0].1.contains("SMU"),
+            "clamp note should reference old value and family: {}",
+            errs[0].1
+        );
+    }
+
+    #[test]
+    fn leaves_in_range_value_untouched() {
+        let mut state = state_with_notify(Module::MSMU60_2, "5");
+        state.clamp_module_constrained_params(&catalog_with_notify_constraints());
+
+        assert_eq!(stored_notify_number(&state), "5");
+        assert!(state.models["tm1"].blocks[0].block_error.is_none());
+    }
+
+    #[test]
+    fn psu_accepts_high_values_no_clamp() {
+        let mut state = state_with_notify(Module::MPSU50_2ST, "13");
+        state.clamp_module_constrained_params(&catalog_with_notify_constraints());
+
+        assert_eq!(stored_notify_number(&state), "13");
+        assert!(state.models["tm1"].blocks[0].block_error.is_none());
+    }
+
+    #[test]
+    fn flags_but_no_clamp_when_slot_module_is_empty() {
+        // Empty module has no family; nothing to clamp against. The
+        // stored value stays put and a block_error note explains why.
+        let mut state = state_with_notify(Module::Empty, "13");
+        state.clamp_module_constrained_params(&catalog_with_notify_constraints());
+
+        assert_eq!(stored_notify_number(&state), "13");
+        let errs = state.models["tm1"].blocks[0]
+            .block_error
+            .as_ref()
+            .expect("empty slot should flag the block");
+        assert!(
+            errs.iter().any(|(_, msg)| msg.contains("no module installed")),
+            "expected 'no module installed' note, got: {:?}",
+            errs
+        );
+    }
+
+    #[test]
+    fn flags_but_no_clamp_when_referenced_slot_missing() {
+        // Event params point at slot 1 but the list has no slot 1.
+        // No valid target to clamp against; flag it and preserve the
+        // user's stored binding so they see and fix it explicitly.
+        let mut state = state_with_notify(Module::MSMU60_2, "13");
+        state.slot_channel_list.slots.clear();
+        state.clamp_module_constrained_params(&catalog_with_notify_constraints());
+
+        assert_eq!(stored_notify_number(&state), "13");
+        let errs = state.models["tm1"].blocks[0]
+            .block_error
+            .as_ref()
+            .expect("missing slot should flag the block");
+        assert!(
+            errs.iter().any(|(_, msg)| msg.contains("no longer present")),
+            "expected 'no longer present' note, got: {:?}",
+            errs
+        );
+    }
+
+    #[test]
+    fn clamps_inside_event_list() {
+        // `wait on event` stores events under `event` as an array.
+        let mut state = state_with_notify(Module::MSMU60_2, "1");
+        let event_list = serde_json::json!([
+            {
+                "type": "event_notify_n",
+                "params": { "slot_index": "1", "notify_event_number": "14" }
+            }
+        ]);
+        state
+            .models
+            .get_mut("tm1")
+            .expect("seed model")
+            .blocks[0]
+            .block_parameters
+            .insert("event".to_string(), event_list);
+
+        state.clamp_module_constrained_params(&catalog_with_notify_constraints());
+
+        let list_value = state.models["tm1"].blocks[0]
+            .block_parameters
+            .get("event")
+            .and_then(|v| v.as_array())
+            .expect("event stays an array");
+        let clamped = list_value[0]
+            .get("params")
+            .and_then(|p| p.get("notify_event_number"))
+            .and_then(|v| v.as_str())
+            .unwrap();
+        assert_eq!(clamped, "1");
+        assert!(state.models["tm1"].blocks[0].block_error.is_some());
+    }
+
+    #[test]
+    fn clears_block_error_when_slot_heals() {
+        // Slot 1 empty -> clamp flags the notify block. Then slot 1 gets
+        // a module back; a second clamp pass on the same state must drop
+        // the stale note instead of appending another entry alongside it.
+        let mut state = state_with_notify(Module::Empty, "13");
+        state.clamp_module_constrained_params(&catalog_with_notify_constraints());
+        assert!(
+            state.models["tm1"].blocks[0].block_error.is_some(),
+            "flag should be present while slot is empty"
+        );
+
+        // Heal: swap the slot module and drop the model's staleness so the
+        // next clamp pass revisits its blocks instead of skipping as stale.
+        state.slot_channel_list.slots[0].module = Module::MPSU50_2ST;
+        state
+            .models
+            .get_mut("tm1")
+            .unwrap()
+            .slot_module = Some(Module::MPSU50_2ST);
+        state.recompute_all_model_errors();
+        state.clamp_module_constrained_params(&catalog_with_notify_constraints());
+
+        assert!(
+            state.models["tm1"].blocks[0].block_error.is_none(),
+            "healed slot should clear the previous clamp note; got {:?}",
+            state.models["tm1"].blocks[0].block_error
+        );
+    }
+
+    #[test]
+    fn preserves_block_error_on_stale_model() {
+        // Stale models keep their existing block_error entries so the
+        // last-known diagnostic context survives until the user rebinds.
+        let mut state = state_with_notify(Module::Empty, "13");
+        state.clamp_module_constrained_params(&catalog_with_notify_constraints());
+        let before = state.models["tm1"].blocks[0].block_error.clone();
+        assert!(before.is_some());
+
+        // Mark the model stale by dropping the slot entirely so recompute
+        // classifies it as system_config-blocking.
+        state.slot_channel_list.slots.clear();
+        state.recompute_all_model_errors();
+        assert!(state.models["tm1"].has_system_config_error());
+
+        state.clamp_module_constrained_params(&catalog_with_notify_constraints());
+
+        assert_eq!(
+            state.models["tm1"].blocks[0].block_error, before,
+            "stale model's block_error must not be touched"
+        );
+    }
+
+    #[test]
+    fn preserves_unrelated_block_error_on_heal() {
+        // Simulate a validator-origin entry alongside the clamp note. On
+        // heal, only the `Hardware:`-prefixed entry should drop; the
+        // validator entry must survive so its diagnostic context is not
+        // silently wiped.
+        let mut state = state_with_notify(Module::Empty, "13");
+        state.clamp_module_constrained_params(&catalog_with_notify_constraints());
+        state.models["tm1"].blocks[0]
+            .block_error
+            .as_mut()
+            .expect("clamp entry present")
+            .insert(0, (true, "Validator: field foo missing".to_string()));
+
+        // Heal the hardware.
+        state.slot_channel_list.slots[0].module = Module::MPSU50_2ST;
+        state
+            .models
+            .get_mut("tm1")
+            .unwrap()
+            .slot_module = Some(Module::MPSU50_2ST);
+        state.recompute_all_model_errors();
+        state.clamp_module_constrained_params(&catalog_with_notify_constraints());
+
+        let errs = state.models["tm1"].blocks[0]
+            .block_error
+            .as_ref()
+            .expect("validator entry should survive heal");
+        assert!(
+            errs.iter().any(|(_, msg)| msg == "Validator: field foo missing"),
+            "expected validator entry to survive, got: {:?}",
+            errs
+        );
+        assert!(
+            !errs.iter().any(|(_, msg)| msg.starts_with("Hardware: ")),
+            "expected Hardware entry to be dropped on heal, got: {:?}",
+            errs
         );
     }
 }

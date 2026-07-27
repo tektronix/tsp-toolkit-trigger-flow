@@ -11,6 +11,29 @@ pub enum Module {
     Empty,
 }
 
+impl Module {
+    /// Catalog constraint-branch key (for example the `SMU` / `PSU`
+    /// sub-tables under `notify_event_number.constraints` in
+    /// `triggerBlocks.yaml`). Returns `None` for `Empty` slots.
+    pub fn catalog_family(&self) -> Option<&'static str> {
+        match self {
+            Module::MSMU60_2 => Some("SMU"),
+            Module::MPSU50_2ST => Some("PSU"),
+            Module::Empty => None,
+        }
+    }
+
+    /// TSP identifier used in generated Lua (`slot[N].smu[C]...`,
+    /// `slot[N].psu.ON`). Returns `None` for `Empty` slots.
+    pub fn tsp_identifier(&self) -> Option<&'static str> {
+        match self {
+            Module::MSMU60_2 => Some("smu"),
+            Module::MPSU50_2ST => Some("psu"),
+            Module::Empty => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct SlotIndex(pub u8);
 

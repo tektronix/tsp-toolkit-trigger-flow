@@ -91,7 +91,7 @@ impl RequestProcessor {
             new_slot_channel_list.unwrap_or_else(|_| trigger_flow_state.slot_channel_list.clone());
 
         // Recompute against the updated list before validation.
-        trigger_flow_state.recompute_all_model_errors();
+        trigger_flow_state.reconcile_derived_state(self.catalog);
 
         //evaluate models in state
         //validation chain validates the models first, then hashmap
@@ -161,7 +161,7 @@ impl RequestProcessor {
             new_slot_channel_list.unwrap_or_else(|_| trigger_flow_state.slot_channel_list.clone());
 
         // Recompute against the updated list before validation.
-        trigger_flow_state.recompute_all_model_errors();
+        trigger_flow_state.reconcile_derived_state(self.catalog);
 
         //evaluate models in state
         //validation chain validates the models first, then hashmap

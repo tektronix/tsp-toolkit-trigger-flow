@@ -134,11 +134,7 @@ impl Script {
                             .map(|s| s.module)
                     };
 
-                    let token = match module {
-                        Some(Module::MPSU50_2ST) => "psu",
-                        Some(Module::MSMU60_2) => "smu",
-                        _ => "",
-                    };
+                    let token = module.and_then(|m| m.tsp_identifier()).unwrap_or("");
                     out.write(token)?;
                     Ok(())
                 },

@@ -210,7 +210,11 @@ export function resolveParameterOptions(
   }
 
   if (param.name === 'slot_index') {
-    return getSlotIndexOptions(context.slotChannelList, context.modelNodeId);
+    const validOptions = getSlotIndexOptions(context.slotChannelList, context.modelNodeId);
+    const currentRaw = context.values['slot_index'];
+    const current =
+      currentRaw === undefined || currentRaw === null ? '' : `${currentRaw}`;
+    return reconcileSlotIndexOptions(current, validOptions);
   }
 
   if (param.name === 'channel_index') {
@@ -220,6 +224,24 @@ export function resolveParameterOptions(
 
   // Final fallback for index/number-like params with no catalog-defined options.
   return Array.from({ length: 16 }, (_, index) => `${index + 1}`);
+}
+
+/**
+ * Compute the visible option list for a `slot_index` binding.
+ *
+ * When `stored` is set but not in `validOptions`, prepend it so the
+ * dropdown displays the user's binding truthfully. The Rust `block_error`
+ * flag is the signal the UI relies on; overwriting the stored value here
+ * would hide it. Callers keep `stored` as the selected value.
+ */
+export function reconcileSlotIndexOptions(
+  stored: string,
+  validOptions: readonly string[],
+): string[] {
+  if (stored !== '' && !validOptions.includes(stored)) {
+    return [stored, ...validOptions];
+  }
+  return [...validOptions];
 }
 
 export function normalizeParameterValues(
@@ -246,36 +268,29 @@ export function normalizeParameterValues(
     }
 
     const currentValue = normalizedValues[param.name];
-    // Keep the serialized payload valid by snapping missing/stale constrained values to the
-    // first allowed option for the current runtime context.
-    if (
-      currentValue === undefined ||
-      currentValue === null ||
-      !options.includes(`${currentValue}`)
-    ) {
-      // slot_index should default to the trigger model slot when possible.
-      //
-      // Why:
-      // Event controls are scoped to the currently selected trigger model.
-      // Users expect event dropdowns to inherit the model slot automatically.
-      //
-      // Example:
-      // Trigger model slot = 2
-      //
-      // Newly added event should initialize as:
-      //   slot_index = 2
-      //
-      // instead of always snapping to the first installed slot.
+    const isMissing = currentValue === undefined || currentValue === null;
+    const isInvalid = !isMissing && !options.includes(`${currentValue}`);
+
+    if (isMissing) {
+      // First-time init: seed a sensible default. slot_index prefers the
+      // trigger model slot so newly added events inherit the model binding
+      // (e.g. model slot 2 -> new event initializes slot_index = 2)
+      // instead of snapping to the first installed slot.
       if (
         param.name === 'slot_index' &&
         options.includes(`${modelSlotIndex}`)
       ) {
         normalizedValues[param.name] = `${modelSlotIndex}`;
       } else {
-        // Generic fallback:
-        // snap invalid/missing values to first valid option.
         normalizedValues[param.name] = options[0];
       }
+    } else if (isInvalid) {
+      // Stored value exists but is not in the currently allowed set: snap
+      // to the first option so the payload stays serializable. slot_index
+      // never reaches this branch because reconcileSlotIndexOptions
+      // prepends the stored value to its returned options, keeping the
+      // user's binding visible for the Rust block_error to flag.
+      normalizedValues[param.name] = options[0];
     }
   }
 

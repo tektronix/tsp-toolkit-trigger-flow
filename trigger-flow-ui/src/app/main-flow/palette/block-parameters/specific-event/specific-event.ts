@@ -7,6 +7,7 @@ import {
   getEventTypeLabel,
   getModuleConstrainedOptions,
   ParamOptionSource,
+  reconcileSlotIndexOptions,
 } from '../../../../models/blockParameterHelper';
 import { FormsModule } from '@angular/forms';
 
@@ -81,7 +82,10 @@ export class SpecificEvent implements OnChanges {
       let selected = this.readStored(p.name);
 
       // Stored value not valid for the current options — clear so the
-      // seeding step below picks a fresh one.
+      // seeding step below picks a fresh one. slot_index never reaches
+      // this branch because `optionsFor` prepends the stored value via
+      // reconcileSlotIndexOptions, keeping the user's binding visible for
+      // the Rust block_error to flag.
       if (selected !== '' && options.length > 0 && !options.includes(selected)) {
         selected = '';
       }
@@ -105,7 +109,7 @@ export class SpecificEvent implements OnChanges {
 
   private optionsFor(param: ParamOptionSource & { name: string }, slotOptions: string[]): string[] {
     if (param.name === 'slot_index') {
-      return slotOptions;
+      return reconcileSlotIndexOptions(this.readStored('slot_index'), slotOptions);
     }
     const slot = this.readStored('slot_index');
     const slotModule = slot && this.blockId
