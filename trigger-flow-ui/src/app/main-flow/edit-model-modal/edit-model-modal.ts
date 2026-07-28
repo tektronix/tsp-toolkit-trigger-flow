@@ -70,7 +70,31 @@ export class EditModelModal implements OnChanges {
     if (changes['open']?.currentValue) {
       this.pendingSlotLabel = this.seedInitialLabel();
       setTimeout(() => this.focusFirstFocusableElement(), 0);
+      return;
     }
+
+    // Modal already open: mid-session hardware updates can invalidate
+    // the current pick (slot removed, module went Empty, previously
+    // stale binding healed). Re-seed when the pending value is no
+    // longer displayable so the picker stays truthful.
+    if (
+      this.open &&
+      (changes['slotOptions'] ||
+        changes['invalidCurrentLabel'] ||
+        changes['currentSlot'] ||
+        changes['currentNodeId']) &&
+      !this.isPendingDisplayable()
+    ) {
+      this.pendingSlotLabel = this.seedInitialLabel();
+    }
+  }
+
+  /** True when the current pick still resolves to a rendered option. */
+  private isPendingDisplayable(): boolean {
+    if (this.pendingSlotLabel === this.invalidDropdownLabel) {
+      return this.invalidDropdownLabel !== null;
+    }
+    return this.slotOptions.some((o) => o.label === this.pendingSlotLabel);
   }
 
   /** Suffixed label for the invalid entry shown inside the picker. */

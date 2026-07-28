@@ -209,6 +209,16 @@ export function resolveParameterOptions(
     return constrainedOptions;
   }
 
+  // Constrained param whose family cannot be resolved (slot missing or
+  // Empty). Don't fall through to the generic 1..16 list — that would
+  // let normalizeParameterValues snap a TSP identifier like
+  // `smu.trigger.EVENT_NOTIFY1` to `"1"`. Returning [] leaves the stored
+  // value untouched so Rust's block_error stays truthful; UI callers
+  // prepend the stored value with an invalid marker at display time.
+  if (param.constraints) {
+    return [];
+  }
+
   if (param.name === 'slot_index') {
     const validOptions = getSlotIndexOptions(context.slotChannelList, context.modelNodeId);
     const currentRaw = context.values['slot_index'];

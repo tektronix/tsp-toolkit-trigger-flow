@@ -1,4 +1,4 @@
-import { Component, ViewChild, inject, DestroyRef, effect, computed } from '@angular/core';
+import { Component, ViewChild, inject, DestroyRef, effect, computed, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -53,12 +53,46 @@ export class MainFlow {
   // Edit Model modal state. Buffered locally so Cancel/X discards
   // without any server round-trip; OK routes through
   // `canvasBlocksService.rebindModelSlot(...)` for the single evaluate.
+  // `editingModelName` is the trigger — all other editing-* views
+  // derive reactively from it plus `slotOptions()`, so mid-modal
+  // hardware updates flow through automatically.
   showEditModelModal = false;
-  editingModelName = '';
-  editingSlot = 1;
-  editingNodeId = '';
-  /** Non-null when the model's current binding is not in `slotOptions()`. */
-  editingInvalidLabel: string | null = null;
+  readonly editingModelName = signal<string>('');
+
+  /** Current bound slot from the model (recomputed on canvas changes). */
+  readonly editingSlot = computed<number>(() => {
+    const name = this.editingModelName();
+    if (!name) return 1;
+    this.canvasBlocksService.sections();
+    return this.canvasBlocksService.getModels()[name]?.slot_index ?? 1;
+  });
+
+  readonly editingNodeId = computed<string>(() => {
+    const name = this.editingModelName();
+    if (!name) return '';
+    this.canvasBlocksService.sections();
+    return this.canvasBlocksService.getModels()[name]?.node_id ?? '';
+  });
+
+  /**
+   * Non-null when the model's current binding is not in `slotOptions()`.
+   * Recomputes whenever the model or the valid-options list changes so
+   * mid-modal healing / breakage surfaces in real time.
+   */
+  readonly editingInvalidLabel = computed<string | null>(() => {
+    const name = this.editingModelName();
+    if (!name) return null;
+    this.canvasBlocksService.sections();
+    const model = this.canvasBlocksService.getModels()[name];
+    if (!model) return null;
+    const valid = this.slotOptions();
+    const currentIsValid = valid.some(
+      (o) => o.slot === model.slot_index && o.nodeId === model.node_id,
+    );
+    return currentIsValid
+      ? null
+      : `${model.node_id}.slot[${model.slot_index}]`;
+  });
 
   /** Reactive list of slots available for a new model binding. */
   readonly slotOptions = computed<ModelSlotOption[]>(() =>
@@ -281,20 +315,7 @@ export class MainFlow {
       return;
     }
 
-    this.editingModelName = model.trigger_model_name;
-    this.editingSlot = model.slot_index;
-    this.editingNodeId = model.node_id;
-
-    // Surface the model's current binding as an unselectable entry in
-    // the picker when it is not in the valid options (typically a stale
-    // system-config binding). The modal handles display formatting.
-    const valid = this.slotOptions();
-    const currentIsValid = valid.some(
-      (o) => o.slot === model.slot_index && o.nodeId === model.node_id,
-    );
-    this.editingInvalidLabel = currentIsValid
-      ? null
-      : `${model.node_id}.slot[${model.slot_index}]`;
+    this.editingModelName.set(model.trigger_model_name);
 
     this.showEditModelModal = true;
     this.showModelSettingsModal = false;
@@ -302,7 +323,7 @@ export class MainFlow {
 
   onEditModelSave(value: EditModelValue): void {
     this.canvasBlocksService.rebindModelSlot(
-      this.editingModelName,
+      this.editingModelName(),
       value.slot,
       value.nodeId,
     );
