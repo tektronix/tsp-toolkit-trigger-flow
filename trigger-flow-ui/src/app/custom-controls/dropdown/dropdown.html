@@ -7,7 +7,13 @@
     [disabled]="disabled"
   >
     @for (option of options; track option) {
-      <option [value]="option" [selected]="option === selected" [attr.automationID]="'option' + '-' + option" [attr.aria-label]="'option-' + option">
+      <option
+        [value]="option"
+        [selected]="option === selected"
+        [disabled]="option === invalidOption"
+        [class.invalid-option]="option === invalidOption"
+        [attr.automationID]="'option' + '-' + option"
+        [attr.aria-label]="'option-' + option">
         {{ option }}
       </option>
     }

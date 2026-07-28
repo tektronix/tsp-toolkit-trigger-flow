@@ -1,0 +1,113 @@
+.tf-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+}
+
+.tf-modal {
+  width: 248px;
+  background: var(--vscode-editor-background);
+  border-radius: 11px;
+  border: 1px solid var(--vscode-editorWidget-border);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.tf-modal__header {
+  padding: 10px 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tf-modal__header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--vscode-editor-foreground);
+}
+
+.tf-modal__body {
+  padding: 5px 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tf-modal__divider {
+  height: 1px;
+  background: var(--vscode-editorWidget-border);
+}
+
+.tf-modal__divider--header {
+  margin-top: 2px;
+  margin-bottom: 12px;
+}
+
+.tf-modal__divider--notes {
+  margin-top: 2px;
+  margin-bottom: 2px;
+}
+
+.tf-modal__footer-icons {
+  margin-top: auto;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 5px;
+}
+
+.icon-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: currentColor;
+  padding: 0;
+  border: none;
+}
+
+.icon-img {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.action-btn {
+  border-radius: 13px;
+  background-color: transparent;
+  color: var(--vscode-editor-foreground);
+  border-color: var(--vscode-activityBarBadge-background);
+  border-style: solid;
+  border-width: thin;
+  padding: 5px 15px;
+  cursor: pointer;
+  position: relative;
+}
+
+.action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  border-color: #5a5a5a;
+  color: #7a7a7a;
+}
+
+.tf-modal__empty-slot-message {
+  margin: 4px 0;
+  padding: 6px 8px;
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground, var(--vscode-editor-foreground));
+  background: var(--vscode-editorWidget-background, transparent);
+  border: 1px solid var(--vscode-editorWidget-border);
+  border-radius: 4px;
+  line-height: 1.35;
+}

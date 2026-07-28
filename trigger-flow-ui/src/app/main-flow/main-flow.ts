@@ -7,6 +7,7 @@ import { Canvas } from './canvas/canvas';
 import { SidePanelAccordion } from './palette/side-panel-accordion/side-panel-accordion';
 import { BlockParameters } from './palette/block-parameters/block-parameters';
 import { ModelModal, ModelModalValue, ModelSlotOption } from './model-modal/model-modal';
+import { EditModelModal, EditModelValue } from './edit-model-modal/edit-model-modal';
 import { CanvasBlocksService, vscode } from '../services/canvas-blocks.service';
 import { ModelResourceAllocationService } from '../services/model-resource-allocation.service';
 import { SlotBindingHelperService } from '../services/slot-binding-helper.service';
@@ -26,6 +27,7 @@ import {
     SidePanelAccordion,
     BlockParameters,
     ModelModal,
+    EditModelModal,
     ModelSettingsModal,
   ],
   templateUrl: './main-flow.html',
@@ -47,6 +49,16 @@ export class MainFlow {
 
   modelSettingsList: ModelSettingsItem[] = [];
   modelSettingsMaxModels = 0;
+
+  // Edit Model modal state. Buffered locally so Cancel/X discards
+  // without any server round-trip; OK routes through
+  // `canvasBlocksService.rebindModelSlot(...)` for the single evaluate.
+  showEditModelModal = false;
+  editingModelName = '';
+  editingSlot = 1;
+  editingNodeId = '';
+  /** Non-null when the model's current binding is not in `slotOptions()`. */
+  editingInvalidLabel: string | null = null;
 
   /** Reactive list of slots available for a new model binding. */
   readonly slotOptions = computed<ModelSlotOption[]>(() =>
@@ -263,7 +275,42 @@ export class MainFlow {
   }
 
   onEditModel(item: ModelSettingsItem): void {
-    console.warn('Edit model:', item);
+    const model = this.canvasBlocksService.getModels()[item.modelName];
+    if (!model) {
+      console.warn(`onEditModel: no model named "${item.modelName}"`);
+      return;
+    }
+
+    this.editingModelName = model.trigger_model_name;
+    this.editingSlot = model.slot_index;
+    this.editingNodeId = model.node_id;
+
+    // Surface the model's current binding as an unselectable entry in
+    // the picker when it is not in the valid options (typically a stale
+    // system-config binding). The modal handles display formatting.
+    const valid = this.slotOptions();
+    const currentIsValid = valid.some(
+      (o) => o.slot === model.slot_index && o.nodeId === model.node_id,
+    );
+    this.editingInvalidLabel = currentIsValid
+      ? null
+      : `${model.node_id}.slot[${model.slot_index}]`;
+
+    this.showEditModelModal = true;
+    this.showModelSettingsModal = false;
+  }
+
+  onEditModelSave(value: EditModelValue): void {
+    this.canvasBlocksService.rebindModelSlot(
+      this.editingModelName,
+      value.slot,
+      value.nodeId,
+    );
+    this.showEditModelModal = false;
+  }
+
+  onEditModelCancel(): void {
+    this.showEditModelModal = false;
   }
 
   openScript(): void {

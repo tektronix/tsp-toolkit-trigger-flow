@@ -55,20 +55,21 @@
             SLOT: {{ model.slotIndex }}
           </div>
 
-          <!--button
-                type="button"
-                class="icon-btn"
-                [attr.aria-label]="'Edit-Model-' + model.modelName"
-                automationID="Button-Edit-Model-{{ model.modelName }}"
-                (click)="editModel.emit(model)"
-              >
-                <svg-icon src="assets/shapes/Icons/Pencil.svg"></svg-icon>
-              </button-->
-
         </div>
 
         <!-- RIGHT -->
         <div class="model-actions">
+
+          <button
+            type="button"
+            class="icon-btn"
+            [attr.aria-label]="'Edit-Model-' + model.modelName"
+            [attr.automationID]="'Button-Edit-Model-' + model.modelName"
+            title="Edit Model"
+            (click)="editModel.emit(model)"
+          >
+            <svg-icon src="assets/shapes/Icons/Pencil.svg"></svg-icon>
+          </button>
 
           <button type="button" class="icon-btn" (click)="deleteModel.emit(model)"
             [attr.automationID]="'Button-Delete-Model-' + model.id" title="Delete Model">

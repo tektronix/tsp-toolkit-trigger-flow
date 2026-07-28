@@ -427,6 +427,35 @@ export class CanvasBlocksService {
     this.updateAndPrint();
   }
 
+  /**
+   * Rebind an existing trigger model to a new slot / node. Updates
+   * slot_index, node_id, and refreshes the slot_module snapshot from
+   * current hardware, then ships a full-state evaluate so Rust
+   * reconciles derived error state.
+   *
+   * All entry points that reassign a model's slot (Edit Model modal,
+   * any future programmatic reassignment) must route through this to
+   * keep slot_module in sync. Bypassing leaves the model looking
+   * stale to the next evaluate response.
+   */
+  rebindModelSlot(
+    modelName: string,
+    newSlotIndex: number,
+    newNodeId: string,
+  ): void {
+    const model = this.models[modelName];
+    if (!model) {
+      console.warn(`rebindModelSlot: no model named "${modelName}"`);
+      return;
+    }
+
+    model.slot_index = newSlotIndex;
+    model.node_id = newNodeId;
+    model.slot_module = this.snapshotSlotModule(newSlotIndex, newNodeId);
+
+    this.updateAndPrint();
+  }
+
 
   addBlock(
     blockId: string,
