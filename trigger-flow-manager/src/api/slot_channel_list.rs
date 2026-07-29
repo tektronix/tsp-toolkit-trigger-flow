@@ -8,6 +8,8 @@ pub enum Module {
     MPSU50_2ST,
     #[serde(rename = "MSMU60_2")]
     MSMU60_2,
+    #[serde(rename = "MSMU200_2")]
+    MSMU200_2,
     Empty,
 }
 
@@ -17,7 +19,7 @@ impl Module {
     /// `triggerBlocks.yaml`). Returns `None` for `Empty` slots.
     pub fn catalog_family(&self) -> Option<&'static str> {
         match self {
-            Module::MSMU60_2 => Some("SMU"),
+            Module::MSMU60_2 | Module::MSMU200_2 => Some("SMU"),
             Module::MPSU50_2ST => Some("PSU"),
             Module::Empty => None,
         }
@@ -27,7 +29,7 @@ impl Module {
     /// `slot[N].psu.ON`). Returns `None` for `Empty` slots.
     pub fn tsp_identifier(&self) -> Option<&'static str> {
         match self {
-            Module::MSMU60_2 => Some("smu"),
+            Module::MSMU60_2 | Module::MSMU200_2 => Some("smu"),
             Module::MPSU50_2ST => Some("psu"),
             Module::Empty => None,
         }
@@ -247,6 +249,7 @@ impl TryFrom<&SlotJson> for Slot {
         let module = match slot_json.module.as_str() {
             "MPSU50-2ST" => Module::MPSU50_2ST,
             "MSMU60-2" => Module::MSMU60_2,
+            "MSMU200-2" => Module::MSMU200_2,
             "Empty" => Module::Empty,
             _ => return Err(format!("Unknown module type: {}", slot_json.module)),
         };

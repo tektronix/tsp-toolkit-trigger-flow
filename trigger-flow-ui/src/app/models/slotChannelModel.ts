@@ -1,4 +1,4 @@
-export type Module = "MPSU50_2ST" | "MSMU60_2" | "Empty";
+export type Module = "MPSU50_2ST" | "MSMU60_2" | "MSMU200_2" | "Empty";
 
 export interface ISlotChannelList {
   localnode: string;

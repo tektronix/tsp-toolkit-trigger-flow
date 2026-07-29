@@ -56,7 +56,7 @@ impl Script {
 
         let mut hb = Handlebars::new();
 
-        // Disable HTML escaping â€” generated output is Lua/TSP script, not HTML
+        // Disable HTML escaping -- generated output is Lua/TSP script, not HTML
         hb.register_escape_fn(handlebars::no_escape);
 
         // load the script templates into hb
