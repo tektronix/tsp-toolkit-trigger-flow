@@ -368,12 +368,14 @@ impl TriggerFlowState {
 
 /// Prefix marker for every note added by `clamp_module_constrained_params`.
 /// Lets the clamp pass identify and remove its own prior entries without
-/// touching entries added by validators or other writers.
+/// touching entries added by validators or other writers. Also consulted
+/// by `ValidationChain::validate` so its pre-validation wipe preserves
+/// hardware-origin notes across the evaluate / recall round-trip.
 ///
 /// TODO(follow-up): replace with a typed `BlockErrorKind::Clamp` variant on
 /// the `block_error` tuple. String matching is fragile if another writer
 /// ever produces a message with the same prefix.
-const CLAMP_NOTE_PREFIX: &str = "Hardware: ";
+pub const CLAMP_NOTE_PREFIX: &str = "Hardware: ";
 
 /// Clamp module-constrained fields inside every event ref reachable from
 /// `value`. Handles a single ref (object) or a top-level array of refs.

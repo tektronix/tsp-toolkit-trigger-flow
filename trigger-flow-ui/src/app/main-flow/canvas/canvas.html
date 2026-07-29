@@ -27,7 +27,7 @@
         [class.section-title--has-model-error]="getSectionHasModelError(section.modelName)">
         <div class="title-left">
           <span class="title-chip title-chip-primary">{{ section.modelName }}</span>
-          <span class="title-chip">{{section.nodeId}}.slot[{{section.slotIndex}}]</span>
+          <span class="title-chip">{{ getModelBindingLabel(section.modelName) }}</span>
         </div>
         <div class="title-right">
           <button type="button" class="title-btn" [attr.aria-label]="'Model-Errors-' + section.modelName"

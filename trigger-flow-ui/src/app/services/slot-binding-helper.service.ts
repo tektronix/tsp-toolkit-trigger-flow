@@ -17,8 +17,13 @@ export class SlotBindingHelperService {
   private readonly canvasBlocksService = inject(CanvasBlocksService);
   private readonly modelResourceAllocationService = inject(ModelResourceAllocationService);
 
-  /** Slots with a non-Empty module present in hardware and available capacity. */
-  validOptions(): ModelSlotOption[] {
+  /**
+   * Slots with a non-Empty module present in hardware and available
+   * capacity. Pass `excludeModelName` when computing options for an
+   * existing model (e.g. the Edit Model picker) so the model's own
+   * reservations don't disqualify its currently bound slot.
+   */
+  validOptions(excludeModelName?: string): ModelSlotOption[] {
     const slotChannelList = this.triggerFlowDataService.slotChannelList$();
     if (!slotChannelList) {
       return [];
@@ -52,7 +57,12 @@ export class SlotBindingHelperService {
     // this in a computed re-run when models are added or removed.
     this.canvasBlocksService.sections();
     return options.filter((o) =>
-      this.modelResourceAllocationService.canCreateNewModelOnSlot(o.nodeId, o.slot),
+      this.modelResourceAllocationService.canCreateNewModelOnSlot(
+        o.nodeId,
+        o.slot,
+        undefined,
+        excludeModelName,
+      ),
     );
   }
 }

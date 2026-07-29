@@ -111,8 +111,6 @@ interface FlowCanvasEvent {
 export interface FlowSection {
   id: string;
   modelName: string;
-  slotIndex: number;
-  nodeId: string;
   nodes: FlowNode[];
   /**
    * Stable horizontal slot assigned at creation time. Used to compute the
@@ -413,8 +411,6 @@ export class Canvas implements AfterViewInit {
     const newSection: FlowSection = {
       id: sectionId,
       modelName,
-      slotIndex: result.slot,
-      nodeId: result.nodeId,
       nodes: [],
       positionIndex: nextPositionIndex,
     };
@@ -627,8 +623,8 @@ export class Canvas implements AfterViewInit {
       newNode.catalogLabel || newNode.svgPath,
       newNode.position,
       section.modelName,
-      section.slotIndex,
-      section.nodeId,
+      this.canvasBlocksService.getModelSlotIndex(section.modelName),
+      this.canvasBlocksService.getModelNodeId(section.modelName),
     );
 
     // Reflow after mount/render so real SVG geometry can be measured for centering.
@@ -1560,6 +1556,15 @@ export class Canvas implements AfterViewInit {
 
   getSectionHasError(modelName: string): boolean {
     return this.modelErrorSummary()[modelName]?.hasError ?? false;
+  }
+
+  /**
+   * Composite `node.slot[N]` label rendered in the section title chip.
+   * Reads live from the model so a rebind is picked up on the next
+   * change-detection tick without touching the sections signal.
+   */
+  getModelBindingLabel(modelName: string): string {
+    return this.canvasBlocksService.getModelBindingLabel(modelName);
   }
 
   getSectionErrorTooltip(modelName: string): string {

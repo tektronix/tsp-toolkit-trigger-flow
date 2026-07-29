@@ -1,4 +1,4 @@
-use crate::api::state::TriggerFlowState;
+use crate::api::state::{CLAMP_NOTE_PREFIX, TriggerFlowState};
 use anyhow::Result;
 
 pub trait Validator {
@@ -26,22 +26,32 @@ impl ValidationChain {
         self
     }
     pub fn validate(&self, state: &mut TriggerFlowState) -> Result<TriggerFlowState> {
-        // Clear old errors before validating. Clients may send back state
-        // that still has errors from a previous response (for example, a
-        // recall payload). Without this reset, the validators would add to
-        // the old list, causing duplicates.
+        // Clear old validator-origin errors before revalidating. Clients
+        // may send back state that still has errors from a previous
+        // response (for example, a recall payload). Without this reset,
+        // the validators would add to the old list, causing duplicates.
         //
-        // Stale models are skipped by every individual validator, so wiping
-        // their block_error here would leave it empty until the user
-        // rebinds AND triggers another evaluate — wrong for both mid-session
-        // recovery via Systems (no validate runs) and recall of
-        // already-stale sessions.
+        // Preserve clamp-origin entries (identified by CLAMP_NOTE_PREFIX)
+        // so hardware notes just written by `reconcile_derived_state`
+        // survive the round-trip. Without this the notify-to-Empty-slot
+        // block_error would be wiped on every evaluate / recall.
+        //
+        // Stale models are skipped by every individual validator, so
+        // wiping their block_error here would leave it empty until the
+        // user rebinds AND triggers another evaluate — wrong for both
+        // mid-session recovery via Systems (no validate runs) and recall
+        // of already-stale sessions.
         for model in state.models.values_mut() {
             if model.has_system_config_error() {
                 continue;
             }
             for block in &mut model.blocks {
-                block.block_error = None;
+                if let Some(entries) = block.block_error.as_mut() {
+                    entries.retain(|(_, msg)| msg.starts_with(CLAMP_NOTE_PREFIX));
+                    if entries.is_empty() {
+                        block.block_error = None;
+                    }
+                }
             }
         }
 
@@ -154,7 +164,7 @@ mod stale_wipe_tests {
     }
 
     #[test]
-    fn wipe_clears_block_error_on_healthy_model() {
+    fn wipe_clears_validator_origin_block_error_on_healthy_model() {
         let mut state = state_with_models(vec![healthy_model(
             "healthy",
             vec![block_with_error("b1", "channel_index required")],
@@ -165,8 +175,49 @@ mod stale_wipe_tests {
 
         assert!(
             state.models["healthy"].blocks[0].block_error.is_none(),
-            "healthy model's block_error should be wiped for revalidation",
+            "validator-origin block_error should be wiped for revalidation",
         );
+    }
+
+    #[test]
+    fn wipe_preserves_clamp_origin_block_error_on_healthy_model() {
+        let clamp_note = format!("{}notify event references slot 1", CLAMP_NOTE_PREFIX);
+        let mut state = state_with_models(vec![healthy_model(
+            "healthy",
+            vec![block_with_error("b1", &clamp_note)],
+        )]);
+
+        let chain = ValidationChain::new();
+        chain.validate(&mut state).expect("validate");
+
+        let preserved = state.models["healthy"].blocks[0]
+            .block_error
+            .as_ref()
+            .expect("clamp-origin block_error should survive the wipe");
+        assert_eq!(preserved.len(), 1);
+        assert!(preserved[0].1.starts_with(CLAMP_NOTE_PREFIX));
+    }
+
+    #[test]
+    fn wipe_keeps_clamp_note_drops_validator_note_on_same_block() {
+        let clamp_note = format!("{}notify event references slot 1", CLAMP_NOTE_PREFIX);
+        let mut block = block_with_error("b1", "channel_index required");
+        block
+            .block_error
+            .as_mut()
+            .unwrap()
+            .push((true, clamp_note.clone()));
+        let mut state = state_with_models(vec![healthy_model("healthy", vec![block])]);
+
+        let chain = ValidationChain::new();
+        chain.validate(&mut state).expect("validate");
+
+        let remaining = state.models["healthy"].blocks[0]
+            .block_error
+            .as_ref()
+            .expect("clamp-origin entry should remain");
+        assert_eq!(remaining.len(), 1);
+        assert!(remaining[0].1.starts_with(CLAMP_NOTE_PREFIX));
     }
 
     #[test]

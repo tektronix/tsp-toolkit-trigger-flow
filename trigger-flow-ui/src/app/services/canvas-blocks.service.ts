@@ -140,6 +140,10 @@ export class CanvasBlocksService {
   /**
    * Derives FlowSection[] from the current `this.models` map. Each model
    * becomes a section with one FlowNode per CanvasBlock.
+   *
+   * Sections carry structural / layout data only. Model-derived fields
+   * (slot, node) are read via `getModelSlotIndex` / `getModelNodeId` at
+   * display time so a rebind is picked up without a section rebuild.
    */
   private buildSectionsFromModels(): FlowSection[] {
     return Object.entries(this.models).map(([modelName, model], index) => {
@@ -147,8 +151,6 @@ export class CanvasBlocksService {
       return {
         id: sectionId,
         modelName: model.trigger_model_name || modelName,
-        slotIndex: model.slot_index ?? 0,
-        nodeId: model.node_id,
         positionIndex: index,
         nodes: model.blocks.map((block, blockIdx) => {
           const blockType = block.type;
@@ -453,6 +455,22 @@ export class CanvasBlocksService {
     model.node_id = newNodeId;
     model.slot_module = this.snapshotSlotModule(newSlotIndex, newNodeId);
 
+    // Channel selections belong to the previous slot's channels — the
+    // new slot may have those channels claimed by other models. Reset
+    // them so the user must re-pick against the new slot's availability.
+    // Rust's clamp/validator won't rewrite user-authored channel state,
+    // so if we skipped this the payload could carry over-committed or
+    // conflicting channels without any visible signal.
+    for (const block of model.blocks) {
+      for (const param of block.actual_parameters) {
+        if (param.name === 'channel_list') {
+          param.value = [];
+        } else if (param.name === 'channel_index') {
+          param.value = null;
+        }
+      }
+    }
+
     this.updateAndPrint();
   }
 
@@ -699,6 +717,30 @@ export class CanvasBlocksService {
 
   getModels() {
     return this.models;
+  }
+
+  /**
+   * Current slot index of a model. Returns 0 when the model doesn't
+   * exist so template bindings degrade gracefully.
+   *
+   * `slot_index` and `node_id` live only on the model; `FlowSection`
+   * deliberately does not cache them, so all readers go through here.
+   * That way a rebind mutates one place and every consumer picks up
+   * the new value on the next change-detection tick.
+   */
+  getModelSlotIndex(modelName: string): number {
+    return this.models[modelName]?.slot_index ?? 0;
+  }
+
+  /** Current node id of a model. Returns `''` when the model doesn't exist. */
+  getModelNodeId(modelName: string): string {
+    return this.models[modelName]?.node_id ?? '';
+  }
+
+  /** Composite binding label, e.g. `localnode.slot[1]`. Empty when unknown. */
+  getModelBindingLabel(modelName: string): string {
+    const model = this.models[modelName];
+    return model ? `${model.node_id}.slot[${model.slot_index}]` : '';
   }
 
   // updateBlockParameters(nodeId: string, parameters: Record<string, any>): void {

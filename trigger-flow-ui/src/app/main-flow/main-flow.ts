@@ -75,9 +75,21 @@ export class MainFlow {
   });
 
   /**
-   * Non-null when the model's current binding is not in `slotOptions()`.
-   * Recomputes whenever the model or the valid-options list changes so
-   * mid-modal healing / breakage surfaces in real time.
+   * Valid options offered by the Edit Model picker. Excludes the
+   * currently-editing model's own reservations so a model that fills
+   * its own slot's channels doesn't disqualify its own bound slot.
+   */
+  readonly editingSlotOptions = computed<ModelSlotOption[]>(() => {
+    const name = this.editingModelName();
+    if (!name) return this.slotOptions();
+    return this.slotBindingHelper.validOptions(name);
+  });
+
+  /**
+   * Non-null when the model's current binding is not in
+   * `editingSlotOptions()`. Recomputes whenever the model or the valid
+   * options list changes so mid-modal healing / breakage surfaces in
+   * real time.
    */
   readonly editingInvalidLabel = computed<string | null>(() => {
     const name = this.editingModelName();
@@ -85,7 +97,7 @@ export class MainFlow {
     this.canvasBlocksService.sections();
     const model = this.canvasBlocksService.getModels()[name];
     if (!model) return null;
-    const valid = this.slotOptions();
+    const valid = this.editingSlotOptions();
     const currentIsValid = valid.some(
       (o) => o.slot === model.slot_index && o.nodeId === model.node_id,
     );
@@ -271,8 +283,8 @@ export class MainFlow {
     this.modelSettingsList = this.canvasBlocksService.sections().map((section) => ({
       id: section.id,
       modelName: section.modelName,
-      nodeId: section.nodeId,
-      slotIndex: section.slotIndex,
+      nodeId: this.canvasBlocksService.getModelNodeId(section.modelName),
+      slotIndex: this.canvasBlocksService.getModelSlotIndex(section.modelName),
     }));
 
     this.modelSettingsMaxModels = this.modelResourceAllocationService.getMaxModels();
