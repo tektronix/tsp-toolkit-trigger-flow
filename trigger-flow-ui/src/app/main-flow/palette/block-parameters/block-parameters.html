@@ -121,7 +121,7 @@
           } @else if (getControlType(param) === 'number') {
             <!-- delay_time is shown in seconds and stays visible but disabled when List mode is enabled. -->
             <app-input-numeric
-              [class.required]="param.required"
+              [class.required]="isDelayTimeRequired(param)"
               [label]="getParameterDisplayName(param)"
               [unit]="param.name === 'delay_time' ? 's' : undefined"
               [floatAllowed]="param.name === 'delay_time'"
@@ -134,7 +134,7 @@
               <div class="delay-list-row">
                 <!-- Checkbox toggles list_config on/off; Edit opens the modal for sweep value details. -->
                 <app-checkbox
-                 [class.required]="param.required"
+                 [class.required]="isDelayListRequired()"
                  class="delay-list-checkbox"
                  label="List"
                  [checked]="isDelayListEnabled()"
