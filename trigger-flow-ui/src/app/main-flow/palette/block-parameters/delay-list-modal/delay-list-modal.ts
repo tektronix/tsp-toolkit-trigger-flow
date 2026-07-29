@@ -50,6 +50,10 @@ export class DelayListModal implements OnChanges {
     // list always has at least one entry.
     this.localDelayCount = this.sanitizeDelayCount(parsed);
     this.localDelayDurations = this.resizeRows(this.localDelayDurations, this.localDelayCount);
+    this.applyList.emit({
+      delayCount: this.localDelayCount,
+      delayDurations: [...this.localDelayDurations],
+    });
   }
 
   updateDelayDuration(index: number, rawValue: string): void {
@@ -60,6 +64,10 @@ export class DelayListModal implements OnChanges {
 
     // Store raw value; range clamping happens server-side.
     this.localDelayDurations[index] = parsed;
+    this.applyList.emit({
+      delayCount: this.localDelayCount,
+      delayDurations: [...this.localDelayDurations],
+    });
   }
 
   onCancel(): void {

@@ -147,14 +147,14 @@ export class BlockParameters {
         this.blockTypeSvgPath = CATEGORY_ICON_PATHS[category];
       }
 
-        this.actualParameters = canvasBlock.actual_parameters;
-        // Snapshot the current name so a subsequent edit can be detected as a
-        // rename and propagated to referencing BlockReference param.
-        this.previousBlockName = this.readTriggerBlockName(this.actualParameters);
-        const linkParam = this.getPrimaryBlockReferenceParam(this.actualParameters);
-        this.previousBranchReferenceValue = linkParam?.value
-          ? String(linkParam.value)
-          : '';
+      this.actualParameters = canvasBlock.actual_parameters;
+      // Snapshot the current name so a subsequent edit can be detected as a
+      // rename and propagated to referencing BlockReference param.
+      this.previousBlockName = this.readTriggerBlockName(this.actualParameters);
+      const linkParam = this.getPrimaryBlockReferenceParam(this.actualParameters);
+      this.previousBranchReferenceValue = linkParam?.value
+        ? String(linkParam.value)
+        : '';
 
       // Resolve model context from the owning model
       const model = this.canvasBlocksService.getModelForBlock(this.selectedBlockId);
@@ -565,13 +565,7 @@ export class BlockParameters {
   }
 
   onDelayListCancel(): void {
-    const listConfigParam = this.findParameter('list_config');
-    if (listConfigParam) {
-      listConfigParam.value = this.previousDelayListConfig;
-    }
-
     this.showDelayListModal = false;
-    this.previousDelayListConfig = null;
   }
 
   onDelayListApply(event: DelayListModalValue): void {
@@ -590,7 +584,6 @@ export class BlockParameters {
       listConfigParam.value = updatedConfig;
     }
 
-    this.showDelayListModal = false;
     this.previousDelayListConfig = null;
     this.onParameterValueChange();
   }
