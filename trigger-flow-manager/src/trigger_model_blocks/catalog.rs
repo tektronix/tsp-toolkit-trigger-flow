@@ -143,7 +143,21 @@ impl Parameter {
         // so reaching this point with a null value means no default was available
         // and the rendered script will contain a blank slot for this parameter.
         // Treats missing, null, empty/placeholder strings, and empty arrays as invalid.
-        if self.required {
+        
+        // Special handling for Constant Delay block: delay_time is only required
+        // if list_config is not provided. If list_config has a value, delay_time
+        // is optional (the mandatory indicator moves to list_config in the UI).
+        let is_required = if block.block_type == "constant delay" {
+            if self.name == "delay_time" {
+                !self.is_list_config_enabled(&block.block_parameters)
+            } else {
+                self.required
+            }
+        } else {
+            self.required
+        };
+        
+        if is_required {
             let is_missing_required = match value {
                 None => true,
                 Some(Value::Null) => true,
@@ -319,6 +333,15 @@ impl Parameter {
             _ => {}
         }
         Ok(())
+    }
+
+    // Check if list_config parameter is provided (not null/empty) for conditional
+    // required validation in Constant Delay blocks.
+    fn is_list_config_enabled(&self, block_parameters: &std::collections::HashMap<String, Value>) -> bool {
+        matches!(
+            block_parameters.get("list_config"),
+            Some(Value::Object(_))
+        )
     }
 
     fn get_delay_count_range(catalog: &Catalog) -> Option<&ParameterRange> {
