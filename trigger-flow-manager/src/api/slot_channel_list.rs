@@ -195,9 +195,7 @@ impl SlotChannelList {
                 {
                     Vec::new()
                 } else {
-                    select_first_mp5_node(
-                        active_system.nodes.as_deref().unwrap_or_default(),
-                    )?
+                    select_first_mp5_node(active_system.nodes.as_deref().unwrap_or_default())?
                 };
 
                 // All parse steps succeeded. Commit atomically so a mid-way
@@ -339,15 +337,13 @@ mod atomic_update_tests {
         // Non-MP5 local + MP5 elevated node keeps the elevated node in the
         // list (the localnode-MP5-with-modules short-circuit does not apply).
         let mut list = SlotChannelList::default();
-        list.update_slot_channel_list(SlotChannelListUpdate::SystemConfig(
-            systems_local_and_node(
-                "2450",
-                vec![slot_json("slot[1]", "Empty")],
-                "node[3]",
-                "MP5103",
-                vec![slot_json("slot[1]", "MSMU60-2")],
-            ),
-        ))
+        list.update_slot_channel_list(SlotChannelListUpdate::SystemConfig(systems_local_and_node(
+            "2450",
+            vec![slot_json("slot[1]", "Empty")],
+            "node[3]",
+            "MP5103",
+            vec![slot_json("slot[1]", "MSMU60-2")],
+        )))
         .expect("seed update should succeed");
         list
     }
@@ -368,13 +364,14 @@ mod atomic_update_tests {
             vec![slot_json("slot[1]", "GARBAGE")],
         );
 
-        let result = list.update_slot_channel_list(
-            SlotChannelListUpdate::SystemConfig(bad),
-        );
+        let result = list.update_slot_channel_list(SlotChannelListUpdate::SystemConfig(bad));
         assert!(result.is_err(), "malformed nodes must return Err");
 
         // Every field on `self` must still match the seeded state.
-        assert_eq!(list, before, "self should be unchanged after a failed update");
+        assert_eq!(
+            list, before,
+            "self should be unchanged after a failed update"
+        );
     }
 }
 
@@ -427,22 +424,18 @@ mod system_config_update_tests {
     fn module_change_on_slot_rebuilds_that_slot() {
         // Seed: MP5 local with SMU in slot 1.
         let mut list = SlotChannelList::default();
-        list.update_slot_channel_list(SlotChannelListUpdate::SystemConfig(
-            systems_localnode_only(
-                "MP5103",
-                vec![slot_json("slot[1]", "MSMU60-2")],
-            ),
-        ))
+        list.update_slot_channel_list(SlotChannelListUpdate::SystemConfig(systems_localnode_only(
+            "MP5103",
+            vec![slot_json("slot[1]", "MSMU60-2")],
+        )))
         .expect("seed update");
         assert_eq!(list.slots[0].module, Module::MSMU60_2);
 
         // Swap module at slot 1 to PSU.
-        list.update_slot_channel_list(SlotChannelListUpdate::SystemConfig(
-            systems_localnode_only(
-                "MP5103",
-                vec![slot_json("slot[1]", "MPSU50-2ST")],
-            ),
-        ))
+        list.update_slot_channel_list(SlotChannelListUpdate::SystemConfig(systems_localnode_only(
+            "MP5103",
+            vec![slot_json("slot[1]", "MPSU50-2ST")],
+        )))
         .expect("second update");
         assert_eq!(list.slots.len(), 1);
         assert_eq!(list.slots[0].slot_id, SlotIndex(1));
@@ -453,29 +446,25 @@ mod system_config_update_tests {
     fn node_identity_change_replaces_node_in_list() {
         // Seed: non-MP5 local + MP5 elevated node[3].
         let mut list = SlotChannelList::default();
-        list.update_slot_channel_list(SlotChannelListUpdate::SystemConfig(
-            systems_local_and_node(
-                "2450",
-                vec![slot_json("slot[1]", "Empty")],
-                "node[3]",
-                "MP5103",
-                vec![slot_json("slot[1]", "MSMU60-2")],
-            ),
-        ))
+        list.update_slot_channel_list(SlotChannelListUpdate::SystemConfig(systems_local_and_node(
+            "2450",
+            vec![slot_json("slot[1]", "Empty")],
+            "node[3]",
+            "MP5103",
+            vec![slot_json("slot[1]", "MSMU60-2")],
+        )))
         .expect("seed update");
         assert_eq!(list.nodes.len(), 1);
         assert_eq!(list.nodes[0].node_id, "node[3]");
 
         // Same shape but node identity changed to node[5].
-        list.update_slot_channel_list(SlotChannelListUpdate::SystemConfig(
-            systems_local_and_node(
-                "2450",
-                vec![slot_json("slot[1]", "Empty")],
-                "node[5]",
-                "MP5103",
-                vec![slot_json("slot[1]", "MSMU60-2")],
-            ),
-        ))
+        list.update_slot_channel_list(SlotChannelListUpdate::SystemConfig(systems_local_and_node(
+            "2450",
+            vec![slot_json("slot[1]", "Empty")],
+            "node[5]",
+            "MP5103",
+            vec![slot_json("slot[1]", "MSMU60-2")],
+        )))
         .expect("second update");
         assert_eq!(list.nodes.len(), 1);
         assert_eq!(list.nodes[0].node_id, "node[5]");

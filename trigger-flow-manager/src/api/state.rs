@@ -103,8 +103,8 @@ impl TriggerModelState {
             ));
         };
 
-        let node_exists = self.node_id == "localnode"
-            || list.nodes.iter().any(|n| n.node_id == self.node_id);
+        let node_exists =
+            self.node_id == "localnode" || list.nodes.iter().any(|n| n.node_id == self.node_id);
         if !node_exists {
             return Some((
                 ModelErrorKind::SystemConfig,
@@ -179,11 +179,7 @@ impl TriggerFlowState {
     ///   `empty_system_config_error` with the reason in `additional_info` and
     ///   the updated state in `json_value` (always populated so the UI
     ///   refreshes its cached `slot_channel_list` even when no models exist).
-    pub fn process_system_config(
-        &mut self,
-        systems: &Systems,
-        catalog: &Catalog,
-    ) -> String {
+    pub fn process_system_config(&mut self, systems: &Systems, catalog: &Catalog) -> String {
         if DEBUG {
             println!(
                 "###process_system_config called with system_config: {:?}",
@@ -205,9 +201,7 @@ impl TriggerFlowState {
 
         match build_result {
             Err(e) => {
-                eprintln!(
-                    "process_system_config: failed to parse Systems payload: {e}"
-                );
+                eprintln!("process_system_config: failed to parse Systems payload: {e}");
                 self.emit_empty_config(&e)
             }
             Ok(list) if !list.is_valid_config() => {
@@ -222,9 +216,7 @@ impl TriggerFlowState {
                 let attach_catalog = is_fresh_init || !self.models.is_empty();
                 if attach_catalog {
                     self.catalog = Some(catalog.clone());
-                    println!(
-                        "###process_system_config returning evaluate_response with catalog"
-                    );
+                    println!("###process_system_config returning evaluate_response with catalog");
                 } else {
                     self.catalog = None;
                     println!(
@@ -238,9 +230,7 @@ impl TriggerFlowState {
                 };
                 let json_value = match serde_json::to_string(&response) {
                     Ok(s) => s,
-                    Err(_) => {
-                        return "{\"error\":\"Response serialization failed\"}".to_string()
-                    }
+                    Err(_) => return "{\"error\":\"Response serialization failed\"}".to_string(),
                 };
                 let ipc = IpcData {
                     request_type: "evaluate_response".to_string(),
@@ -408,16 +398,18 @@ fn clamp_one_event_ref(
     catalog: &Catalog,
     notes: &mut Vec<String>,
 ) {
-    let Some(obj) = event_ref.as_object_mut() else { return };
-    let Some(event_type) = obj
-        .get("type")
-        .and_then(|v| v.as_str())
-        .map(String::from)
-    else {
+    let Some(obj) = event_ref.as_object_mut() else {
         return;
     };
-    let Some(event_def) = catalog.trigger_events.get(&event_type) else { return };
-    let Some(params) = obj.get_mut("params").and_then(|v| v.as_object_mut()) else { return };
+    let Some(event_type) = obj.get("type").and_then(|v| v.as_str()).map(String::from) else {
+        return;
+    };
+    let Some(event_def) = catalog.trigger_events.get(&event_type) else {
+        return;
+    };
+    let Some(params) = obj.get_mut("params").and_then(|v| v.as_object_mut()) else {
+        return;
+    };
 
     // Event params may serialize `slot_index` as a JSON number or numeric string.
     let Some(slot_index) = params.get("slot_index").and_then(|v| {
@@ -455,9 +447,15 @@ fn clamp_one_event_ref(
     };
 
     for cat_param in &event_def.parameters {
-        let Some(constraints) = &cat_param.constraints else { continue };
-        let Some(branch) = constraints.get(family) else { continue };
-        let Some(allowed) = branch.options.as_ref().filter(|o| !o.is_empty()) else { continue };
+        let Some(constraints) = &cat_param.constraints else {
+            continue;
+        };
+        let Some(branch) = constraints.get(family) else {
+            continue;
+        };
+        let Some(allowed) = branch.options.as_ref().filter(|o| !o.is_empty()) else {
+            continue;
+        };
 
         // Compare current value (as a string) against the allowed values.
         let current_str = params.get(&cat_param.name).and_then(|v| {
@@ -699,10 +697,7 @@ mod model_error_tests {
         let mut m = model("localnode", 1, Some(Module::MSMU60_2));
         m.recompute_error(&list);
         assert_eq!(m.model_error.len(), 1);
-        assert!(matches!(
-            m.model_error[0].0,
-            ModelErrorKind::ModuleChanged
-        ));
+        assert!(matches!(m.model_error[0].0, ModelErrorKind::ModuleChanged));
         assert!(
             m.model_error[0].1.contains("changed from"),
             "got: {}",
@@ -718,10 +713,7 @@ mod model_error_tests {
         let mut m = model("localnode", 1, Some(Module::MSMU60_2));
         m.recompute_error(&list);
         assert_eq!(m.model_error.len(), 1);
-        assert!(matches!(
-            m.model_error[0].0,
-            ModelErrorKind::SystemConfig
-        ));
+        assert!(matches!(m.model_error[0].0, ModelErrorKind::SystemConfig));
         assert!(
             m.model_error[0].1.contains("is empty"),
             "got: {}",
@@ -786,8 +778,7 @@ mod model_error_tests {
             json
         );
 
-        let round_tripped: TriggerModelState =
-            serde_json::from_str(&json).expect("deserialize");
+        let round_tripped: TriggerModelState = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(round_tripped.model_error.len(), 1);
     }
 }
@@ -882,10 +873,8 @@ mod process_system_config_tests {
             models: IndexMap::new(),
         };
 
-        let response = state.process_system_config(
-            &systems_active_mp5_with_module("MSMU60-2"),
-            &catalog,
-        );
+        let response =
+            state.process_system_config(&systems_active_mp5_with_module("MSMU60-2"), &catalog);
         let ipc = parse_ipc(&response);
 
         assert_eq!(ipc["request_type"], "evaluate_response");
@@ -917,9 +906,11 @@ mod process_system_config_tests {
         // json_value carries the reset state so the UI refreshes its cached
         // slot_channel_list even though there are no models to ship.
         let payload: serde_json::Value =
-            serde_json::from_str(ipc["json_value"].as_str().expect("string"))
-                .expect("valid JSON");
-        assert!(payload["slot_channel_list"]["slots"].as_array().unwrap().is_empty());
+            serde_json::from_str(ipc["json_value"].as_str().expect("string")).expect("valid JSON");
+        assert!(payload["slot_channel_list"]["slots"]
+            .as_array()
+            .unwrap()
+            .is_empty());
         assert!(payload["models"].as_object().unwrap().is_empty());
     }
 
@@ -946,9 +937,11 @@ mod process_system_config_tests {
         );
         // State carries the reset slot list so the UI refreshes.
         let payload: serde_json::Value =
-            serde_json::from_str(ipc["json_value"].as_str().expect("string"))
-                .expect("valid JSON");
-        assert!(payload["slot_channel_list"]["slots"].as_array().unwrap().is_empty());
+            serde_json::from_str(ipc["json_value"].as_str().expect("string")).expect("valid JSON");
+        assert!(payload["slot_channel_list"]["slots"]
+            .as_array()
+            .unwrap()
+            .is_empty());
         // slot_channel_list must be reset so a later Systems retriggers fresh init.
         assert!(state.slot_channel_list.slots.is_empty());
         assert!(state.slot_channel_list.nodes.is_empty());
@@ -959,21 +952,15 @@ mod process_system_config_tests {
         let catalog = empty_catalog();
         let mut state = state_with_one_model(Some(Module::MSMU60_2));
         // Seed prior valid state so we take the in-session branch.
-        state
-            .process_system_config(
-                &systems_active_mp5_with_module("MSMU60-2"),
-                &catalog,
-            );
+        state.process_system_config(&systems_active_mp5_with_module("MSMU60-2"), &catalog);
         assert!(
             !state.models["tm1"].has_system_config_error(),
             "model should be healthy after matching init"
         );
 
         // Same module still installed: model stays healthy.
-        let response = state.process_system_config(
-            &systems_active_mp5_with_module("MSMU60-2"),
-            &catalog,
-        );
+        let response =
+            state.process_system_config(&systems_active_mp5_with_module("MSMU60-2"), &catalog);
         let ipc = parse_ipc(&response);
         assert_eq!(ipc["request_type"], "evaluate_response");
         assert!(!state.models["tm1"].has_system_config_error());
@@ -983,11 +970,7 @@ mod process_system_config_tests {
     fn in_session_parse_fail_mass_stales_and_carries_state() {
         let catalog = empty_catalog();
         let mut state = state_with_one_model(Some(Module::MSMU60_2));
-        state
-            .process_system_config(
-                &systems_active_mp5_with_module("MSMU60-2"),
-                &catalog,
-            );
+        state.process_system_config(&systems_active_mp5_with_module("MSMU60-2"), &catalog);
 
         let response = state.process_system_config(&systems_no_active(), &catalog);
         let ipc = parse_ipc(&response);
@@ -1025,11 +1008,7 @@ mod process_system_config_tests {
     fn in_session_invalid_config_mass_stales_and_carries_state() {
         let catalog = empty_catalog();
         let mut state = state_with_one_model(Some(Module::MSMU60_2));
-        state
-            .process_system_config(
-                &systems_active_mp5_with_module("MSMU60-2"),
-                &catalog,
-            );
+        state.process_system_config(&systems_active_mp5_with_module("MSMU60-2"), &catalog);
 
         let response = state.process_system_config(&systems_non_mp5(), &catalog);
         let ipc = parse_ipc(&response);
@@ -1049,11 +1028,7 @@ mod process_system_config_tests {
     fn healed_after_reconfigure_clears_error() {
         let catalog = empty_catalog();
         let mut state = state_with_one_model(Some(Module::MSMU60_2));
-        state
-            .process_system_config(
-                &systems_active_mp5_with_module("MSMU60-2"),
-                &catalog,
-            );
+        state.process_system_config(&systems_active_mp5_with_module("MSMU60-2"), &catalog);
 
         // Break it: mid-session invalid config.
         state.process_system_config(&systems_non_mp5(), &catalog);
@@ -1062,10 +1037,8 @@ mod process_system_config_tests {
         // Reconfigure: valid MP5 with matching module. Note: state is now
         // fresh-init-shaped (empty list), so this goes through the fresh-init
         // path and the recall-completion catalog-attach branch fires.
-        let response = state.process_system_config(
-            &systems_active_mp5_with_module("MSMU60-2"),
-            &catalog,
-        );
+        let response =
+            state.process_system_config(&systems_active_mp5_with_module("MSMU60-2"), &catalog);
         let ipc = parse_ipc(&response);
         assert_eq!(ipc["request_type"], "evaluate_response");
         assert!(!state.models["tm1"].has_system_config_error());
@@ -1080,33 +1053,28 @@ mod process_system_config_tests {
         assert!(state.slot_channel_list.slots.is_empty());
         assert!(state.catalog.is_none());
 
-        let response = state.process_system_config(
-            &systems_active_mp5_with_module("MSMU60-2"),
-            &catalog,
-        );
+        let response =
+            state.process_system_config(&systems_active_mp5_with_module("MSMU60-2"), &catalog);
         let ipc = parse_ipc(&response);
         assert_eq!(ipc["request_type"], "evaluate_response");
-        assert!(state.catalog.is_some(), "recall completion must attach catalog");
+        assert!(
+            state.catalog.is_some(),
+            "recall completion must attach catalog"
+        );
     }
 
     #[test]
     fn in_session_normal_update_clears_catalog() {
         let catalog = empty_catalog();
         let mut state = state_with_one_model(Some(Module::MSMU60_2));
-        state.process_system_config(
-            &systems_active_mp5_with_module("MSMU60-2"),
-            &catalog,
-        );
+        state.process_system_config(&systems_active_mp5_with_module("MSMU60-2"), &catalog);
         assert!(state.catalog.is_some());
 
         // Now delete the seeded model so the next update doesn't look like
         // recall-completion (which would keep catalog attached).
         state.models.clear();
 
-        state.process_system_config(
-            &systems_active_mp5_with_module("MSMU60-2"),
-            &catalog,
-        );
+        state.process_system_config(&systems_active_mp5_with_module("MSMU60-2"), &catalog);
         assert!(
             state.catalog.is_none(),
             "in-session update with no models must clear catalog"
@@ -1118,11 +1086,11 @@ mod process_system_config_tests {
 mod clamp_module_constrained_params_tests {
     use super::*;
     use crate::api::slot_channel_list::{Channel, ChannelIndex, SlotChannelList};
+    use crate::model::trigger_model_block::{BlockPosition, TriggerModelBlock};
     use crate::trigger_model_blocks::catalog::{
         EventDefinition, Parameter, ParameterConstraint, ParameterOptions, ScriptTemplate,
     };
     use crate::trigger_model_blocks::param_types::ParamTypeName;
-    use crate::model::trigger_model_block::{BlockPosition, TriggerModelBlock};
     use std::collections::HashMap;
 
     /// Build a catalog containing only `event_notify_n` with its SMU/PSU
@@ -1136,8 +1104,7 @@ mod clamp_module_constrained_params_tests {
         }
 
         let smu_options: Vec<ParameterOptions> = (1u8..=8).map(|n| opt(&n.to_string())).collect();
-        let psu_options: Vec<ParameterOptions> =
-            (1u8..=16).map(|n| opt(&n.to_string())).collect();
+        let psu_options: Vec<ParameterOptions> = (1u8..=16).map(|n| opt(&n.to_string())).collect();
 
         let notify_event_number = Parameter {
             name: "notify_event_number".to_string(),
@@ -1213,7 +1180,10 @@ mod clamp_module_constrained_params_tests {
             block_id: "notify1".to_string(),
             block_type: "notify".to_string(),
             block_parameters: HashMap::from([
-                ("trigger_block_name".to_string(), serde_json::json!("Notify")),
+                (
+                    "trigger_block_name".to_string(),
+                    serde_json::json!("Notify"),
+                ),
                 ("event_id".to_string(), event_ref),
             ]),
             incoming: None,
@@ -1223,10 +1193,7 @@ mod clamp_module_constrained_params_tests {
         }
     }
 
-    fn state_with_notify(
-        slot_module: Module,
-        stored_event_number: &str,
-    ) -> TriggerFlowState {
+    fn state_with_notify(slot_module: Module, stored_event_number: &str) -> TriggerFlowState {
         let mut state = TriggerFlowState {
             catalog: None,
             slot_channel_list: SlotChannelList {
@@ -1311,7 +1278,8 @@ mod clamp_module_constrained_params_tests {
             .as_ref()
             .expect("empty slot should flag the block");
         assert!(
-            errs.iter().any(|(_, msg)| msg.contains("no module installed")),
+            errs.iter()
+                .any(|(_, msg)| msg.contains("no module installed")),
             "expected 'no module installed' note, got: {:?}",
             errs
         );
@@ -1332,7 +1300,8 @@ mod clamp_module_constrained_params_tests {
             .as_ref()
             .expect("missing slot should flag the block");
         assert!(
-            errs.iter().any(|(_, msg)| msg.contains("no longer present")),
+            errs.iter()
+                .any(|(_, msg)| msg.contains("no longer present")),
             "expected 'no longer present' note, got: {:?}",
             errs
         );
@@ -1348,11 +1317,7 @@ mod clamp_module_constrained_params_tests {
                 "params": { "slot_index": "1", "notify_event_number": "14" }
             }
         ]);
-        state
-            .models
-            .get_mut("tm1")
-            .expect("seed model")
-            .blocks[0]
+        state.models.get_mut("tm1").expect("seed model").blocks[0]
             .block_parameters
             .insert("event".to_string(), event_list);
 
@@ -1387,11 +1352,7 @@ mod clamp_module_constrained_params_tests {
         // Heal: swap the slot module and drop the model's staleness so the
         // next clamp pass revisits its blocks instead of skipping as stale.
         state.slot_channel_list.slots[0].module = Module::MPSU50_2ST;
-        state
-            .models
-            .get_mut("tm1")
-            .unwrap()
-            .slot_module = Some(Module::MPSU50_2ST);
+        state.models.get_mut("tm1").unwrap().slot_module = Some(Module::MPSU50_2ST);
         state.recompute_all_model_errors();
         state.clamp_module_constrained_params(&catalog_with_notify_constraints());
 
@@ -1441,11 +1402,7 @@ mod clamp_module_constrained_params_tests {
 
         // Heal the hardware.
         state.slot_channel_list.slots[0].module = Module::MPSU50_2ST;
-        state
-            .models
-            .get_mut("tm1")
-            .unwrap()
-            .slot_module = Some(Module::MPSU50_2ST);
+        state.models.get_mut("tm1").unwrap().slot_module = Some(Module::MPSU50_2ST);
         state.recompute_all_model_errors();
         state.clamp_module_constrained_params(&catalog_with_notify_constraints());
 
@@ -1454,7 +1411,8 @@ mod clamp_module_constrained_params_tests {
             .as_ref()
             .expect("validator entry should survive heal");
         assert!(
-            errs.iter().any(|(_, msg)| msg == "Validator: field foo missing"),
+            errs.iter()
+                .any(|(_, msg)| msg == "Validator: field foo missing"),
             "expected validator entry to survive, got: {:?}",
             errs
         );

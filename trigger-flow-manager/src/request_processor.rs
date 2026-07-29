@@ -224,9 +224,7 @@ mod recall_backfill_tests {
         }
     }
 
-    fn state_with_legacy_model(
-        list_module: Module,
-    ) -> TriggerFlowState {
+    fn state_with_legacy_model(list_module: Module) -> TriggerFlowState {
         let mut state = TriggerFlowState {
             catalog: None,
             slot_channel_list: SlotChannelList {

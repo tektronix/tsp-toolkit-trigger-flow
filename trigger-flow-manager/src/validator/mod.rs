@@ -1,4 +1,4 @@
-use crate::api::state::{CLAMP_NOTE_PREFIX, TriggerFlowState};
+use crate::api::state::{TriggerFlowState, CLAMP_NOTE_PREFIX};
 use anyhow::Result;
 
 pub trait Validator {
@@ -223,7 +223,10 @@ mod stale_wipe_tests {
     #[test]
     fn wipe_mixed_stale_preserved_healthy_wiped() {
         let mut state = state_with_models(vec![
-            stale_model("stale", vec![block_with_error("s1", "stale error preserved")]),
+            stale_model(
+                "stale",
+                vec![block_with_error("s1", "stale error preserved")],
+            ),
             healthy_model(
                 "healthy",
                 vec![block_with_error("h1", "healthy error wiped")],

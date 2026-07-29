@@ -1,4 +1,4 @@
-﻿use std::fmt::Display;
+use std::fmt::Display;
 
 use anyhow::Error;
 use handlebars::Handlebars;
@@ -995,7 +995,9 @@ slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_blo
 
         // Skip marker present.
         assert!(
-            script.contents.contains("-- model 'tm1' skipped: stale binding"),
+            script
+                .contents
+                .contains("-- model 'tm1' skipped: stale binding"),
             "expected skip marker in contents, got: {:?}",
             script.contents
         );
