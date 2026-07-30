@@ -152,10 +152,20 @@ export class ModelResourceAllocationService {
     return localChannels + nodeChannels;
   }
 
-  /** Channels claimed by ALL models on a given slot, as a Set of "<channel>" strings. */
-  private usedChannelsOnSlot(nodeId: string, slotIndex: number): Set<string> {
+  /**
+   * Channels claimed by models on a given slot, as a Set of "<channel>"
+   * strings. Pass `excludeModelName` to skip a model's own reservations
+   * (used when computing the Edit Model picker so a model doesn't
+   * exclude itself from its own bound slot).
+   */
+  private usedChannelsOnSlot(
+    nodeId: string,
+    slotIndex: number,
+    excludeModelName?: string,
+  ): Set<string> {
     const used = new Set<string>();
-    for (const model of Object.values(this.canvasBlocksService.getModels())) {
+    for (const [name, model] of Object.entries(this.canvasBlocksService.getModels())) {
+      if (excludeModelName && name === excludeModelName) continue;
       if (model.node_id !== nodeId || model.slot_index !== slotIndex) continue;
       for (const block of model.blocks) {
         const list = block.actual_parameters?.find((p) => p.name === 'channel_list')?.value;
@@ -166,21 +176,41 @@ export class ModelResourceAllocationService {
   }
 
   /**
-   * Number of models currently on this slot.
+   * Number of models currently on this slot. `excludeModelName` skips a
+   * given model so the Edit Model picker doesn't count the model being
+   * edited against its own max-per-slot budget.
    */
-  private modelCountOnSlot(nodeId: string, slotIndex: number): number {
+  private modelCountOnSlot(
+    nodeId: string,
+    slotIndex: number,
+    excludeModelName?: string,
+  ): number {
     return this.canvasBlocksService.sections()
-      .filter((s) => s.nodeId === nodeId && s.slotIndex === slotIndex).length;
+      .filter(
+        (s) =>
+          this.canvasBlocksService.getModelNodeId(s.modelName) === nodeId &&
+          this.canvasBlocksService.getModelSlotIndex(s.modelName) === slotIndex &&
+          (!excludeModelName || s.modelName !== excludeModelName),
+      ).length;
   }
 
-  /** check used by the dropdown filter. */
-  canCreateNewModelOnSlot(nodeId: string, slotIndex: number, maxModels = 2): boolean {
+  /**
+   * Check used by the dropdown filter. `excludeModelName` (when set)
+   * skips a model's own reservations from the capacity check so the
+   * Edit Model picker doesn't reject a model's own bound slot.
+   */
+  canCreateNewModelOnSlot(
+    nodeId: string,
+    slotIndex: number,
+    maxModels = 2,
+    excludeModelName?: string,
+  ): boolean {
     const slot = this.findSlot(slotIndex, nodeId, this.triggerFlowDataService.getSlotChannelList()!);
     if (!slot) return false;
 
-    if (this.modelCountOnSlot(nodeId, slotIndex) >= maxModels) return false;
+    if (this.modelCountOnSlot(nodeId, slotIndex, excludeModelName) >= maxModels) return false;
 
-    const used = this.usedChannelsOnSlot(nodeId, slotIndex);
+    const used = this.usedChannelsOnSlot(nodeId, slotIndex, excludeModelName);
     return used.size < slot.channels.length; // at least one channel still free
   }
 }

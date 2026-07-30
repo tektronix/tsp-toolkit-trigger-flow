@@ -1,4 +1,4 @@
-import { ISlotChannelList, SlotChannelList } from "./slotChannelModel";
+import { ISlotChannelList, Module, SlotChannelList } from "./slotChannelModel";
 import { Catalog } from "./triggerBlock";
 
 export type JsonValue =
@@ -15,11 +15,29 @@ export interface ITriggerFlowStatePayload {
   models: Record<string, ITriggerModel>;
 }
 
+/**
+ * Mirrors the Rust `ModelErrorKind` enum. Reason is encoded in the
+ * accompanying message string of each `ModelErrorEntry`.
+ *
+ * - `system_config`: blocking. Binding cannot resolve (no snapshot, node
+ *   missing, slot missing, slot vacated). Blocks script generation and
+ *   disables the block parameters panel.
+ * - `module_changed`: warning. Slot still populated but module differs from
+ *   the snapshot. Model remains functional; module-specific block parameters
+ *   may need adjustment.
+ */
+export type ModelErrorKind = 'system_config' | 'module_changed';
+
+export type ModelErrorEntry = [ModelErrorKind, string];
+
 export interface ITriggerModel {
   trigger_model_name: string;
   slot_index: number;
   node_id: string;
   blocks: ITriggerModelBlock[];
+  slot_module?: Module | null;
+  // Derived errors from Rust
+  model_error?: ModelErrorEntry[];
 }
 
 export interface ITriggerModelBlock {
@@ -64,6 +82,8 @@ export class TriggerModel {
   slot_index: number;
   node_id: string;
   blocks: TriggerModelBlock[];
+  slot_module: Module | null;
+  model_error: ModelErrorEntry[];
 
   constructor(data: ITriggerModel) {
     this.trigger_model_name = data.trigger_model_name;
@@ -72,6 +92,11 @@ export class TriggerModel {
     this.blocks = data.blocks.map(
       (block: ITriggerModelBlock) => new TriggerModelBlock(block)
     );
+    // Default null on legacy sessions; Rust backfills on recall from the
+    // saved slot_channel_list in the payload.
+    this.slot_module = data.slot_module ?? null;
+    // Rust repopulates on every state change; default empty.
+    this.model_error = data.model_error ?? [];
   }
 }
 

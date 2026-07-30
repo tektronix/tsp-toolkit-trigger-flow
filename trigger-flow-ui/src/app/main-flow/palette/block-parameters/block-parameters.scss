@@ -60,6 +60,29 @@
   gap: $spacing-md;
 }
 
+// Shown above the params body when the model has a `model_error` entry.
+// Hover for the full message.
+.params-stale-banner {
+  padding: $spacing-xs $spacing-sm;
+  border: 1px solid var(--vscode-editorError-foreground, #f14c4c);
+  background: color-mix(
+    in srgb,
+    var(--vscode-editorError-foreground, #f14c4c) 12%,
+    var(--vscode-editor-background)
+  );
+  color: var(--vscode-editor-foreground);
+  font-size: 12px;
+  border-radius: 2px;
+}
+
+// Locks the params body when the owning model has a `model_error`. Only the
+// slot dropdown (in the model settings modal, not here) offers a recovery path.
+.params-body--disabled {
+  pointer-events: none;
+  opacity: 0.5;
+  user-select: none;
+}
+
 .params-header {
   display: flex;
   align-items: center;

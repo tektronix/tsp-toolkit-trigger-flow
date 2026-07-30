@@ -111,8 +111,6 @@ interface FlowCanvasEvent {
 export interface FlowSection {
   id: string;
   modelName: string;
-  slotIndex: number;
-  nodeId: string;
   nodes: FlowNode[];
   /**
    * Stable horizontal slot assigned at creation time. Used to compute the
@@ -313,9 +311,9 @@ export class Canvas implements AfterViewInit {
       });
   }
 
-  // Single pass over `models$` builds both the per-model summary (for
-  // section-header error styling) and the per-block index (for node-level
-  // error styling).
+  // Builds per-model summary and per-block index in a single pass.
+  // The section header shows both model and block errors; model errors
+  // first, then block errors.
   private readonly errorMaps = computed<{
     modelSummary: Record<string, { hasError: boolean; tooltip: string }>;
     blockIndex: Record<string, { hasError: boolean; tooltip: string }>;
@@ -325,8 +323,18 @@ export class Canvas implements AfterViewInit {
     const blockIndex: Record<string, { hasError: boolean; tooltip: string }> = {};
 
     for (const [modelName, model] of Object.entries(models)) {
-      const lines: string[] = [];
+      const modelLines: string[] = [];
+      const blockLines: string[] = [];
       let hasAnyError = false;
+
+      // Model-level errors (Rust-owned, from TriggerModelState::model_error).
+      const modelErrors = model.model_error ?? [];
+      if (modelErrors.length > 0) {
+        hasAnyError = true;
+        for (const [, msg] of modelErrors) {
+          modelLines.push(msg);
+        }
+      }
 
       for (const block of model.blocks) {
         const hasError = this.hasBlockErrorItems(block.block_error);
@@ -337,7 +345,7 @@ export class Canvas implements AfterViewInit {
         }
 
         for (const message of messages) {
-          lines.push(`${block.block_id} - ${message}`);
+          blockLines.push(`${block.block_id} - ${message}`);
         }
 
         blockIndex[block.block_id] = {
@@ -346,11 +354,18 @@ export class Canvas implements AfterViewInit {
         };
       }
 
-      modelSummary[modelName] = {
-        hasError: hasAnyError,
-        tooltip:
-          lines.length > 0 ? lines.join('\n') : hasAnyError ? 'Validation errors found' : '',
-      };
+      // Model errors first; blank line separator only when both sides present.
+      const tooltipParts: string[] = [];
+      if (modelLines.length > 0) tooltipParts.push(modelLines.join('\n'));
+      if (blockLines.length > 0) tooltipParts.push(blockLines.join('\n'));
+      const tooltip =
+        tooltipParts.length > 0
+          ? tooltipParts.join('\n\n')
+          : hasAnyError
+            ? 'Validation errors found'
+            : '';
+
+      modelSummary[modelName] = { hasError: hasAnyError, tooltip };
     }
 
     return { modelSummary, blockIndex };
@@ -396,8 +411,6 @@ export class Canvas implements AfterViewInit {
     const newSection: FlowSection = {
       id: sectionId,
       modelName,
-      slotIndex: result.slot,
-      nodeId: result.nodeId,
       nodes: [],
       positionIndex: nextPositionIndex,
     };
@@ -610,8 +623,8 @@ export class Canvas implements AfterViewInit {
       newNode.catalogLabel || newNode.svgPath,
       newNode.position,
       section.modelName,
-      section.slotIndex,
-      section.nodeId,
+      this.canvasBlocksService.getModelSlotIndex(section.modelName),
+      this.canvasBlocksService.getModelNodeId(section.modelName),
     );
 
     // Reflow after mount/render so real SVG geometry can be measured for centering.
@@ -1545,8 +1558,26 @@ export class Canvas implements AfterViewInit {
     return this.modelErrorSummary()[modelName]?.hasError ?? false;
   }
 
+  /**
+   * Composite `node.slot[N]` label rendered in the section title chip.
+   * Reads live from the model so a rebind is picked up on the next
+   * change-detection tick without touching the sections signal.
+   */
+  getModelBindingLabel(modelName: string): string {
+    return this.canvasBlocksService.getModelBindingLabel(modelName);
+  }
+
   getSectionErrorTooltip(modelName: string): string {
     return this.modelErrorSummary()[modelName]?.tooltip ?? 'No validation errors';
+  }
+
+  /**
+   * True when the model carries a blocking `system_config` error.
+   * Drives the red border on the section header.
+   */
+  getSectionHasModelError(modelName: string): boolean {
+    const model = this.canvasBlocksService.getModels()[modelName];
+    return (model?.model_error ?? []).some(([kind]) => kind === 'system_config');
   }
 
   hasNodeError(blockId: string): boolean {

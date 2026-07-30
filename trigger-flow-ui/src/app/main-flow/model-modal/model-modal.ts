@@ -44,7 +44,6 @@ export class ModelModal implements OnChanges {
 
   @Input() slotOptions: ModelSlotOption[] = [];
   @Input() existingModelNames: string[] = [];
-  @Input() disableCreate = false;
 
   @Output() closeWithValue = new EventEmitter<ModelModalValue>();
   @Output() deleteClicked = new EventEmitter<void>();
@@ -89,7 +88,6 @@ export class ModelModal implements OnChanges {
   validateName(): boolean {
     if (this.nameInputError) {
       this.nameError = this.nameInputError;
-      this.disableCreate = true;
       return false;
     }
 
@@ -110,8 +108,28 @@ export class ModelModal implements OnChanges {
     }
 
     this.nameError = '';
-    this.disableCreate = false;
     return true;
+  }
+
+  /** No hardware available for a new binding. */
+  get noSlotsAvailable(): boolean {
+    return this.slotOptions.length === 0;
+  }
+
+  /** Composed disable state for the Create button. */
+  get disableCreate(): boolean {
+    return !!this.nameError || this.noSlotsAvailable;
+  }
+
+  /** Reason to surface in the Create button title. */
+  get createDisabledReason(): string {
+    if (this.nameError) {
+      return this.nameError;
+    }
+    if (this.noSlotsAvailable) {
+      return 'No valid slots available. Configure hardware or free a slot to create a model.';
+    }
+    return 'Create New Model';
   }
 
   onNameSpecialCharError(errorMessage: string): void {

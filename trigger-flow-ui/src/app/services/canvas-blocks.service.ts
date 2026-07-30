@@ -1,7 +1,8 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { Catalog, BlockDefinition, ActualParameter, ParameterValue } from '../models/triggerBlock';
-import { BlockErrorEntry, JsonValue, TriggerModel } from '../models/triggerFlowState';
+import { BlockErrorEntry, JsonValue, ModelErrorEntry, TriggerModel } from '../models/triggerFlowState';
+import { Module } from '../models/slotChannelModel';
 import { Websocket } from './websocket';
 import { TriggerFlowDataService } from './triggerFlowDataService';
 import { FlowNode, FlowSection, FlowConnection } from '../main-flow/canvas/canvas';
@@ -57,6 +58,9 @@ export class CanvasBlocksService {
       slot_index: number;
       node_id: string;
       blocks: CanvasBlock[];
+      slot_module: Module | null;
+      // Derived errors from Rust; empty until the next evaluate response.
+      model_error: ModelErrorEntry[];
     }
   > = {};
   private selectedBlockSubject = new BehaviorSubject<string | null>(null);
@@ -104,10 +108,15 @@ export class CanvasBlocksService {
    * Apply server-validated parameter values (and the resulting block_error
    * list) onto the existing canvas blocks without rebuilding them. Used on
    * the in-session evaluate path, where the backend may clamp values into
-   * range.
+   * range. Also refreshes `model_error` on the owning model so mid-session
+   * hardware changes surface in the header without a full rebuild.
    */
   applyServerValidationResult(models: Record<string, TriggerModel>): void {
-    for (const model of Object.values(models)) {
+    for (const [modelName, model] of Object.entries(models)) {
+      const localModel = this.models[modelName];
+      if (localModel) {
+        localModel.model_error = model.model_error ?? [];
+      }
       for (const serverBlock of model.blocks) {
         const canvasBlock = this.getBlockById(serverBlock.block_id);
         if (!canvasBlock) continue;
@@ -131,6 +140,10 @@ export class CanvasBlocksService {
   /**
    * Derives FlowSection[] from the current `this.models` map. Each model
    * becomes a section with one FlowNode per CanvasBlock.
+   *
+   * Sections carry structural / layout data only. Model-derived fields
+   * (slot, node) are read via `getModelSlotIndex` / `getModelNodeId` at
+   * display time so a rebind is picked up without a section rebuild.
    */
   private buildSectionsFromModels(): FlowSection[] {
     return Object.entries(this.models).map(([modelName, model], index) => {
@@ -138,8 +151,6 @@ export class CanvasBlocksService {
       return {
         id: sectionId,
         modelName: model.trigger_model_name || modelName,
-        slotIndex: model.slot_index ?? 0,
-        nodeId: model.node_id,
         positionIndex: index,
         nodes: model.blocks.map((block, blockIdx) => {
           const blockType = block.type;
@@ -189,6 +200,8 @@ export class CanvasBlocksService {
         node_id: string;
         slot_index: number;
         blocks: CanvasBlock[];
+        slot_module: Module | null;
+        model_error: ModelErrorEntry[];
       }
     > = {};
 
@@ -237,6 +250,11 @@ export class CanvasBlocksService {
         slot_index: model.slot_index,
         node_id: model.node_id,
         blocks,
+        // Round-trip the snapshot verbatim on recall/evaluate; Rust owns
+        // backfill for legacy sessions where this arrives as null.
+        slot_module: model.slot_module ?? null,
+        // Rust recomputes on every state change; copy incoming.
+        model_error: model.model_error ?? [],
       };
     }
 
@@ -381,6 +399,21 @@ export class CanvasBlocksService {
           : 'right';
   }
 
+  /**
+   * Snapshot the module currently installed at `(slotIndex, nodeId)`.
+   * Returns null when the slot is not present in the current slot_channel_list.
+   * Used at model-creation sites to seed `slot_module` so subsequent hardware
+   * changes surface as staleness on that specific model.
+   */
+  private snapshotSlotModule(slotIndex: number, nodeId: string): Module | null {
+    const list = this.triggerFlowDataService.getSlotChannelList();
+    const slots =
+      nodeId === 'localnode'
+        ? (list?.slots ?? [])
+        : (list?.nodes.find((n) => n.nodeId === nodeId)?.slots ?? []);
+    return slots.find((s) => s.slotId === slotIndex)?.module ?? null;
+  }
+
   newModel(modelName: string, slotIndex: number, nodeId: string) {
     if (!this.models[modelName]) {
       this.models[modelName] = {
@@ -388,8 +421,56 @@ export class CanvasBlocksService {
         slot_index: slotIndex,
         node_id: nodeId,
         blocks: [],
+        slot_module: this.snapshotSlotModule(slotIndex, nodeId),
+        // Populated by the next evaluate response from Rust.
+        model_error: [],
       };
     }
+    this.updateAndPrint();
+  }
+
+  /**
+   * Rebind an existing trigger model to a new slot / node. Updates
+   * slot_index, node_id, and refreshes the slot_module snapshot from
+   * current hardware, then ships a full-state evaluate so Rust
+   * reconciles derived error state.
+   *
+   * All entry points that reassign a model's slot (Edit Model modal,
+   * any future programmatic reassignment) must route through this to
+   * keep slot_module in sync. Bypassing leaves the model looking
+   * stale to the next evaluate response.
+   */
+  rebindModelSlot(
+    modelName: string,
+    newSlotIndex: number,
+    newNodeId: string,
+  ): void {
+    const model = this.models[modelName];
+    if (!model) {
+      console.warn(`rebindModelSlot: no model named "${modelName}"`);
+      return;
+    }
+
+    model.slot_index = newSlotIndex;
+    model.node_id = newNodeId;
+    model.slot_module = this.snapshotSlotModule(newSlotIndex, newNodeId);
+
+    // Channel selections belong to the previous slot's channels — the
+    // new slot may have those channels claimed by other models. Reset
+    // them so the user must re-pick against the new slot's availability.
+    // Rust's clamp/validator won't rewrite user-authored channel state,
+    // so if we skipped this the payload could carry over-committed or
+    // conflicting channels without any visible signal.
+    for (const block of model.blocks) {
+      for (const param of block.actual_parameters) {
+        if (param.name === 'channel_list') {
+          param.value = [];
+        } else if (param.name === 'channel_index') {
+          param.value = null;
+        }
+      }
+    }
+
     this.updateAndPrint();
   }
 
@@ -483,6 +564,9 @@ export class CanvasBlocksService {
         slot_index: slotIndex,
         node_id: nodeId,
         blocks: [],
+        slot_module: this.snapshotSlotModule(slotIndex, nodeId),
+        // Populated by the next evaluate response from Rust.
+        model_error: [],
       };
     }
 
@@ -633,6 +717,30 @@ export class CanvasBlocksService {
 
   getModels() {
     return this.models;
+  }
+
+  /**
+   * Current slot index of a model. Returns 0 when the model doesn't
+   * exist so template bindings degrade gracefully.
+   *
+   * `slot_index` and `node_id` live only on the model; `FlowSection`
+   * deliberately does not cache them, so all readers go through here.
+   * That way a rebind mutates one place and every consumer picks up
+   * the new value on the next change-detection tick.
+   */
+  getModelSlotIndex(modelName: string): number {
+    return this.models[modelName]?.slot_index ?? 0;
+  }
+
+  /** Current node id of a model. Returns `''` when the model doesn't exist. */
+  getModelNodeId(modelName: string): string {
+    return this.models[modelName]?.node_id ?? '';
+  }
+
+  /** Composite binding label, e.g. `localnode.slot[1]`. Empty when unknown. */
+  getModelBindingLabel(modelName: string): string {
+    const model = this.models[modelName];
+    return model ? `${model.node_id}.slot[${model.slot_index}]` : '';
   }
 
   // updateBlockParameters(nodeId: string, parameters: Record<string, any>): void {
@@ -892,13 +1000,14 @@ export class CanvasBlocksService {
   logIpcDataFormat(): void {
     const slot_channel_list = this.triggerFlowDataService.getSlotChannelList() || { slots: [] };
     // Build models object, omitting syntax, description, and shape from blocks
-    const filteredModels: Record<string, { trigger_model_name: string; slot_index: number; node_id: string; blocks: Record<string, unknown>[] }> = {};
+    const filteredModels: Record<string, { trigger_model_name: string; slot_index: number; node_id: string; blocks: Record<string, unknown>[]; slot_module: Module | null }> = {};
 
     for (const [modelName, model] of Object.entries(this.models)) {
       filteredModels[modelName] = {
         trigger_model_name: model.trigger_model_name,
         slot_index: model.slot_index,
         node_id: model.node_id,
+        slot_module: model.slot_module,
         blocks: model.blocks.map((block) => {
           return {
             type: block.type,
