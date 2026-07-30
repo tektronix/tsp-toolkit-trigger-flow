@@ -70,6 +70,7 @@ export class BlockParameters {
   blockTypeSvgPath = '';
   actualParameters: ActualParameter[] = [];
   blockNotes = '';
+  modelName = '';
   /**
    * Snapshot of the selected block's `trigger_block_name` value taken when
    * the right panel last loaded it. Used by `onParameterValueChange` to
@@ -88,10 +89,39 @@ export class BlockParameters {
   channelItemOptions: RadioOption[] = [];
   showDelayListModal = false;
   delayListModalDelayCount = 1;
-  delayListModalDelayDurations: number[] = [1];
+  delayListModalDelayDurations: (number | null)[] = [1];
+  delayListModalMaxDelayCount = 10000;
   selectedBlockNodeId = 'localnode';
   selectedBlockSlotIndex = 1;
   private previousDelayListConfig: DelayListConfig | null = null;
+
+  get nodeInfo(): string {
+    return `${this.selectedBlockNodeId}.slot[${this.selectedBlockSlotIndex}]`;
+  }
+
+  /**
+   * True when the owning model has a blocking `system_config` error.
+   * Disables the params body. Warning-only errors (e.g. `module_changed`)
+   * do not disable the panel.
+   */
+  isModelStale(): boolean {
+    if (!this.modelName) return false;
+    const model = this.canvasBlocksService.getModels()[this.modelName];
+    return (model?.model_error ?? []).some(([kind]) => kind === 'system_config');
+  }
+
+  /**
+   * Message for the banner shown above the disabled params body.
+   * Prefers the blocking `system_config` message when present; otherwise
+   * falls back to the first entry.
+   */
+  modelStaleTooltip(): string {
+    if (!this.modelName) return '';
+    const model = this.canvasBlocksService.getModels()[this.modelName];
+    const entries = model?.model_error ?? [];
+    const blocking = entries.find(([kind]) => kind === 'system_config');
+    return blocking?.[1] ?? entries[0]?.[1] ?? '';
+  }
 
   constructor() {
     // Reacts to both: new block added (auto-select) and existing block clicked.
@@ -99,6 +129,7 @@ export class BlockParameters {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((blockId) => {
         this.selectedBlockId = blockId;
+        this.modelName = this.canvasBlocksService.getBlockModel(blockId) || '';
         this.updateBlockControls();
       });
 
@@ -147,14 +178,14 @@ export class BlockParameters {
         this.blockTypeSvgPath = CATEGORY_ICON_PATHS[category];
       }
 
-        this.actualParameters = canvasBlock.actual_parameters;
-        // Snapshot the current name so a subsequent edit can be detected as a
-        // rename and propagated to referencing BlockReference param.
-        this.previousBlockName = this.readTriggerBlockName(this.actualParameters);
-        const linkParam = this.getPrimaryBlockReferenceParam(this.actualParameters);
-        this.previousBranchReferenceValue = linkParam?.value
-          ? String(linkParam.value)
-          : '';
+      this.actualParameters = canvasBlock.actual_parameters;
+      // Snapshot the current name so a subsequent edit can be detected as a
+      // rename and propagated to referencing BlockReference param.
+      this.previousBlockName = this.readTriggerBlockName(this.actualParameters);
+      const linkParam = this.getPrimaryBlockReferenceParam(this.actualParameters);
+      this.previousBranchReferenceValue = linkParam?.value
+        ? String(linkParam.value)
+        : '';
 
       // Resolve model context from the owning model
       const model = this.canvasBlocksService.getModelForBlock(this.selectedBlockId);
@@ -194,6 +225,13 @@ export class BlockParameters {
     }
 
     this.actualParameters = canvasBlock.actual_parameters;
+    if (this.showDelayListModal) {
+      const config = this.getDelayListConfigValue();
+      if (config) {
+        this.delayListModalDelayCount = config.delay_count;
+        this.delayListModalDelayDurations = [...config.delay_durations];
+      }
+    }
   }
 
   /**
@@ -540,8 +578,11 @@ export class BlockParameters {
     const config = this.getDelayListConfigValue() ?? this.seedDelayListConfig();
     this.delayListModalDelayCount = config.delay_count;
     this.delayListModalDelayDurations = [...config.delay_durations];
+    this.delayListModalMaxDelayCount = this.getMaxDelayCount();
     this.showDelayListModal = true;
   }
+
+
 
   onDelayListCheckedChange(checked: boolean): void {
     const listConfigParam = this.findParameter('list_config');
@@ -565,16 +606,17 @@ export class BlockParameters {
   }
 
   onDelayListCancel(): void {
-    const listConfigParam = this.findParameter('list_config');
-    if (listConfigParam) {
-      listConfigParam.value = this.previousDelayListConfig;
-    }
-
     this.showDelayListModal = false;
-    this.previousDelayListConfig = null;
   }
 
   onDelayListApply(event: DelayListModalValue): void {
+
+    this.onDelayListVerify(event);
+    this.previousDelayListConfig = null;
+
+  }
+
+  onDelayListVerify(event: DelayListModalValue): void {
     // Update local UI state (so reopening shows latest values).
     this.delayListModalDelayCount = event.delayCount;
     this.delayListModalDelayDurations = [...event.delayDurations];
@@ -586,13 +628,14 @@ export class BlockParameters {
       const updatedConfig: DelayListConfig = {
         delay_count: event.delayCount,
         delay_durations: [...event.delayDurations],
+        requested_delay_count: event.requestedDelayCount,
       };
       listConfigParam.value = updatedConfig;
     }
-
-    this.showDelayListModal = false;
-    this.previousDelayListConfig = null;
     this.onParameterValueChange();
+    const config = this.getDelayListConfigValue() ?? this.seedDelayListConfig();
+    this.delayListModalDelayCount = config.delay_count;
+    this.delayListModalDelayDurations = [...config.delay_durations];
   }
 
   private seedDelayListConfig(): DelayListConfig {
@@ -619,8 +662,17 @@ export class BlockParameters {
 
     const candidate = raw as Partial<DelayListConfig>;
     const delayCount = Number(candidate.delay_count);
+    // Preserve null entries so the modal can show cleared rows as empty and
+    // the server can emit per-row "is required" errors. Non-finite numbers
+    // are normalized to null for consistency.
     const delayDurations = Array.isArray(candidate.delay_durations)
-      ? candidate.delay_durations.map((value) => Number(value)).filter((value) => Number.isFinite(value))
+      ? candidate.delay_durations.map((value) => {
+        if (value === null || value === undefined) {
+          return null;
+        }
+        const num = Number(value);
+        return Number.isFinite(num) ? num : null;
+      })
       : [];
 
     if (!Number.isFinite(delayCount) || delayCount < 1) {
@@ -646,6 +698,18 @@ export class BlockParameters {
       delay_count: value.delay_count,
       delay_durations: [...value.delay_durations],
     };
+  }
+
+  private getMaxDelayCount(): number {
+    const catalog = this.triggerFlowDataService.catalog$();
+    const delayListConfigType = catalog?.custom_types?.['DelayListConfig'];
+    if (!delayListConfigType?.fields) {
+      return 10000; // fallback default
+    }
+
+    const delayCountField = delayListConfigType.fields.find((f) => f.name === 'delay_count');
+    const max = delayCountField?.range?.max;
+    return typeof max === 'number' ? max : 10000; // fallback default
   }
 
   private findParameter(name: string): ActualParameter | null {

@@ -15,7 +15,7 @@
       <button
         type="button"
         class="block-info-btn"
-        title="Show block information"
+        title="Show Block Information"
         [attr.aria-label]="'block-info-button'"
         (click)="onBlockInfoClick()"
       >
@@ -26,8 +26,14 @@
         </svg>
       </button>
     </header>
-
-    <div class="params-body">
+    <!-- show label of triggermodel for selected block -->
+    <span class="model-name">Trigger Model: <em>{{ modelName }}, {{nodeInfo}}</em></span>
+    @if (isModelStale()) {
+      <div class="params-stale-banner" [title]="modelStaleTooltip()" role="status">
+        Model binding is invalid. Rebind the slot to edit parameters.
+      </div>
+    }
+    <div class="params-body" [class.params-body--disabled]="isModelStale()">
       @for (param of actualParameters; track param.name) {
         @if (shouldShowInUI(param)) {
           @if (getControlType(param) === 'custom') {
@@ -73,7 +79,7 @@
           } @else if (getControlType(param) === 'select') {
             <app-dropdown
               [class.required]="param.required"
-              [label]="param.name"
+              [label]="getParameterDisplayName(param)"
               [options]="getSelectOptions(param)"
               [(ngModel)]="param.value"
               (selectedChange)="onParameterValueChange()"
@@ -145,6 +151,7 @@
                     class="delay-list-configure-btn"
                     (click)="openDelayListModal()"
                     [attr.aria-label]="'Edit List'"
+                    title="Edit"
                   >
                     Edit
                   </button>
@@ -189,8 +196,13 @@
         automationID="block-notes"
       />
 
-    <app-delay-list-modal [open]="showDelayListModal" [delayCount]="delayListModalDelayCount"
-      [delayDurations]="delayListModalDelayDurations" (cancelled)="onDelayListCancel()"
+    <app-delay-list-modal
+      [open]="showDelayListModal"
+      [delayCount]="delayListModalDelayCount"
+      [delayDurations]="delayListModalDelayDurations"
+      [maxDelayCount]="delayListModalMaxDelayCount"
+      (cancelled)="onDelayListCancel()"
+      (verifyList)="onDelayListVerify($event)"
       (applyList)="onDelayListApply($event)" />
   </div>
 </section>

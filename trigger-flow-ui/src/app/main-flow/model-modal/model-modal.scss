@@ -111,8 +111,26 @@
   cursor: pointer;
   position: relative;
 }
+
+.action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  border-color: #5a5a5a;
+  color: #7a7a7a;
+}
 // .field-error {
 //   margin-top: 4px;
 //   color: #d32f2f;
 //   font-size: 12px;
 // }
+
+.tf-modal__empty-slot-message {
+  margin: 4px 0;
+  padding: 6px 8px;
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground, var(--vscode-editor-foreground));
+  background: var(--vscode-editorWidget-background, transparent);
+  border: 1px solid var(--vscode-editorWidget-border);
+  border-radius: 4px;
+  line-height: 1.35;
+}

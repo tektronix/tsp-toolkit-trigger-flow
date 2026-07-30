@@ -34,6 +34,12 @@ export class Dropdown implements ControlValueAccessor, OnInit {
   @Input() options: string[] = [];
   @Input() disabled = false;
   /**
+   * Option label that must render as disabled and unselectable. Used to
+   * surface a stale binding inside the picker without letting the user
+   * commit to it.
+   */
+  @Input() invalidOption: string | null = null;
+  /**
    * When true, the dropdown renders with a red border to indicate the
    * current selection is not acceptable (e.g. a required block-reference
    * still set to 'unknown').
