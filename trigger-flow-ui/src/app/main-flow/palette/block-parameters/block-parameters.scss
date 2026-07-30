@@ -9,7 +9,13 @@
   overflow-y: auto;
 }
 
-::ng-deep .required > div > label:after{
+::ng-deep .required > div > label:not(.checkbox-label)::after {
+  content: "*";
+  font-style: italic;
+  color: var(--vscode-editorError-foreground, red)
+}
+
+::ng-deep .required > div > label.checkbox-label > .checkbox-text::after {
   content: "*";
   font-style: italic;
   color: var(--vscode-editorError-foreground, red)
