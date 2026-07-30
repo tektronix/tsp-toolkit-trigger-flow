@@ -568,6 +568,21 @@ export class BlockParameters {
     return this.findParameter('list_config') !== null;
   }
 
+  isDelayTimeRequired(param: ActualParameter): boolean {
+    if (param.name !== 'delay_time') {
+      return !!param.required;
+    }
+
+    return !!param.required && !this.isDelayListEnabled();
+  }
+
+  isDelayListRequired(): boolean {
+    // Default behavior: List is optional.
+    // When List mode is selected, show mandatory indicator on List while
+    // Delay Time mandatory indicator is cleared.
+    return this.hasDelayListConfig() && this.isDelayListEnabled();
+  }
+
   isDelayListEnabled(): boolean {
     const config = this.getDelayListConfigValue();
     return !!config;
