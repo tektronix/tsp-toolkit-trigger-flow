@@ -28,7 +28,12 @@
     </header>
     <!-- show label of triggermodel for selected block -->
     <span class="model-name">Trigger Model: <em>{{ modelName }}, {{nodeInfo}}</em></span>
-    <div class="params-body">
+    @if (isModelStale()) {
+      <div class="params-stale-banner" [title]="modelStaleTooltip()" role="status">
+        Model binding is invalid. Rebind the slot to edit parameters.
+      </div>
+    }
+    <div class="params-body" [class.params-body--disabled]="isModelStale()">
       @for (param of actualParameters; track param.name) {
         @if (shouldShowInUI(param)) {
           @if (getControlType(param) === 'custom') {

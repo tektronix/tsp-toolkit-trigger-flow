@@ -99,6 +99,30 @@ export class BlockParameters {
     return `${this.selectedBlockNodeId}.slot[${this.selectedBlockSlotIndex}]`;
   }
 
+  /**
+   * True when the owning model has a blocking `system_config` error.
+   * Disables the params body. Warning-only errors (e.g. `module_changed`)
+   * do not disable the panel.
+   */
+  isModelStale(): boolean {
+    if (!this.modelName) return false;
+    const model = this.canvasBlocksService.getModels()[this.modelName];
+    return (model?.model_error ?? []).some(([kind]) => kind === 'system_config');
+  }
+
+  /**
+   * Message for the banner shown above the disabled params body.
+   * Prefers the blocking `system_config` message when present; otherwise
+   * falls back to the first entry.
+   */
+  modelStaleTooltip(): string {
+    if (!this.modelName) return '';
+    const model = this.canvasBlocksService.getModels()[this.modelName];
+    const entries = model?.model_error ?? [];
+    const blocking = entries.find(([kind]) => kind === 'system_config');
+    return blocking?.[1] ?? entries[0]?.[1] ?? '';
+  }
+
   constructor() {
     // Reacts to both: new block added (auto-select) and existing block clicked.
     this.canvasBlocksService.selectedBlock$

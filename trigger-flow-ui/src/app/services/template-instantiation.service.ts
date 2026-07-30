@@ -132,8 +132,8 @@ export class TemplateInstantiationService {
                 runtimeBlockIds,
                 positions,
                 section.modelName,
-                section.slotIndex,
-                section.nodeId,
+                this.canvasBlocksService.getModelSlotIndex(section.modelName),
+                this.canvasBlocksService.getModelNodeId(section.modelName),
                 templateNameMap, 
             );
 
@@ -205,8 +205,6 @@ export class TemplateInstantiationService {
         const newSection: FlowSection = {
             id: sectionId,
             modelName,
-            slotIndex: reference.slotIndex,
-            nodeId: reference.nodeId,
             nodes: [],
             positionIndex: nextPositionIndex,
         };
@@ -255,16 +253,18 @@ export class TemplateInstantiationService {
             const paramsForType = defEntry?.parameters ?? [];
 
             const rawParams: Record<string, string | number> = {};
+            const sectionSlot = this.canvasBlocksService.getModelSlotIndex(section.modelName);
+            const sectionNode = this.canvasBlocksService.getModelNodeId(section.modelName);
             if (paramsForType.some((p) => p.name === 'slot_index')) {
-                rawParams['slot_index'] = section.slotIndex;
+                rawParams['slot_index'] = sectionSlot;
             }
 
             const normalized = normalizeParameterValues(
                 paramsForType,
                 rawParams,
                 slotChannelList,
-                section.nodeId,
-                section.slotIndex,
+                sectionNode,
+                sectionSlot,
             );
 
             const eventItem: EventListItem = { type: eventType, params: normalized };

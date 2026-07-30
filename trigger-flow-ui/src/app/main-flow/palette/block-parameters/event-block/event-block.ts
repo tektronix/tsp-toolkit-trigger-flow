@@ -4,8 +4,9 @@ import { EventDefinition, EventListItem } from '../../../../models/triggerBlock'
 import { Textbox } from '../../../../custom-controls/textbox/textbox';
 import { Dropdown } from '../../../../custom-controls/dropdown/dropdown';
 import { TriggerFlowDataService } from '../../../../services/triggerFlowDataService';
-import { SlotChannelList } from '../../../../models/slotChannelModel';
+import { Module, SlotChannelList } from '../../../../models/slotChannelModel';
 import {
+  getModuleConstrainedOptions,
   normalizeParameterValues,
   ParamConstraintLike,
   ParamControlType,
@@ -417,13 +418,14 @@ export class EventBlockComponent implements OnChanges {
   // (row-local state) rather than searching by type.
   getOptionsForEventRow(index: number, param: EventParamView): string[] {
     const eventItem = this.selectedEvents[index];
+    return this.optionsFor(param, eventItem?.params ?? {}).options;
+  }
 
-    return resolveParameterOptions(param, {
-      values: eventItem?.params ?? {},
-      slotChannelList: this.slotChannelList,
-      modelNodeId: this.modelNodeId,
-      modelSlotIndex: this.modelSlotIndex,
-    });
+  // Sibling of getOptionsForEventRow — surfaces the stored value when it
+  // isn't in the currently valid options so the picker can flag it.
+  getInvalidOptionForEventRow(index: number, param: EventParamView): string | null {
+    const eventItem = this.selectedEvents[index];
+    return this.optionsFor(param, eventItem?.params ?? {}).invalidOption;
   }
 
   // Multi-mode per-event-row parameter update.
@@ -457,12 +459,89 @@ export class EventBlockComponent implements OnChanges {
   }
 
   getOptions(type: string, param: EventParamView): string[] {
+    return this.optionsFor(param, this.getParamValues(type)).options;
+  }
+
+  // Sibling of getOptions — surfaces the stored value when it isn't in
+  // the currently valid options so the picker can flag it. Same rule as
+  // specific-event: prepend the stored value with an invalid marker
+  // instead of hiding the control or masking the stale binding.
+  getInvalidOption(type: string, param: EventParamView): string | null {
+    return this.optionsFor(param, this.getParamValues(type)).invalidOption;
+  }
+
+  /**
+   * Options plus invalid marker for one event parameter. The
+   * prepend-invalid rule is scoped to two shapes only — `slot_index` and
+   * `constraints`-carrying params (SMU/PSU). All other params fall
+   * through to `resolveParameterOptions` with their pre-existing
+   * behavior; normalize's snap-to-first ensures their stored values
+   * are always in the returned options.
+   *
+   * `validOptionsFor` deliberately bypasses the shared
+   * `resolveParameterOptions` 1..16 fallback for constrained params so
+   * a stale slot doesn't silently swap a TSP identifier for a generic
+   * numeric.
+   */
+  private optionsFor(
+    param: EventParamView,
+    values: Record<string, string | number>,
+  ): { options: string[]; invalidOption: string | null } {
+    const validOptions = this.validOptionsFor(param, values);
+
+    if (param.name === 'slot_index' || param.constraints) {
+      const stored = this.readStored(values, param.name);
+      if (stored !== '' && !validOptions.includes(stored)) {
+        return { options: [stored, ...validOptions], invalidOption: stored };
+      }
+    }
+    return { options: validOptions, invalidOption: null };
+  }
+
+  private validOptionsFor(
+    param: EventParamView,
+    values: Record<string, string | number>,
+  ): string[] {
+    if (param.name === 'slot_index') {
+      return this.validSlotOptions();
+    }
+    if (param.constraints) {
+      const slotModule = this.slotModuleFor(values['slot_index']);
+      return getModuleConstrainedOptions(param, slotModule);
+    }
     return resolveParameterOptions(param, {
-      values: this.getParamValues(type),
+      values,
       slotChannelList: this.slotChannelList,
       modelNodeId: this.modelNodeId,
       modelSlotIndex: this.modelSlotIndex,
     });
+  }
+
+  private validSlotOptions(): string[] {
+    return this.slotsForCurrentNode()
+      .filter((s) => s.module !== 'Empty')
+      .map((s) => `${s.slotId}`);
+  }
+
+  private slotModuleFor(slotVal: string | number | undefined): Module | null {
+    if (slotVal === undefined || slotVal === null || slotVal === '') return null;
+    const slotId = Number(slotVal);
+    if (!Number.isFinite(slotId)) return null;
+    return this.slotsForCurrentNode().find((s) => s.slotId === slotId)?.module ?? null;
+  }
+
+  private slotsForCurrentNode() {
+    return this.modelNodeId === 'localnode'
+      ? this.slotChannelList?.slots ?? []
+      : this.slotChannelList?.nodes?.find((n) => n.nodeId === this.modelNodeId)?.slots ?? [];
+  }
+
+  private readStored(
+    values: Record<string, string | number>,
+    name: string,
+  ): string {
+    const v = values[name];
+    return v === undefined || v === null ? '' : `${v}`;
   }
 
   private getParamValues(type: string): Record<string, string | number> {

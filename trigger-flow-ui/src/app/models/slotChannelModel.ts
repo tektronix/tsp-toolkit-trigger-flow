@@ -1,8 +1,7 @@
-export type Module = "MPSU50_2ST" | "MSMU60_2" | "Empty";
+export type Module = "MPSU50_2ST" | "MSMU60_2" | "MSMU200_2" | "Empty";
 
 export interface ISlotChannelList {
   localnode: string;
-  isValid: boolean;
   slots: ISlot[];
   nodes: INode[];
 }
@@ -26,13 +25,11 @@ export interface IChannel {
 
 export class SlotChannelList {
   localnode: string;
-  isValid: boolean;
   slots: Slot[];
   nodes: Node[];
 
   constructor(data: ISlotChannelList) {
     this.localnode = data.localnode;
-    this.isValid = data.isValid;
     this.slots = data.slots.map((slot) => new Slot(slot));
     this.nodes = data.nodes.map((node) => new Node(node));
   }
