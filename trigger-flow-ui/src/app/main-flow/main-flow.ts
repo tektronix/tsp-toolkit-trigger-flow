@@ -1,4 +1,4 @@
-import { Component, ViewChild, inject, DestroyRef, effect } from '@angular/core';
+import { Component, ViewChild, inject, DestroyRef, effect, computed, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -7,9 +7,10 @@ import { Canvas } from './canvas/canvas';
 import { SidePanelAccordion } from './palette/side-panel-accordion/side-panel-accordion';
 import { BlockParameters } from './palette/block-parameters/block-parameters';
 import { ModelModal, ModelModalValue, ModelSlotOption } from './model-modal/model-modal';
-import { TriggerFlowDataService } from '../services/triggerFlowDataService';
+import { EditModelModal, EditModelValue } from './edit-model-modal/edit-model-modal';
 import { CanvasBlocksService, vscode } from '../services/canvas-blocks.service';
 import { ModelResourceAllocationService } from '../services/model-resource-allocation.service';
+import { SlotBindingHelperService } from '../services/slot-binding-helper.service';
 import {
   ModelSettingsModal,
   ModelSettingsItem,
@@ -26,6 +27,7 @@ import {
     SidePanelAccordion,
     BlockParameters,
     ModelModal,
+    EditModelModal,
     ModelSettingsModal,
   ],
   templateUrl: './main-flow.html',
@@ -46,14 +48,74 @@ export class MainFlow {
   showModelSettingsModal = false;
 
   modelSettingsList: ModelSettingsItem[] = [];
+  modelSettingsMaxModels = 0;
 
-  slotOptions: ModelSlotOption[] = [];
+  // Edit Model modal state. Buffered locally so Cancel/X discards
+  // without any server round-trip; OK routes through
+  // `canvasBlocksService.rebindModelSlot(...)` for the single evaluate.
+  // `editingModelName` is the trigger — all other editing-* views
+  // derive reactively from it plus `slotOptions()`, so mid-modal
+  // hardware updates flow through automatically.
+  showEditModelModal = false;
+  readonly editingModelName = signal<string>('');
+
+  /** Current bound slot from the model (recomputed on canvas changes). */
+  readonly editingSlot = computed<number>(() => {
+    const name = this.editingModelName();
+    if (!name) return 1;
+    this.canvasBlocksService.sections();
+    return this.canvasBlocksService.getModels()[name]?.slot_index ?? 1;
+  });
+
+  readonly editingNodeId = computed<string>(() => {
+    const name = this.editingModelName();
+    if (!name) return '';
+    this.canvasBlocksService.sections();
+    return this.canvasBlocksService.getModels()[name]?.node_id ?? '';
+  });
+
+  /**
+   * Valid options offered by the Edit Model picker. Excludes the
+   * currently-editing model's own reservations so a model that fills
+   * its own slot's channels doesn't disqualify its own bound slot.
+   */
+  readonly editingSlotOptions = computed<ModelSlotOption[]>(() => {
+    const name = this.editingModelName();
+    if (!name) return this.slotOptions();
+    return this.slotBindingHelper.validOptions(name);
+  });
+
+  /**
+   * Non-null when the model's current binding is not in
+   * `editingSlotOptions()`. Recomputes whenever the model or the valid
+   * options list changes so mid-modal healing / breakage surfaces in
+   * real time.
+   */
+  readonly editingInvalidLabel = computed<string | null>(() => {
+    const name = this.editingModelName();
+    if (!name) return null;
+    this.canvasBlocksService.sections();
+    const model = this.canvasBlocksService.getModels()[name];
+    if (!model) return null;
+    const valid = this.editingSlotOptions();
+    const currentIsValid = valid.some(
+      (o) => o.slot === model.slot_index && o.nodeId === model.node_id,
+    );
+    return currentIsValid
+      ? null
+      : `${model.node_id}.slot[${model.slot_index}]`;
+  });
+
+  /** Reactive list of slots available for a new model binding. */
+  readonly slotOptions = computed<ModelSlotOption[]>(() =>
+    this.computeSlotOptions(),
+  );
 
   existingModelNames: string[] = [];
 
-  private readonly triggerFlowDataService = inject(TriggerFlowDataService);
   private readonly canvasBlocksService = inject(CanvasBlocksService);
   private readonly modelResourceAllocationService = inject(ModelResourceAllocationService);
+  private readonly slotBindingHelper = inject(SlotBindingHelperService);
   private readonly destroyRef = inject(DestroyRef);
 
   constructor() {
@@ -77,6 +139,24 @@ export class MainFlow {
         this.refreshModelSettingsList();
       }
     });
+
+    // Keep the current selection valid as slotOptions changes. When the
+    // user's pick disappears (hardware change while modal is open),
+    // snap to the first available option.
+    effect(() => {
+      const options = this.slotOptions();
+      if (!this.showModelModal) {
+        return;
+      }
+      const currentStillValid = options.some(
+        (o) => o.slot === this.modelSlot && o.nodeId === this.modelNodeId,
+      );
+      if (!currentStillValid) {
+        const first = options[0];
+        this.modelSlot = first?.slot ?? 1;
+        this.modelNodeId = first?.nodeId ?? '';
+      }
+    });
   }
 
   toggleSidebar(): void {
@@ -88,7 +168,7 @@ export class MainFlow {
   }
 
   addNewTriggerModel(): void {
-    this.loadSlotOptions();
+    this.initModelSelection();
 
     this.refreshExistingModelNames();
 
@@ -122,7 +202,7 @@ export class MainFlow {
     suggestedSlot: number;
     notes: string;
   }): void {
-    this.loadSlotOptions();
+    this.initModelSelection();
 
     this.refreshExistingModelNames();
 
@@ -182,57 +262,13 @@ export class MainFlow {
     }
   }
 
-  private loadSlotOptions(): void {
-    const slotChannelList = this.triggerFlowDataService.getSlotChannelList();
+  private computeSlotOptions(): ModelSlotOption[] {
+    return this.slotBindingHelper.validOptions();
+  }
 
-    if (!slotChannelList) {
-      this.slotOptions = [];
-      return;
-    }
-
-    const options: ModelSlotOption[] = [];
-
-    // localnode slots
-    for (const slot of slotChannelList.slots ?? []) {
-      if (slot.module !== 'Empty') {
-        options.push({
-          label: `localnode.slot[${slot.slotId}]`,
-          slot: slot.slotId,
-          nodeId: 'localnode',
-        });
-      }
-    }
-
-    // child node slots (derive display index from nodeId)
-    for (const node of slotChannelList.nodes ?? []) {
-      // // Example: "node2" -> 2, "N3" -> 3, fallback to original nodeId label
-      // const parsedNodeIndex = Number.parseInt(String(node.nodeId).replace(/\D/g, ''), 10);
-      // const nodeLabel =
-      //   Number.isFinite(parsedNodeIndex) && parsedNodeIndex > 0
-      //     ? `node${parsedNodeIndex}`
-      //     : `node.${node.nodeId}`;
-
-      for (const slot of node.slots ?? []) {
-        if (slot.module !== 'Empty') {
-          options.push({
-            label: `${node.nodeId}.slot[${slot.slotId}]`,
-            slot: slot.slotId,
-            nodeId: node.nodeId,
-          });
-        }
-      }
-    }
-
-    // Hide slots that have already reached the per-slot model cap or whose
-    // channels are fully claimed. Keeps the dropdown in sync with current
-    // canvas state every time the modal is opened.
-    this.slotOptions = options.filter((o) =>
-      this.modelResourceAllocationService.canCreateNewModelOnSlot(o.nodeId, o.slot),
-    );
-
-    // Always pick the first available slot from slotOptions; suggestedSlot is
-    // just a number and has no direct relevance to slotChannelList.
-    const first = this.slotOptions[0];
+  /** Seed the modal's selection from the current slotOptions on open. */
+  private initModelSelection(): void {
+    const first = this.slotOptions()[0];
     this.modelSlot = first?.slot ?? 1;
     this.modelNodeId = first?.nodeId ?? '';
   }
@@ -247,9 +283,11 @@ export class MainFlow {
     this.modelSettingsList = this.canvasBlocksService.sections().map((section) => ({
       id: section.id,
       modelName: section.modelName,
-      nodeId: section.nodeId,
-      slotIndex: section.slotIndex,
+      nodeId: this.canvasBlocksService.getModelNodeId(section.modelName),
+      slotIndex: this.canvasBlocksService.getModelSlotIndex(section.modelName),
     }));
+
+    this.modelSettingsMaxModels = this.modelResourceAllocationService.getMaxModels();
   }
 
   closeModelSettings(): void {
@@ -283,7 +321,29 @@ export class MainFlow {
   }
 
   onEditModel(item: ModelSettingsItem): void {
-    console.warn('Edit model:', item);
+    const model = this.canvasBlocksService.getModels()[item.modelName];
+    if (!model) {
+      console.warn(`onEditModel: no model named "${item.modelName}"`);
+      return;
+    }
+
+    this.editingModelName.set(model.trigger_model_name);
+
+    this.showEditModelModal = true;
+    this.showModelSettingsModal = false;
+  }
+
+  onEditModelSave(value: EditModelValue): void {
+    this.canvasBlocksService.rebindModelSlot(
+      this.editingModelName(),
+      value.slot,
+      value.nodeId,
+    );
+    this.showEditModelModal = false;
+  }
+
+  onEditModelCancel(): void {
+    this.showEditModelModal = false;
   }
 
   openScript(): void {

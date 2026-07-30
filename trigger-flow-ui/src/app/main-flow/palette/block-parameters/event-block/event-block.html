@@ -41,6 +41,7 @@
                 <app-dropdown
                   [label]="getParamLabel(param)"
                   [options]="getOptions(type, param)"
+                  [invalidOption]="getInvalidOption(type, param)"
                   [selected]="getParamValue(type, param.name)"
                   [disabled]="!isSelected(type)"
                   (selectedChange)="updateParam(type, param.name, $event)"
@@ -81,6 +82,7 @@
                   <app-dropdown
                     [label]="getParamLabel(param)"
                     [options]="getOptionsForEventRow(i, param)"
+                    [invalidOption]="getInvalidOptionForEventRow(i, param)"
                     [selected]="getParamValueForEventRow(i, param.name)"
                     (selectedChange)="updateParamForEventRow(i, param.name, $event)"
                     [automationID]="'Dropdown-Event-' + i + '-' + row.event.type + '-' + param.name"

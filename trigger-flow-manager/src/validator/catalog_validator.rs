@@ -16,6 +16,12 @@ impl Validator for CatalogValidator {
         use std::collections::HashSet;
         //iterate over the models in triggerflow state
         for model_state in state.models.iter_mut() {
+            // Skip models whose binding is broken (SystemConfig error kind).
+            // Their saved param values must not be clamped against hardware
+            // they were not bound against.
+            if model_state.1.has_system_config_error() {
+                continue;
+            }
             // Uniqueness check for block names (non-empty only)
             let mut seen_names = HashSet::new();
 

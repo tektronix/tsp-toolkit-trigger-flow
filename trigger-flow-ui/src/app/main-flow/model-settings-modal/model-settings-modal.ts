@@ -27,7 +27,8 @@ export class ModelSettingsModal {
 
   @Input() models: ModelSettingsItem[] = [];
 
-  readonly maxModels = 6;
+  // Should be derived from installed non-empty slots and their channel count.
+  @Input() maxModels = 0;
 
   get isAddDisabled(): boolean {
     return this.models.length >= this.maxModels;
