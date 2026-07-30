@@ -76,6 +76,7 @@ export class DelayListModal implements OnChanges {
     // list always has at least one entry.
     this.localDelayCount = this.sanitizeDelayCount(parsed);
     this.localDelayDurations = this.resizeRows(this.localDelayDurations, this.localDelayCount);
+    this.onApply();
   }
 
   onDelayDurationChange(index: number, value: number | null): void {
@@ -86,6 +87,7 @@ export class DelayListModal implements OnChanges {
       delayCount: this.localDelayCount,
       delayDurations: [...this.localDelayDurations],
     });
+    this.onApply();
   }
 
   onCancel(): void {

@@ -606,19 +606,12 @@ export class BlockParameters {
   }
 
   onDelayListCancel(): void {
-    const listConfigParam = this.findParameter('list_config');
-    if (listConfigParam) {
-      listConfigParam.value = this.previousDelayListConfig;
-    }
-
     this.showDelayListModal = false;
-    this.previousDelayListConfig = null;
   }
 
   onDelayListApply(event: DelayListModalValue): void {
 
     this.onDelayListVerify(event);
-    this.showDelayListModal = false;
     this.previousDelayListConfig = null;
 
   }
