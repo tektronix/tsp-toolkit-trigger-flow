@@ -22,7 +22,7 @@
       </div>
 
       <!-- Collapse button on right -->
-      <button class="collapse-btn" (click)="toggleSidebar()" [attr.aria-label]="'left-panel-collapse-button'">
+      <button class="collapse-btn" (click)="toggleSidebar()" [attr.aria-label]="'left-panel-collapse-button'" title="{{sidebarCollapsed ? 'Show Panel' : 'Hide Panel'}}">
         <mat-icon>{{ sidebarCollapsed ? 'chevron_right' : 'chevron_left' }}</mat-icon>
       </button>
     </div>
@@ -42,7 +42,7 @@
       [slot]="modelSlot"
       [nodeId]="modelNodeId"
       [notes]="modelNotes"
-      [slotOptions]="slotOptions"
+      [slotOptions]="slotOptions()"
       (slotChanged)="onModelModalSlotChanged($event)"
       (closeWithValue)="onModelModalClose($event)"
       (deleteClicked)="onModelModalDelete()"
@@ -52,11 +52,23 @@
     <app-model-settings-modal
       [open]="showModelSettingsModal"
       [models]="modelSettingsList"
+      [maxModels]="modelSettingsMaxModels"
       (close)="closeModelSettings()"
       (addModel)="onAddModelFromSettings()"
       (deleteModel)="onDeleteModel($event)"
       (editModel)="onEditModel($event)">
     </app-model-settings-modal>
+
+    <app-edit-model-modal
+      [open]="showEditModelModal"
+      [modelName]="editingModelName()"
+      [currentSlot]="editingSlot()"
+      [currentNodeId]="editingNodeId()"
+      [slotOptions]="editingSlotOptions()"
+      [invalidCurrentLabel]="editingInvalidLabel()"
+      (save)="onEditModelSave($event)"
+      (closed)="onEditModelCancel()">
+    </app-edit-model-modal>
   </main>
   <aside
     class="parameters-sidebar"
@@ -68,7 +80,7 @@
         class="parameters-collapse-btn"
         (click)="toggleParametersSidebar()"
         [attr.aria-label]="'right-panel-collapse-button'"
-        title="{{ parametersCollapsed ? 'Expand' : 'Collapse' }}"
+        title="{{ parametersCollapsed ? 'Show Panel' : 'Hide Panel' }}"
       >
         <mat-icon>{{ parametersCollapsed ? 'chevron_left' : 'chevron_right' }}</mat-icon>
       </button>

@@ -9,6 +9,7 @@
             <app-dropdown
               [label]="p.label"
               [options]="p.options"
+              [invalidOption]="p.invalidOption"
               [(ngModel)]="p.selected"
               (selectedChange)="onChange(p.name, $event)"
               [attr.aria-label]="'dropdown-' + p.name"

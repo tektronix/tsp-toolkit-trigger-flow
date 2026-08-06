@@ -1,0 +1,44 @@
+schema: spec-driven
+
+context: |
+  Cargo workspace with two crates plus an Angular UI and an external consumer:
+    - kic-trigger-flow: binary that owns the HTTP+WebSocket server (127.0.0.1:27951)
+      and reads newline-delimited JSON on stdin. Entry: kic-trigger-flow/src/main.rs.
+    - trigger-flow-manager: library with domain types, validators, script gen.
+    - trigger-flow-ui: Angular app served by the binary, talks WebSocket only.
+    - External: tsp-toolkit (C:\git\Boxcar\tsp-toolkit) VS Code extension spawns
+      the binary and writes system config, session paths, and reset signals to
+      its stdin.
+
+  Two transports, one shared TriggerFlowState (Mutex):
+    - stdin (from tsp-toolkit): Systems, SessionPath, SessionData, ResetSession,
+      Shutdown - see kic-trigger-flow/src/back_end/stdin_line.rs.
+    - WebSocket (from Angular UI): IpcData -> RequestType (InitialRequest,
+      EvaluateRequest, RecallRequest).
+
+  Wire vs domain type split in trigger-flow-manager/src/api/slot_channel_list.rs:
+    - Wire: Systems / SystemConfigJson / SlotJson / NodeJson mirror the JSON.
+    - Domain: SlotChannelList / Slot / Nodes / Channel with SlotIndex(u8),
+      ChannelIndex(u8), Module enum. TryFrom<&SlotJson> for Slot and
+      TryFrom<&NodeJson> for Nodes do all validation. Channels are synthesized
+      (always 2 per slot).
+
+  Module strings: JSON "MPSU50-2ST" / "MSMU60-2" / "Empty" (hyphen).
+  Enum serializes as "MPSU50_2ST" / "MSMU60_2" (underscore). Must update
+  the TryFrom match AND the serde rename when adding modules.
+
+  MP5 rule: if active system localNode starts with "MP5" AND at least one
+  local slot has a non-Empty module, incoming nodes[] is dropped.
+
+  Style: comments formal and plain; short single-line where possible; explain
+  non-obvious "why" only; no first-person, no PR-description narration.
+
+rules:
+  proposal:
+    - Keep under 500 words. Focus on why and what, not how.
+    - Always identify affected specs in Capabilities.
+  tasks:
+    - Group by phase or subsystem; number groups.
+    - Each task must be verifiable in one sitting.
+  design:
+    - Include a Decisions section with alternatives considered.

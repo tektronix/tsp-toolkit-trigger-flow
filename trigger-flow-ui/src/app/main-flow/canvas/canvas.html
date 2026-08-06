@@ -23,10 +23,11 @@
     <div class="section-group" fGroup [fGroupId]="section.id" [fGroupPosition]="section.position"
       [fGroupSize]="section.size" [fGroupDraggingDisabled]="true" [fGroupSelectionDisabled]="true"
       [attr.data-section-id]="section.id" [aria-label]="'Section-' + section.modelName">
-      <div class="section-title">
+      <div class="section-title"
+        [class.section-title--has-model-error]="getSectionHasModelError(section.modelName)">
         <div class="title-left">
           <span class="title-chip title-chip-primary">{{ section.modelName }}</span>
-          <span class="title-chip">{{section.nodeId}}.slot[{{section.slotIndex}}]</span>
+          <span class="title-chip">{{ getModelBindingLabel(section.modelName) }}</span>
         </div>
         <div class="title-right">
           <button type="button" class="title-btn" [attr.aria-label]="'Model-Errors-' + section.modelName"
@@ -59,7 +60,7 @@
             (keydown.enter)="onNodeClick(node.blockId)" [attr.data-block-id]="node.blockId"
             [attr.data-section-id]="node.sectionId">
             <div class="node-content">
-              <svg-icon [src]="node.svgPath" class="node-svg {{node.blockType}}" fDragHandle >
+              <svg-icon [src]="node.svgPath" [appSvgIdNamespace]="node.blockId" class="node-svg {{node.blockType}}" fDragHandle >
               </svg-icon>
               @if (hasInputConnector(node)) {
               <div fNodeInput [fInputId]="node.blockId + '-in'" [fInputConnectableSide]="getInputDirection(node)"

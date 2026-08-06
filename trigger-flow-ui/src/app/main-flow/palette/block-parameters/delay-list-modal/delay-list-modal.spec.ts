@@ -94,9 +94,17 @@ describe('DelayListModal', () => {
   it('should update delay value on input change', () => {
     component.localDelayDurations = [1, 2, 3];
 
-    component.updateDelayDuration(1, '5.5');
+    component.onDelayDurationChange(1, 5.5);
 
     expect(component.localDelayDurations[1]).toBe(5.5);
+  });
+
+  it('should store null when a delay cell is cleared', () => {
+    component.localDelayDurations = [1, 2, 3];
+
+    component.onDelayDurationChange(1, null);
+
+    expect(component.localDelayDurations[1]).toBeNull();
   });
 
   it('should adjust delay rows when delayCount changes', () => {

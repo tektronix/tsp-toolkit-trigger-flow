@@ -1,0 +1,60 @@
+@if (open) {
+  <div class="tf-modal-backdrop">
+    <section
+      #modalRoot
+      class="tf-modal"
+      role="dialog"
+      aria-modal="true"
+      [attr.aria-label]="'Edit-Model'"
+      (keydown)="onModalKeyDown($event)">
+      <header class="tf-modal__header">
+        <h2>Edit Model</h2>
+        <button type="button" class="icon-btn" (click)="onCancel()"
+          automationID="Button-Close-Edit-Model" title="Close">
+          <img class="icon-img" src="assets/shapes/Icons/X.svg" alt="Close"
+            [attr.aria-label]="'Close-Edit-Model'"/>
+        </button>
+      </header>
+
+      <div class="tf-modal__body">
+
+        <div class="tf-modal__divider tf-modal__divider--header"></div>
+
+        <app-textbox
+          label="Name"
+          [ngModel]="modelName"
+          [disabled]="true"
+          automationID="Input-Edit-Model-Name">
+        </app-textbox>
+
+        <app-dropdown
+          label="Slot"
+          [options]="slotOptionsAsString"
+          [invalidOption]="invalidDropdownLabel"
+          [(ngModel)]="pendingSlotLabel"
+          automationID="Edit-Model-Slot-Selection">
+        </app-dropdown>
+        @if (onlyInvalidVisible) {
+          <p class="tf-modal__empty-slot-message" role="status">
+            No other valid slots available; reconfigure hardware to rebind.
+          </p>
+        }
+
+        <div class="tf-modal__divider tf-modal__divider--notes"></div>
+
+        <div class="tf-modal__footer-icons">
+          <button
+            type="button"
+            class="action-btn"
+            [title]="saveDisabledReason"
+            [attr.aria-label]="'Save-Edit-Model'"
+            [disabled]="disableSave"
+            (click)="onSave()"
+            automationID="Button-Save-Edit-Model">
+            OK
+          </button>
+        </div>
+      </div>
+    </section>
+  </div>
+}

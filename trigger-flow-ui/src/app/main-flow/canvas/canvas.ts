@@ -15,6 +15,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { AngularSvgIconModule } from 'angular-svg-icon';
+import { SvgIdNamespaceDirective } from '../../directives/svg-id-namespace.directive';
 import { CanvasBlocksService } from '../../services/canvas-blocks.service';
 import { TriggerFlowDataService } from '../../services/triggerFlowDataService';
 import { TemplateInstantiationService } from '../../services/template-instantiation.service';
@@ -34,38 +35,38 @@ import { DEBUG } from '../../debug';
 const DEFAULT_HIDDEN_SELECTORS: string[] = [
   ...(() => {
     const selectors: string[] = [];
-    for (const any_all of ['.EventsAll', '.EventsAny']) {
+    for (const any_all of ['EventsAll', 'EventsAny']) {
       selectors.push(any_all);
-      for (const event of ['.Event1', '.Event2', '.Event3', '.Event4']) {
+      for (const event of ['Event1', 'Event2', 'Event3', 'Event4']) {
         selectors.push(event);
-        selectors.push([any_all, event].join(' '));
+        selectors.push([any_all, event].join('+'));
         for (const type of [
-          '.DigitalIO',
-          '.TSPLink',
-          '.Notify',
-          '.Blender',
-          '.Generator',
-          '.Timer',
-          '.AtLimit',
+          'DigitalIO',
+          'TSPLink',
+          'Notify',
+          'Blender',
+          'Generator',
+          'Timer',
+          'AtLimit',
         ]) {
-          selectors.push([event, type].join(' '));
-          selectors.push([any_all, event, type].join(' '));
+          selectors.push([event, type].join('+'));
+          selectors.push([any_all, event, type].join('+'));
           for (let s = 1; s <= 3; s++) {
             for (let c = 1; c <= 2; c++) {
-              const str = `.s${s}c${c}`;
-              selectors.push([event, type, str].join(' '));
-              selectors.push([any_all, event, type, str].join(' '));
+              const str = `s${s}c${c}`;
+              selectors.push([event, type, str].join('+'));
+              selectors.push([any_all, event, type, str].join('+'));
             }
             for (let id = 1; id <= 16; id++) {
-              const str = `.s${s}id${id}`;
-              selectors.push([event, type, str].join(' '));
-              selectors.push([any_all, event, type, str].join(' '));
+              const str = `s${s}id${id}`;
+              selectors.push([event, type, str].join('+'));
+              selectors.push([any_all, event, type, str].join('+'));
             }
           }
           for (let n = 1; n <= 18; n++) {
-            const str = `._${n}`;
-            selectors.push([event, type, str].join(' '));
-            selectors.push([any_all, event, type, str].join(' '));
+            const str = `_${n}`;
+            selectors.push([event, type, str].join('+'));
+            selectors.push([any_all, event, type, str].join('+'));
           }
         }
       }
@@ -110,8 +111,6 @@ interface FlowCanvasEvent {
 export interface FlowSection {
   id: string;
   modelName: string;
-  slotIndex: number;
-  nodeId: string;
   nodes: FlowNode[];
   /**
    * Stable horizontal slot assigned at creation time. Used to compute the
@@ -139,7 +138,7 @@ interface InsertionIndicator {
 
 @Component({
   selector: 'app-canvas',
-  imports: [FFlowModule, CommonModule, AngularSvgIconModule],
+  imports: [FFlowModule, CommonModule, AngularSvgIconModule, SvgIdNamespaceDirective],
   templateUrl: './canvas.html',
   styleUrl: './canvas.scss',
 })
@@ -312,9 +311,9 @@ export class Canvas implements AfterViewInit {
       });
   }
 
-  // Single pass over `models$` builds both the per-model summary (for
-  // section-header error styling) and the per-block index (for node-level
-  // error styling).
+  // Builds per-model summary and per-block index in a single pass.
+  // The section header shows both model and block errors; model errors
+  // first, then block errors.
   private readonly errorMaps = computed<{
     modelSummary: Record<string, { hasError: boolean; tooltip: string }>;
     blockIndex: Record<string, { hasError: boolean; tooltip: string }>;
@@ -324,8 +323,18 @@ export class Canvas implements AfterViewInit {
     const blockIndex: Record<string, { hasError: boolean; tooltip: string }> = {};
 
     for (const [modelName, model] of Object.entries(models)) {
-      const lines: string[] = [];
+      const modelLines: string[] = [];
+      const blockLines: string[] = [];
       let hasAnyError = false;
+
+      // Model-level errors (Rust-owned, from TriggerModelState::model_error).
+      const modelErrors = model.model_error ?? [];
+      if (modelErrors.length > 0) {
+        hasAnyError = true;
+        for (const [, msg] of modelErrors) {
+          modelLines.push(msg);
+        }
+      }
 
       for (const block of model.blocks) {
         const hasError = this.hasBlockErrorItems(block.block_error);
@@ -336,7 +345,7 @@ export class Canvas implements AfterViewInit {
         }
 
         for (const message of messages) {
-          lines.push(`${block.block_id} - ${message}`);
+          blockLines.push(`${block.block_id} - ${message}`);
         }
 
         blockIndex[block.block_id] = {
@@ -345,11 +354,18 @@ export class Canvas implements AfterViewInit {
         };
       }
 
-      modelSummary[modelName] = {
-        hasError: hasAnyError,
-        tooltip:
-          lines.length > 0 ? lines.join('\n') : hasAnyError ? 'Validation errors found' : '',
-      };
+      // Model errors first; blank line separator only when both sides present.
+      const tooltipParts: string[] = [];
+      if (modelLines.length > 0) tooltipParts.push(modelLines.join('\n'));
+      if (blockLines.length > 0) tooltipParts.push(blockLines.join('\n'));
+      const tooltip =
+        tooltipParts.length > 0
+          ? tooltipParts.join('\n\n')
+          : hasAnyError
+            ? 'Validation errors found'
+            : '';
+
+      modelSummary[modelName] = { hasError: hasAnyError, tooltip };
     }
 
     return { modelSummary, blockIndex };
@@ -395,8 +411,6 @@ export class Canvas implements AfterViewInit {
     const newSection: FlowSection = {
       id: sectionId,
       modelName,
-      slotIndex: result.slot,
-      nodeId: result.nodeId,
       nodes: [],
       positionIndex: nextPositionIndex,
     };
@@ -609,8 +623,8 @@ export class Canvas implements AfterViewInit {
       newNode.catalogLabel || newNode.svgPath,
       newNode.position,
       section.modelName,
-      section.slotIndex,
-      section.nodeId,
+      this.canvasBlocksService.getModelSlotIndex(section.modelName),
+      this.canvasBlocksService.getModelNodeId(section.modelName),
     );
 
     // Reflow after mount/render so real SVG geometry can be measured for centering.
@@ -1192,58 +1206,58 @@ export class Canvas implements AfterViewInit {
     }
     switch (eventType) {
       case 'event_at_limit': {
-        const type = '.AtLimit';
-        visibleGroups.push([parentSelector, type].join(' '));
+        const type = 'AtLimit';
+        visibleGroups.push([parentSelector, type].join('+'));
         const channel = eventParam.params?.['channel_index'];
         const slot = eventParam.params?.['slot_index'];
         if (channel && slot) {
-          visibleGroups.push([parentSelector, type, `.s${slot}c${channel}`].join(' '));
+          visibleGroups.push([parentSelector, type, `s${slot}c${channel}`].join('+'));
         }
         break;
       }
       case 'event_tsplink': {
-        const type = '.TSPLink';
-        visibleGroups.push([parentSelector, type].join(' '));
+        const type = 'TSPLink';
+        visibleGroups.push([parentSelector, type].join('+'));
         const triggerLine = eventParam.params?.['trigger_line'];
         if (triggerLine) {
-          visibleGroups.push([parentSelector, type, `._${triggerLine}`].join(' '));
+          visibleGroups.push([parentSelector, type, `_${triggerLine}`].join('+'));
         }
         break;
       }
       case 'event_timer': {
-        const type = '.Timer';
-        visibleGroups.push([parentSelector, type].join(' '));
+        const type = 'Timer';
+        visibleGroups.push([parentSelector, type].join('+'));
         const timer = eventParam.params?.['trigger_timer_number'];
         if (timer) {
-          visibleGroups.push([parentSelector, type, `._${timer}`].join(' '));
+          visibleGroups.push([parentSelector, type, `_${timer}`].join('+'));
         }
         break;
       }
       case 'event_generator': {
-        const type = '.Generator';
-        visibleGroups.push([parentSelector, type].join(' '));
+        const type = 'Generator';
+        visibleGroups.push([parentSelector, type].join('+'));
         const generator = eventParam.params?.['generator_number'];
         if (generator) {
-          visibleGroups.push([parentSelector, type, `._${generator}`].join(' '));
+          visibleGroups.push([parentSelector, type, `_${generator}`].join('+'));
         }
         break;
       }
       case 'event_digio': {
-        const type = '.DigitalIO';
-        visibleGroups.push([parentSelector, type].join(' '));
+        const type = 'DigitalIO';
+        visibleGroups.push([parentSelector, type].join('+'));
         const digioLine = eventParam.params?.['digio_trigger_line'];
         if (digioLine) {
-          visibleGroups.push([parentSelector, type, `._${digioLine}`].join(' '));
+          visibleGroups.push([parentSelector, type, `_${digioLine}`].join('+'));
         }
         break;
       }
       case 'event_notify_n': {
-        const type = '.Notify';
-        visibleGroups.push([parentSelector, type].join(' '));
+        const type = 'Notify';
+        visibleGroups.push([parentSelector, type].join('+'));
         const slot = eventParam.params?.['slot_index'];
         const eventNum = eventParam.params?.['notify_event_number'];
         if (slot && eventNum) {
-          visibleGroups.push([parentSelector, type, `.s${slot}id${eventNum}`].join(' '));
+          visibleGroups.push([parentSelector, type, `s${slot}id${eventNum}`].join('+'));
         }
         break;
       }
@@ -1255,7 +1269,7 @@ export class Canvas implements AfterViewInit {
     showGroupSelectors: string[];
   } {
     // Generate all groups that might have toggle-able visibility
-    const hideGroupSelectors: string[] = DEFAULT_HIDDEN_SELECTORS;
+    const hideGroupSelectors: string[] = DEFAULT_HIDDEN_SELECTORS.map((e) => {return `${node.blockId}+${e}`});
     const showGroupSelectors: string[] = [];
 
     // TODO: Implement your rule selection here.
@@ -1287,9 +1301,9 @@ export class Canvas implements AfterViewInit {
           ) {
             const type = event_id.value?.type;
             if (type) {
-              showGroupSelectors.push('.Event1');
+              showGroupSelectors.push('Event1');
               showGroupSelectors.push(
-                ...this.svgVisibleGroupsFromActualParams(type, event_id.value, '.Event1'),
+                ...this.svgVisibleGroupsFromActualParams(type, event_id.value, `${node.blockId}+Event1`),
               );
             }
           }
@@ -1300,7 +1314,7 @@ export class Canvas implements AfterViewInit {
           const event_id = block.actual_parameters.find((param) => param.name === 'event');
           let logic = block.actual_parameters.find((param) => param.name === 'Logic')?.value;
           if (logic && typeof logic === 'string') {
-            logic = logic === 'AND' ? '.EventsAny' : '.EventsAll';
+            logic = logic === 'AND' ? `${node.blockId}+EventsAny` : `${node.blockId}+EventsAll`;
             showGroupSelectors.push(logic)
           }
 
@@ -1323,12 +1337,12 @@ export class Canvas implements AfterViewInit {
                 if (count > 4) {
                   continue;
                 }
-                showGroupSelectors.push([logic, `.Event${count}`].join(' '));
+                showGroupSelectors.push([logic, `Event${count}`].join('+'));
                 showGroupSelectors.push(
                   ...this.svgVisibleGroupsFromActualParams(
                     type,
                     event,
-                    [logic, `.Event${count}`].join(' '),
+                    [logic, `Event${count}`].join('+'),
                   ),
                 );
               }
@@ -1353,12 +1367,14 @@ export class Canvas implements AfterViewInit {
     if (!groupQueries.length) {
       return;
     }
-    if (DEBUG) console.warn('groupQueries', groupQueries);
+    //if (DEBUG) console.warn('groupQueries', groupQueries);
     for (const query of groupQueries) {
-      svgRoot.querySelectorAll(`g ${query}`).forEach((g) => {
-        if(!hidden) {console.warn("Showing", g)}
+      const g = document.getElementById(query);
+      // if (!hidden) { console.warn("Showing",query, g) }
+      // else {console.warn("Hiding:", query, g)}
+      if (g) {
         g.classList.toggle('hidden', hidden);
-      });
+      }
     }
   }
 
@@ -1445,7 +1461,7 @@ export class Canvas implements AfterViewInit {
       selectedFromCanvas.length > 0
         ? selectedFromCanvas
         : selectedFromService &&
-            this.sectionNodes().some((node) => node.blockId === selectedFromService)
+          this.sectionNodes().some((node) => node.blockId === selectedFromService)
           ? [selectedFromService]
           : [];
 
@@ -1542,8 +1558,26 @@ export class Canvas implements AfterViewInit {
     return this.modelErrorSummary()[modelName]?.hasError ?? false;
   }
 
+  /**
+   * Composite `node.slot[N]` label rendered in the section title chip.
+   * Reads live from the model so a rebind is picked up on the next
+   * change-detection tick without touching the sections signal.
+   */
+  getModelBindingLabel(modelName: string): string {
+    return this.canvasBlocksService.getModelBindingLabel(modelName);
+  }
+
   getSectionErrorTooltip(modelName: string): string {
     return this.modelErrorSummary()[modelName]?.tooltip ?? 'No validation errors';
+  }
+
+  /**
+   * True when the model carries a blocking `system_config` error.
+   * Drives the red border on the section header.
+   */
+  getSectionHasModelError(modelName: string): boolean {
+    const model = this.canvasBlocksService.getModels()[modelName];
+    return (model?.model_error ?? []).some(([kind]) => kind === 'system_config');
   }
 
   hasNodeError(blockId: string): boolean {

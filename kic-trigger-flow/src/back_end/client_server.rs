@@ -50,6 +50,21 @@ impl AppState {
     }
 }
 
+/// True when the response should trigger downstream script generation.
+///
+/// Fires whenever the payload is well-formed and carries no top-level `error`
+/// key. `empty_system_config_error` is treated the same as `evaluate_response`
+/// for gating purposes: mass-stale models still round-trip through the script
+/// generator, which emits `-- model 'name' skipped: stale binding` markers for
+/// each. Keeps the emitted script consistent across partial-stale and
+/// fully-stale states.
+fn should_trigger_script(response: &str) -> bool {
+    match serde_json::from_str::<serde_json::Value>(response) {
+        Ok(value) => value.get("error").is_none(),
+        Err(_) => !response.contains("\"error\""),
+    }
+}
+
 async fn serve_index_html() -> Result<HttpResponse, Error> {
     let exe_path =
         std::env::current_exe().expect("should be able to get path of server executable");
@@ -189,10 +204,7 @@ async fn ws_index(
                                     if DEBUG {
                                         println!("Sending WebSocket response: {}", response);
                                     }
-                                    let should_trigger_script =
-                                        serde_json::from_str::<serde_json::Value>(&response)
-                                            .map(|value| value.get("error").is_none())
-                                            .unwrap_or_else(|_| !response.contains("\"error\""));
+                                    let should_trigger_script = should_trigger_script(&response);
                                     println!(
                                         "WebSocket trigger decision: should_trigger_script={}, receiver_count={}",
                                         should_trigger_script,
@@ -508,15 +520,10 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                         let mut triggerflow_state: tokio::sync::MutexGuard<'_, TriggerFlowState> =
                             app_state.trigger_flow_state.lock().await;
 
-                        // Pass the entire Systems structure to process_system_config
-                        let systems_json = serde_json::to_string(&msg).unwrap();
-                        let response = triggerflow_state
-                            .process_system_config(&systems_json, app_state.catalog);
+                        let response =
+                            triggerflow_state.process_system_config(&msg, app_state.catalog);
 
-                        let should_trigger_script =
-                            serde_json::from_str::<serde_json::Value>(&response)
-                                .map(|value| value.get("error").is_none())
-                                .unwrap_or_else(|_| !response.contains("\"error\""));
+                        let should_trigger_script = should_trigger_script(&response);
                         println!(
                             "Stdin Systems trigger decision: should_trigger_script={}, receiver_count={}",
                             should_trigger_script,
@@ -612,10 +619,7 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                                     println!("Sending WebSocket response: {}", response);
                                 }
 
-                                let should_trigger_script =
-                                    serde_json::from_str::<serde_json::Value>(&response)
-                                        .map(|value| value.get("error").is_none())
-                                        .unwrap_or_else(|_| !response.contains("\"error\""));
+                                let should_trigger_script = should_trigger_script(&response);
                                 println!(
                                     "SessionData trigger decision: should_trigger_script={}, receiver_count={}",
                                     should_trigger_script,

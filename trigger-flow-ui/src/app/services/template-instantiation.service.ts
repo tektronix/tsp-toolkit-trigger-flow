@@ -67,6 +67,18 @@ export class TemplateInstantiationService {
             targetSections.push(this.createSectionForTemplateGroup(startingSection));
         }
 
+        // Newly created sections don't have a model yet, so reading
+        // slot/node via `section.modelName` returns 0 / '' fallbacks.
+        // Resolve the binding from the starting section's model once and
+        // reuse it for every group, so addBlocksFromTemplate seeds each
+        // new model with the same slot/node as the drop target.
+        const startingSectionSlot = this.canvasBlocksService.getModelSlotIndex(
+            startingSection.modelName,
+        );
+        const startingSectionNode = this.canvasBlocksService.getModelNodeId(
+            startingSection.modelName,
+        );
+
         const startingSectionX = (startingSection.positionIndex ?? 0) * SECTION_WIDTH;
         const relativeDropX = dropRect.x - startingSectionX;
 
@@ -75,6 +87,18 @@ export class TemplateInstantiationService {
 
         groups.forEach((group, groupIndex) => {
             const section = targetSections[groupIndex];
+            // First group binds to the drop-target section's existing
+            // model; every subsequent group binds a freshly created model
+            // that copies the drop-target's slot/node so multi-model
+            // templates produce valid `${node_id}.slot[${slot_index}]`
+            // bindings out of the gate. The user can rebind via the Edit
+            // Model modal afterward.
+            const sectionSlot = groupIndex === 0
+                ? this.canvasBlocksService.getModelSlotIndex(section.modelName)
+                : startingSectionSlot;
+            const sectionNode = groupIndex === 0
+                ? this.canvasBlocksService.getModelNodeId(section.modelName)
+                : startingSectionNode;
             const sectionOriginX = (section.positionIndex ?? groupIndex) * SECTION_WIDTH;
             const groupBaseX = sectionOriginX + relativeDropX;
 
@@ -132,8 +156,8 @@ export class TemplateInstantiationService {
                 runtimeBlockIds,
                 positions,
                 section.modelName,
-                section.slotIndex,
-                section.nodeId,
+                sectionSlot,
+                sectionNode,
                 templateNameMap, 
             );
 
@@ -205,8 +229,6 @@ export class TemplateInstantiationService {
         const newSection: FlowSection = {
             id: sectionId,
             modelName,
-            slotIndex: reference.slotIndex,
-            nodeId: reference.nodeId,
             nodes: [],
             positionIndex: nextPositionIndex,
         };
@@ -255,16 +277,18 @@ export class TemplateInstantiationService {
             const paramsForType = defEntry?.parameters ?? [];
 
             const rawParams: Record<string, string | number> = {};
+            const sectionSlot = this.canvasBlocksService.getModelSlotIndex(section.modelName);
+            const sectionNode = this.canvasBlocksService.getModelNodeId(section.modelName);
             if (paramsForType.some((p) => p.name === 'slot_index')) {
-                rawParams['slot_index'] = section.slotIndex;
+                rawParams['slot_index'] = sectionSlot;
             }
 
             const normalized = normalizeParameterValues(
                 paramsForType,
                 rawParams,
                 slotChannelList,
-                section.nodeId,
-                section.slotIndex,
+                sectionNode,
+                sectionSlot,
             );
 
             const eventItem: EventListItem = { type: eventType, params: normalized };

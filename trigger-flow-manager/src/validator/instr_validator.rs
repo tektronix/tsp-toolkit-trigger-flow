@@ -35,6 +35,12 @@ impl Validator for InstrumentValidator {
     fn validate(&self, trigger_state: &mut TriggerFlowState) -> Result<()> {
         let mut validator = SlotChannelHashMap::new();
         for model in trigger_state.models.values_mut() {
+            // Skip models whose binding is broken (SystemConfig error kind).
+            // Their saved channel assignments must not be re-validated
+            // against hardware they were not bound against.
+            if model.has_system_config_error() {
+                continue;
+            }
             for block in &mut model.blocks {
                 let channels = self.extract_channels(block);
 
