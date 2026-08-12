@@ -54,6 +54,17 @@ f-canvas {
   width: 390px;
 }
 
+// Red border when the model carries a blocking `system_config` error.
+.section-title--has-model-error {
+  border-color: var(--vscode-editorError-foreground, #f14c4c);
+  border-width: 2px;
+  background: color-mix(
+    in srgb,
+    var(--vscode-editorError-foreground, #f14c4c) 12%,
+    var(--vscode-editor-background)
+  );
+}
+
 .title-left,
 .title-right {
   display: flex;
@@ -108,11 +119,11 @@ f-canvas {
 }
 
 .error-icon--has-error::ng-deep .error-icon-outline {
-  stroke: #d93025;
+  stroke: var(--vscode-editorError-foreground, #f14c4c);
 }
 
 .error-icon--has-error::ng-deep .error-icon-mark {
-  fill: #d93025;
+  fill: var(--vscode-editorError-foreground, #f14c4c);
 }
 
 .section-body {

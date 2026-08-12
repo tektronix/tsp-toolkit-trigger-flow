@@ -1,4 +1,4 @@
-@if (slotChannelList$()) {
+@if (shouldShowMainFlow()) {
   <app-main-flow></app-main-flow>
 } @else {
   <div class="loading">
@@ -9,7 +9,7 @@
   <br>
   • An MP5103 mainframe
   <br>
-  • Either MPSU50-2ST or MSMU60-2 modules installed in slots
+  • MPSU50-2ST, MSMU60-2, or MSMU200-2 modules installed in slots
   <br>
   • Located in the localnode or one of the TSP-Link nodes
 </p>

@@ -47,3 +47,11 @@
   border-color: var(--vscode-inputValidation-errorBorder, #be1100);
   box-shadow: 0 0 0 3px rgba(190, 17, 0, 0.15);
 }
+
+// Browsers ignore most CSS on <option>; color and font-style are the
+// only reliably-supported properties. The `disabled` attribute on the
+// element itself is what blocks selection.
+.dropdown select option.invalid-option {
+  color: var(--vscode-editorError-foreground, #be1100);
+  font-style: italic;
+}

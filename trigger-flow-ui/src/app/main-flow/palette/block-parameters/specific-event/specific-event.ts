@@ -15,6 +15,10 @@ interface ParamView {
   label: string;
   options: string[];
   selected: string;
+  /** Non-null when the stored value isn't in the currently valid options.
+   * The dropdown renders it disabled with an error-tint style so the
+   * user sees the stale binding truthfully. */
+  invalidOption: string | null;
 }
 
 /**
@@ -77,15 +81,11 @@ export class SpecificEvent implements OnChanges {
     // sibling resolves its module-constrained options, slot_index is already
     // seeded into the stored value.
     this.paramsToRender = defs.map((p) => {
-      const options = this.optionsFor(p, slotOptions);
+      const { options, invalidOption } = this.optionsFor(p, slotOptions);
       let selected = this.readStored(p.name);
 
-      // Stored value not valid for the current options — clear so the
-      // seeding step below picks a fresh one.
-      if (selected !== '' && options.length > 0 && !options.includes(selected)) {
-        selected = '';
-      }
-
+      // Empty stored + no valid options: nothing to render usefully. The
+      // template's @if (p.options.length) gate hides the row.
       if (selected === '' && options.length > 0) {
         selected = p.default != null && options.includes(`${p.default}`) ? `${p.default}` : options[0];
         this.writeStored(p.name, selected);
@@ -97,20 +97,49 @@ export class SpecificEvent implements OnChanges {
         label: getBlockParameterDisplayName(p.name),
         options,
         selected,
+        invalidOption,
       };
     });
 
     return changed;
   }
 
-  private optionsFor(param: ParamOptionSource & { name: string }, slotOptions: string[]): string[] {
+  /**
+   * Compute the option list and (optional) invalid-entry marker for one
+   * event parameter. The prepend-invalid rule is scoped to two shapes
+   * only — `slot_index` and `constraints`-carrying params (SMU/PSU). All
+   * other params keep their pre-existing behavior so unrelated controls
+   * aren't affected.
+   */
+  private optionsFor(
+    param: ParamOptionSource & { name: string },
+    slotOptions: string[],
+  ): { options: string[]; invalidOption: string | null } {
     if (param.name === 'slot_index') {
-      return slotOptions;
+      const stored = this.readStored('slot_index');
+      if (stored !== '' && !slotOptions.includes(stored)) {
+        return { options: [stored, ...slotOptions], invalidOption: stored };
+      }
+      return { options: [...slotOptions], invalidOption: null };
     }
+
+    const validOptions = this.constrainedOptionsFor(param);
+
+    if (param.constraints) {
+      const stored = this.readStored(param.name);
+      if (stored !== '' && !validOptions.includes(stored)) {
+        return { options: [stored, ...validOptions], invalidOption: stored };
+      }
+    }
+
+    // Every other param: preserve pre-existing behavior.
+    return { options: validOptions, invalidOption: null };
+  }
+
+  private constrainedOptionsFor(param: ParamOptionSource & { name: string }): string[] {
     const slot = this.readStored('slot_index');
-    const slotModule = slot && this.blockId
-      ? this.resourceService.getModuleForNodeSlot(this.blockId, slot)
-      : null;
+    const slotModule =
+      slot && this.blockId ? this.resourceService.getModuleForNodeSlot(this.blockId, slot) : null;
     return getModuleConstrainedOptions(param, slotModule);
   }
 
