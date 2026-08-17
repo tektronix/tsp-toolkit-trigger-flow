@@ -1,14 +1,9 @@
 use crate::{
-    api::{
-        request::{RequestType, ResponseType},
-        slot_channel_list::{Slot, SlotChannelListUpdate},
-        state::TriggerFlowState,
+    Catalog, IpcData, api::{
+        request::{RequestType, ResponseType}, slot_channel_list::{Slot, SlotChannelListUpdate}, state::{StateType, TriggerFlowState},
+    }, debug::DEBUG, validator::{
+        ValidationChain, catalog_validator::CatalogValidator, instr_validator::InstrumentValidator,
     },
-    debug::DEBUG,
-    validator::{
-        catalog_validator::CatalogValidator, instr_validator::InstrumentValidator, ValidationChain,
-    },
-    Catalog, IpcData,
 };
 use anyhow::{Ok, Result};
 
@@ -170,6 +165,7 @@ impl RequestProcessor {
             println!("###Catalog is {:?}", self.catalog.clone());
         }
         trigger_flow_state.catalog = Some(self.catalog.clone()); // Include catalog in recall response
+        trigger_flow_state.state_type = Some(StateType::Recall);
         let response = ResponseType::EvaluateResponse {
             trigger_flow_state: trigger_flow_state.clone(),
         };
@@ -233,6 +229,7 @@ mod recall_backfill_tests {
                 nodes: vec![],
             },
             models: IndexMap::new(),
+            state_type: None,
         };
         state.models.insert(
             "tm1".to_string(),

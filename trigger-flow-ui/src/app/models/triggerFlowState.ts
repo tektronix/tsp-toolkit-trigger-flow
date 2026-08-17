@@ -9,10 +9,13 @@ export type JsonValue =
   | JsonValue[]
   | { [key: string]: JsonValue };
 
+export type StateType = 'Recall' | 'None';
+
 export interface ITriggerFlowStatePayload {
   catalog?: Catalog;
   slot_channel_list: ISlotChannelList;
   models: Record<string, ITriggerModel>;
+  state_type?: StateType;
 }
 
 /**
@@ -61,6 +64,7 @@ export class TriggerFlowStatePayload {
   slot_channel_list: SlotChannelList;
   models: Record<string, TriggerModel> = {};
   catalog?: Catalog| null;
+  state_type?: StateType | null;
 
   constructor(data: ITriggerFlowStatePayload) {
     this.slot_channel_list = new SlotChannelList(data.slot_channel_list);
@@ -74,6 +78,7 @@ export class TriggerFlowStatePayload {
     for (const modelName of Object.keys(data.models)) {
       this.models[modelName] = new TriggerModel(data.models[modelName]);
     }
+    this.state_type  = data.state_type;
   }
 }
 

@@ -94,6 +94,7 @@ export class App implements OnInit, OnDestroy {
           const data = JSON.parse(ipcData.json_value);
           if (data.slot_channel_list && data.models) {
             const statePayload = new TriggerFlowStatePayload(data);
+            console.log(statePayload.state_type)
             this.triggerFlowDataService.updateStatePayload(statePayload);
             if (DEBUG) console.log(statePayload);
             vscode.postMessage({ command: 'update_session' , payload: message});
@@ -102,6 +103,7 @@ export class App implements OnInit, OnDestroy {
         }
         case 'Reset_session':
           this.triggerFlowDataService.resetState();
+          console.log('angular app.ts: Reset_session received, state reset');
           vscode.postMessage({ command: 'get_initial_configuration' });
           break;
         // Handle other request types as needed

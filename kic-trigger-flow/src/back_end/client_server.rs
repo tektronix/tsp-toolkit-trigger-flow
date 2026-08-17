@@ -18,7 +18,11 @@ use tokio::{
     sync::{broadcast, watch, Mutex},
 };
 use trigger_flow_manager::{
-    api::{request::RequestType, slot_channel_list::SlotChannelList, state::TriggerFlowState},
+    api::{
+        request::RequestType,
+        slot_channel_list::SlotChannelList,
+        state::TriggerFlowState,
+    },
     debug::DEBUG,
     request_processor::RequestProcessor,
     script::Script,
@@ -43,6 +47,7 @@ impl AppState {
                 catalog: None,
                 slot_channel_list: SlotChannelList::default(),
                 models: IndexMap::new(),
+                state_type: None,
             })),
             trigger_flow_tx: broadcast::channel(100).0,
             work_folder: Arc::new(Mutex::new(Option::None)),
@@ -517,6 +522,10 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                         //convert the systems_msg to slotChannelList
                         //use the triggerflowState mutex to update the state if slotChannelList already exists for it
                         println!("Received Systems command from stdin");
+                        println!(
+                            "kic-trigger-flow-op: system received via stdin--> {:?}",
+                            msg
+                        );
                         let mut triggerflow_state: tokio::sync::MutexGuard<'_, TriggerFlowState> =
                             app_state.trigger_flow_state.lock().await;
 
@@ -553,7 +562,10 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                     }
                     StdinLine::SessionPath(msg) => {
                         // handle session
-                        println!("Received Session command from stdin: {:?}", msg);
+                        println!(
+                            "kic-trigger-flow-op: Received Session path command from stdin: {:?}",
+                            msg
+                        );
                         let mut work_folder_guard = app_state_clone.work_folder.lock().await;
                         let value = msg; // msg is already a ScriptPath with both session and folder fields
                         let filename: String = format!("{}.tsp", value.session.clone());
@@ -580,9 +592,12 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                     }
                     StdinLine::SessionData(msg) => {
                         // handle session data
-                        if DEBUG {
-                            println!("Received SessionData command from stdin: {:?}", msg);
-                        }
+                        //if DEBUG {
+                        println!(
+                            "kic-trigger-flow-op:Received SessionData command from stdin: {:?}",
+                            msg
+                        );
+                        //}
                         // For demonstration, we just print the session data. You can add your own processing logic here.
                         match RequestType::try_from(&msg) {
                             Ok(request) => {
@@ -718,6 +733,7 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                         break;
                     }
                     StdinLine::ResetSession(_reset) => {
+                        println!("kic-trigger-flow-op: Received ResetSession command from stdin, resetting TriggerFlowState...");
                         let mut triggerflow_state: tokio::sync::MutexGuard<'_, TriggerFlowState> =
                             app_state.trigger_flow_state.lock().await;
 

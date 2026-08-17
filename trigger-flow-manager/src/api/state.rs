@@ -19,6 +19,15 @@ pub struct TriggerFlowState {
     pub catalog: Option<Catalog>,
     pub slot_channel_list: SlotChannelList,
     pub models: IndexMap<String, TriggerModelState>,
+    pub state_type: Option<StateType>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum StateType {
+    Evaluate,
+    Recall,
+    Systems,
+    Initial,
 }
 
 /// Kinds of model-level errors surfaced to the UI.
@@ -191,8 +200,10 @@ impl TriggerFlowState {
             self.slot_channel_list.slots.is_empty() && self.slot_channel_list.nodes.is_empty();
 
         let build_result = if is_fresh_init {
+            println!("###process_system_config: fresh init, building new SlotChannelList");
             SlotChannelList::new(systems)
         } else {
+            println!("###process_system_config: updating existing SlotChannelList");
             SlotChannelList::update_slot_channel_list(
                 &mut self.slot_channel_list,
                 SlotChannelListUpdate::SystemConfig(systems.clone()),
@@ -205,6 +216,7 @@ impl TriggerFlowState {
                 self.emit_empty_config(&e)
             }
             Ok(list) if !list.is_valid_config() => {
+                println!("###process_system_config: invalid config detected in SlotChannelList");
                 self.emit_empty_config("No valid hardware in system config")
             }
             Ok(list) => {
@@ -213,7 +225,8 @@ impl TriggerFlowState {
                 // RecallRequest but slot_channel_list was empty until this
                 // Systems arrived. In that case the payload must carry
                 // catalog. Fresh init also always carries catalog.
-                let attach_catalog = is_fresh_init || !self.models.is_empty();
+
+                let attach_catalog = is_fresh_init;
                 if attach_catalog {
                     self.catalog = Some(catalog.clone());
                     println!("###process_system_config returning evaluate_response with catalog");
@@ -223,6 +236,7 @@ impl TriggerFlowState {
                         "###process_system_config returning evaluate_response without catalog"
                     );
                 }
+                
                 self.reconcile_derived_state(catalog);
 
                 let response = ResponseType::EvaluateResponse {
@@ -845,6 +859,7 @@ mod process_system_config_tests {
             catalog: None,
             slot_channel_list: SlotChannelList::default(),
             models: IndexMap::new(),
+            state_type: None,
         };
         state.models.insert(
             "tm1".to_string(),
@@ -871,6 +886,7 @@ mod process_system_config_tests {
             catalog: None,
             slot_channel_list: SlotChannelList::default(),
             models: IndexMap::new(),
+            state_type: None,
         };
 
         let response =
@@ -889,6 +905,7 @@ mod process_system_config_tests {
             catalog: None,
             slot_channel_list: SlotChannelList::default(),
             models: IndexMap::new(),
+            state_type: None,
         };
 
         let response = state.process_system_config(&systems_no_active(), &catalog);
@@ -921,6 +938,7 @@ mod process_system_config_tests {
             catalog: None,
             slot_channel_list: SlotChannelList::default(),
             models: IndexMap::new(),
+            state_type: None,
         };
 
         let response = state.process_system_config(&systems_non_mp5(), &catalog);
@@ -1202,6 +1220,7 @@ mod clamp_module_constrained_params_tests {
                 nodes: vec![],
             },
             models: IndexMap::new(),
+            state_type: None,
         };
         state.models.insert(
             "tm1".to_string(),
