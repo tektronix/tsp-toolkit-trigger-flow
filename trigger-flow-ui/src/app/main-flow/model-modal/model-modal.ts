@@ -24,7 +24,7 @@ export interface ModelModalValue {
 
 export interface ModelSlotOption {
   label: string; // e.g. localnode.slot[1], node2.slot[3]
-  displayLabel: string; 
+  displayLabel: string;
   slot: number;
   nodeId: string;
 }
@@ -63,7 +63,7 @@ export class ModelModal implements OnChanges {
   }
 
   get slotOptionsAsString(): string[] {
-    return this.slotOptions.map((o) => o.displayLabel??o.label);
+    return this.slotOptions.map((o) => o.displayLabel ?? o.label);
   }
 
   get slotValue(): string {
