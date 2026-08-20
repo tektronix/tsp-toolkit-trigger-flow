@@ -22,12 +22,12 @@ pub struct TriggerFlowState {
     pub state_type: Option<StateType>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub enum StateType {
     Evaluate,
     Recall,
     Systems,
-    Initial,
+    Init,
 }
 
 /// Kinds of model-level errors surfaced to the UI.
@@ -180,30 +180,30 @@ impl TriggerFlowState {
     /// Recompute the response payload after a Systems message arrives.
     ///
     /// Semantics:
-    /// - Valid config: replaces `slot_channel_list`, recomputes model errors,
-    ///   emits `evaluate_response`. Catalog is attached on fresh init or when
-    ///   models are already present (recall completion); otherwise cleared.
+    /// - Initial state (`state_type == None`): parses a new `SlotChannelList`,
+    ///   sets `state_type` to `Init`, attaches the catalog, and emits
+    ///   `evaluate_response`.
+    /// - Existing state: updates the existing `SlotChannelList`, sets
+    ///   `state_type` to `Systems`, removes any existing catalog, and emits
+    ///   `evaluate_response`.
     /// - Invalid config (parse-fail or `!is_valid_config()`): resets
-    ///   `slot_channel_list` to default, mass-stales every model, emits
-    ///   `empty_system_config_error` with the reason in `additional_info` and
-    ///   the updated state in `json_value` (always populated so the UI
-    ///   refreshes its cached `slot_channel_list` even when no models exist).
+    ///   `slot_channel_list`, recomputes model errors, and emits
+    ///   `empty_system_config_error` with the reason in `additional_info`.
     pub fn process_system_config(&mut self, systems: &Systems, catalog: &Catalog) -> String {
         if DEBUG {
             println!(
-                "###process_system_config called with system_config: {:?}",
+                "### process_system_config called with system_config: {:?}",
                 self.slot_channel_list
             );
         }
 
-        let is_fresh_init =
-            self.slot_channel_list.slots.is_empty() && self.slot_channel_list.nodes.is_empty();
+        let is_initial_state = self.state_type.is_none();
 
-        let build_result = if is_fresh_init {
-            println!("###process_system_config: fresh init, building new SlotChannelList");
+        let build_result = if is_initial_state {
+            println!("### process_system_config: initial state");
             SlotChannelList::new(systems)
         } else {
-            println!("###process_system_config: updating existing SlotChannelList");
+            println!("### process_system_config: updating existing state");
             SlotChannelList::update_slot_channel_list(
                 &mut self.slot_channel_list,
                 SlotChannelListUpdate::SystemConfig(systems.clone()),
@@ -211,46 +211,54 @@ impl TriggerFlowState {
         };
 
         match build_result {
-            Err(e) => {
-                eprintln!("process_system_config: failed to parse Systems payload: {e}");
-                self.emit_empty_config(&e)
+            Err(error) => {
+                eprintln!("process_system_config: failed to parse Systems payload: {error}");
+                self.emit_empty_config(&error)
             }
+
             Ok(list) if !list.is_valid_config() => {
-                println!("###process_system_config: invalid config detected in SlotChannelList");
+                println!("### process_system_config: invalid config detected");
                 self.emit_empty_config("No valid hardware in system config")
             }
+
             Ok(list) => {
                 self.slot_channel_list = list;
-                // Recall completion: models were populated by a prior
-                // RecallRequest but slot_channel_list was empty until this
-                // Systems arrived. In that case the payload must carry
-                // catalog. Fresh init also always carries catalog.
 
-                let attach_catalog = is_fresh_init;
-                if attach_catalog {
+                if is_initial_state {
+                    self.state_type = Some(StateType::Init);
                     self.catalog = Some(catalog.clone());
-                    println!("###process_system_config returning evaluate_response with catalog");
+
+                    println!("### process_system_config: initial state created with catalog");
                 } else {
-                    self.catalog = None;
+                    self.state_type = Some(StateType::Systems);
+                    if self.catalog.is_some() {
+                        self.catalog = None;
+                    }
+
                     println!(
-                        "###process_system_config returning evaluate_response without catalog"
-                    );
+                    "### process_system_config: existing state updated without attaching catalog"
+                );
                 }
-                
+
                 self.reconcile_derived_state(catalog);
 
                 let response = ResponseType::EvaluateResponse {
                     trigger_flow_state: self.clone(),
                 };
+
                 let json_value = match serde_json::to_string(&response) {
-                    Ok(s) => s,
-                    Err(_) => return "{\"error\":\"Response serialization failed\"}".to_string(),
+                    Ok(value) => value,
+                    Err(_) => {
+                        return "{\"error\":\"Response serialization failed\"}".to_string();
+                    }
                 };
+
                 let ipc = IpcData {
                     request_type: "evaluate_response".to_string(),
-                    additional_info: "".to_string(),
+                    additional_info: String::new(),
                     json_value,
                 };
+
                 serde_json::to_string(&ipc)
                     .unwrap_or_else(|_| "{\"error\":\"Serialization failed\"}".to_string())
             }

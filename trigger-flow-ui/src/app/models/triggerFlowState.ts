@@ -9,7 +9,7 @@ export type JsonValue =
   | JsonValue[]
   | { [key: string]: JsonValue };
 
-export type StateType = 'Recall' | 'None';
+export type StateType = 'Recall' | 'Systems' | 'Evaluate' | 'Init';
 
 export interface ITriggerFlowStatePayload {
   catalog?: Catalog;

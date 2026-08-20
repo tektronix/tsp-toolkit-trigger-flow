@@ -1,7 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { Catalog, BlockDefinition, ActualParameter, ParameterValue } from '../models/triggerBlock';
-import { BlockErrorEntry, JsonValue, ModelErrorEntry, TriggerModel } from '../models/triggerFlowState';
+import { BlockErrorEntry, JsonValue, ModelErrorEntry, StateType, TriggerModel } from '../models/triggerFlowState';
 import { Module } from '../models/slotChannelModel';
 import { Websocket } from './websocket';
 import { TriggerFlowDataService } from './triggerFlowDataService';
@@ -1025,6 +1025,7 @@ export class CanvasBlocksService {
     const triggerFlowState = JSON.stringify({
       models: filteredModels,
       slot_channel_list,
+      state_type: 'Evaluate' as StateType,
     });
 
     const ipcData = {

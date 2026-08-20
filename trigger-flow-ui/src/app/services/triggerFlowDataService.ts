@@ -39,6 +39,14 @@ export class TriggerFlowDataService {
     }
   }
 
+  // Update runtime state received from Rust.
+  //
+  // Recall and Init payloads include a catalog. The catalog must be applied
+  // before models so model consumers can resolve block definitions correctly.
+  //
+  // Systems and Evaluate payloads update the slot/channel list and models only.
+  // Their catalog is intentionally omitted because the catalog was already
+  // established during Recall or Init.
   updateStatePayload(payload: TriggerFlowStatePayload): void {
     this.statePayloadSnapshot = payload;
     if (DEBUG) console.log('###State payload updated:', payload);
@@ -47,7 +55,7 @@ export class TriggerFlowDataService {
     // consumer that reacts to models$ (e.g. canvas block restoration) reads
     // a stale/null catalog and cannot resolve block definitions.
     // This case is hit in case of recall session, catalog is getting passed explicitly.
-    if (payload.catalog) {
+    if ((payload.state_type === 'Recall' || payload.state_type === 'Init') && payload.catalog) {
       // Block ids use a per-instance counter (`node-N`), so a recalled
       // payload almost always reuses ids that match the currently selected
       // id but refer to different blocks. Clear the selection so the
@@ -55,12 +63,14 @@ export class TriggerFlowDataService {
       // block.
       this.canvasBlocksService.clearSelectedBlock();
       this.catalog.set(payload.catalog);
-      if (!this.initialPayloadSnapshot) {
-        this.initialPayloadSnapshot = new InitialPayload({
-          slot_channel_list: payload.slot_channel_list,
-          catalog: payload.catalog,
-        });
-      }
+
+      // if (!this.initialPayloadSnapshot) {
+      //   this.initialPayloadSnapshot = new InitialPayload({
+      //     slot_channel_list: payload.slot_channel_list,
+      //     catalog: payload.catalog,
+      //   });
+      // }
+
       // Keep slot_channel_list fresh from runtime updates
       this.slotChannelList.set(payload.slot_channel_list);
 
@@ -68,7 +78,7 @@ export class TriggerFlowDataService {
       // fully populated catalog and slot_channel_list.
       this.canvasBlocksService.loadSessionData(payload.models);
       this.models.set(payload.models);
-    } else {
+    } else if (payload.state_type === 'Evaluate' || payload.state_type === 'Systems') {
       // Keep slot_channel_list fresh from runtime updates
       this.slotChannelList.set(payload.slot_channel_list);
 
