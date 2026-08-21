@@ -807,7 +807,8 @@ export class CanvasBlocksService {
   private sendIpcDataToServer(ipcData: { request_type: string; additional_info: string; json_value: string }): void {
     try {
       this.websocketService.send(JSON.stringify(ipcData));
-      if (DEBUG) console.log('=======IpcData sent to server successfully=======');
+      // if (DEBUG) 
+            console.log('=======IpcData sent to server successfully=======');
     } catch (error) {
       console.error('Failed to send ipcData over websocket:', error);
     }

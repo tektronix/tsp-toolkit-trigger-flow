@@ -55,14 +55,16 @@ export class TriggerFlowDataService {
     // consumer that reacts to models$ (e.g. canvas block restoration) reads
     // a stale/null catalog and cannot resolve block definitions.
     // This case is hit in case of recall session, catalog is getting passed explicitly.
-    if ((payload.state_type === 'Recall' || payload.state_type === 'Init') && payload.catalog) {
+    if (payload.state_type === 'Recall' || payload.state_type === 'Init') {
       // Block ids use a per-instance counter (`node-N`), so a recalled
       // payload almost always reuses ids that match the currently selected
       // id but refer to different blocks. Clear the selection so the
       // parameters panel does not silently rebind to an unrelated recalled
       // block.
       this.canvasBlocksService.clearSelectedBlock();
-      this.catalog.set(payload.catalog);
+      
+      if (payload.catalog) 
+        this.catalog.set(payload.catalog);
 
       // if (!this.initialPayloadSnapshot) {
       //   this.initialPayloadSnapshot = new InitialPayload({

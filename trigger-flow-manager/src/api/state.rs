@@ -273,9 +273,16 @@ impl TriggerFlowState {
     /// UI sees the reset `slot_channel_list` and refreshes downstream
     /// widgets like the create-new-model slot dropdown. Catalog is left as-is
     /// so the UI can still render any pre-existing stale models.
+    /// `state_type` is only bumped to `Systems` when it was already
+    /// `Some(_)`; a fresh-init that never produced a valid config stays
+    /// `None` so the next Systems message retries the initial-state path.
     fn emit_empty_config(&mut self, reason: &str) -> String {
         self.slot_channel_list = SlotChannelList::default();
         self.recompute_all_model_errors();
+
+        if self.state_type.is_some() {
+            self.state_type = Some(StateType::Systems);
+        }
 
         let response = ResponseType::EvaluateResponse {
             trigger_flow_state: self.clone(),
@@ -308,6 +315,7 @@ impl TriggerFlowState {
         self.catalog = None;
         self.slot_channel_list = SlotChannelList::default();
         self.models.clear();
+        self.state_type = None;
     }
 
     /// Rewrites every model's `model_error` against current hardware.

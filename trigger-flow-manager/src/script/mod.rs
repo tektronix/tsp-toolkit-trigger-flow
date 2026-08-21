@@ -4,9 +4,7 @@ use anyhow::Error;
 use handlebars::Handlebars;
 
 use crate::{
-    api::state::TriggerFlowState,
-    trigger_model_blocks::param_types::ParamTypeName,
-    Catalog,
+    api::state::TriggerFlowState, trigger_model_blocks::param_types::ParamTypeName, Catalog,
 };
 
 /// Sentinel value used by the UI to mark a `BlockReference` parameter that
@@ -253,12 +251,16 @@ pub(crate) mod script_tests {
     use std::collections::HashMap;
 
     use crate::{
-        BlockDefinition, Catalog, EventDefinition, Parameter, api::{
-            slot_channel_list::{Channel, ChannelIndex, Module, Slot, SlotChannelList, SlotIndex}, state::{TriggerFlowState, TriggerModelState},
-        }, model::trigger_model_block::{BlockPosition, TriggerModelBlock}, trigger_model_blocks::{
+        api::{
+            slot_channel_list::{Channel, ChannelIndex, Module, Slot, SlotChannelList, SlotIndex},
+            state::{TriggerFlowState, TriggerModelState},
+        },
+        model::trigger_model_block::{BlockPosition, TriggerModelBlock},
+        trigger_model_blocks::{
             catalog::{ParameterRange, ScriptTemplate},
             param_types::ParamTypeName,
         },
+        BlockDefinition, Catalog, EventDefinition, Parameter,
     };
     use indexmap::IndexMap;
 

@@ -115,6 +115,7 @@ export class App implements OnInit, OnDestroy {
           const data = JSON.parse(ipcData.json_value);
           if (data.slot_channel_list && data.models) {
             const statePayload = new TriggerFlowStatePayload(data);
+            console.log(statePayload.state_type)
             this.triggerFlowDataService.updateStatePayload(statePayload);
             vscode.postMessage({ command: 'update_session', payload: message });
           }

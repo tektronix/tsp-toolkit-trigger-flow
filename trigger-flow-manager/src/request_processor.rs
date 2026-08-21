@@ -1,9 +1,14 @@
 use crate::{
-    Catalog, IpcData, api::{
-        request::{RequestType, ResponseType}, slot_channel_list::{Slot, SlotChannelListUpdate}, state::{StateType, TriggerFlowState},
-    }, debug::DEBUG, validator::{
-        ValidationChain, catalog_validator::CatalogValidator, instr_validator::InstrumentValidator,
+    api::{
+        request::{RequestType, ResponseType},
+        slot_channel_list::{Slot, SlotChannelListUpdate},
+        state::{StateType, TriggerFlowState},
     },
+    debug::DEBUG,
+    validator::{
+        catalog_validator::CatalogValidator, instr_validator::InstrumentValidator, ValidationChain,
+    },
+    Catalog, IpcData,
 };
 use anyhow::{Ok, Result};
 
