@@ -103,6 +103,11 @@ export class App implements OnInit, OnDestroy {
         }
         case 'Reset_session':
           this.triggerFlowDataService.resetState();
+          // The websocket session (and this component) is reused across
+          // sessions, so the sticky latch must be re-armed here or a new
+          // session with no hardware/models would keep showing the old
+          // session's main-flow instead of falling back to the loading gate.
+          this.hasMainFlowMounted.set(false);
           console.log('angular app.ts: Reset_session received, state reset');
           vscode.postMessage({ command: 'get_initial_configuration' });
           break;

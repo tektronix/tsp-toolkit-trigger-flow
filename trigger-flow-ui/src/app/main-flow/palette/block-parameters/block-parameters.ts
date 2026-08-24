@@ -139,8 +139,13 @@ export class BlockParameters {
     // before the signal, so only re-bind `actualParameters`
     effect(() => {
       this.triggerFlowDataService.models$();
+      // Channel options are derived from hardware, so a Systems/recall payload
+      // that changes the slot list must rebuild them for the open block.
+      this.triggerFlowDataService.slotChannelList$();
       if (this.selectedBlockId !== null) {
         this.syncFromCanvasBlock();
+        this.refreshChannelListOptions();
+        this.refreshChannelItemOptions();
       }
     });
 

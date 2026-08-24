@@ -80,8 +80,17 @@ export class TriggerFlowDataService {
       // fully populated catalog and slot_channel_list.
       this.canvasBlocksService.loadSessionData(payload.models);
       this.models.set(payload.models);
-    } else if (payload.state_type === 'Evaluate' || payload.state_type === 'Systems') {
-      // Keep slot_channel_list fresh from runtime updates
+    } else if (
+      payload.state_type === 'Evaluate' ||
+      payload.state_type === 'Systems' ||
+      payload.state_type == null
+    ) {
+      // `state_type` is still null right after a session reset when the
+      // first Systems message is invalid config: emit_empty_config only
+      // bumps state_type to Systems when one was already set. Treat null
+      // the same as Systems so slot_channel_list/models (both reset to
+      // empty on the Rust side) actually reach the signals instead of
+      // being silently dropped.
       this.slotChannelList.set(payload.slot_channel_list);
 
       // Reconcile clamped values and per-block errors back onto the existing
