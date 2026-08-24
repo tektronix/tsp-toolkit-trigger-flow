@@ -93,6 +93,10 @@ export class BlockParameters {
   delayListModalMaxDelayCount = 10000;
   selectedBlockNodeId = 'localnode';
   selectedBlockSlotIndex = 1;
+  /** Incremented on every `models$` / `slotChannelList$` emission; passed to the
+   * event child components so their `ngOnChanges`-driven option lists refresh
+   * even when none of their other inputs changed. */
+  configVersion = 0;
   private previousDelayListConfig: DelayListConfig | null = null;
 
   get nodeInfo(): string {
@@ -146,6 +150,7 @@ export class BlockParameters {
         this.syncFromCanvasBlock();
         this.refreshChannelListOptions();
         this.refreshChannelItemOptions();
+        this.configVersion++;
       }
     });
 
@@ -230,6 +235,11 @@ export class BlockParameters {
     }
 
     this.actualParameters = canvasBlock.actual_parameters;
+    // A Systems/recall payload can rebind the model to a different slot, so
+    // re-read the model context instead of waiting for a selection change.
+    const model = this.canvasBlocksService.getModelForBlock(this.selectedBlockId);
+    this.selectedBlockNodeId = model?.node_id ?? 'localnode';
+    this.selectedBlockSlotIndex = model?.slot_index ?? 1;
     if (this.showDelayListModal) {
       const config = this.getDelayListConfigValue();
       if (config) {
