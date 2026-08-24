@@ -200,10 +200,8 @@ impl TriggerFlowState {
         let is_initial_state = self.state_type.is_none();
 
         let build_result = if is_initial_state {
-            println!("### process_system_config: initial state");
             SlotChannelList::new(systems)
         } else {
-            println!("### process_system_config: updating existing state");
             SlotChannelList::update_slot_channel_list(
                 &mut self.slot_channel_list,
                 SlotChannelListUpdate::SystemConfig(systems.clone()),
@@ -217,7 +215,6 @@ impl TriggerFlowState {
             }
 
             Ok(list) if !list.is_valid_config() => {
-                println!("### process_system_config: invalid config detected");
                 self.emit_empty_config("No valid hardware in system config")
             }
 

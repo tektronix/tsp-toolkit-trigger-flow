@@ -1,13 +1,23 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { Catalog, BlockDefinition, ActualParameter, ParameterValue } from '../models/triggerBlock';
-import { BlockErrorEntry, JsonValue, ModelErrorEntry, StateType, TriggerModel } from '../models/triggerFlowState';
+import {
+  BlockErrorEntry,
+  JsonValue,
+  ModelErrorEntry,
+  StateType,
+  TriggerModel,
+} from '../models/triggerFlowState';
 import { Module } from '../models/slotChannelModel';
 import { Websocket } from './websocket';
 import { TriggerFlowDataService } from './triggerFlowDataService';
 import { FlowNode, FlowSection, FlowConnection } from '../main-flow/canvas/canvas';
 import { PaletteDataService } from './palette-data.service';
-import { LOOP_COUNTER_BLOCK_TYPE, BLOCK_REFERENCE_UNKNOWN_VALUE, isBlockReferenceParam } from '../models/blockParameterHelper';
+import {
+  LOOP_COUNTER_BLOCK_TYPE,
+  BLOCK_REFERENCE_UNKNOWN_VALUE,
+  isBlockReferenceParam,
+} from '../models/blockParameterHelper';
 import { DEBUG } from '../debug';
 
 export interface CanvasBlock {
@@ -25,7 +35,7 @@ export interface CanvasBlock {
 declare const acquireVsCodeApi: unknown;
 
 export const vscode =
-  typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : { postMessage: () => { } };
+  typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : { postMessage: () => {} };
 
 export interface CanvasBlocksData {
   blocks: Record<string, { trigger_model_name: string; slot_index: number; blocks: CanvasBlock[] }>;
@@ -80,10 +90,13 @@ export class CanvasBlocksService {
   }
 
   private toParameterMap(params: ActualParameter[]): Record<string, unknown> {
-    return params.reduce((acc, param) => {
-      acc[param.name] = param.value ?? param.default ?? null;
-      return acc;
-    }, {} as Record<string, unknown>);
+    return params.reduce(
+      (acc, param) => {
+        acc[param.name] = param.value ?? param.default ?? null;
+        return acc;
+      },
+      {} as Record<string, unknown>,
+    );
   }
 
   loadSessionData(models: Record<string, TriggerModel>): void {
@@ -184,9 +197,9 @@ export class CanvasBlocksService {
   }
 
   /**
-     * Set the data for the trigger model of this canvas
-     * @param models The list of models to set the local model to.
-     */
+   * Set the data for the trigger model of this canvas
+   * @param models The list of models to set the local model to.
+   */
   setBlockData(models: Record<string, TriggerModel>): void {
     if (DEBUG) console.log('setBlockData:', models);
 
@@ -262,7 +275,6 @@ export class CanvasBlocksService {
     this.update(this.getCanvasData());
   }
 
-
   restoreConnections(): void {
     // Walk every restored block and rebuild FlowConnections from any
     // block-reference parameter that points at another block's
@@ -317,9 +329,7 @@ export class CanvasBlocksService {
    */
   removeIncomingConnections(targetBlockId: string): void {
     const fInputId = `${targetBlockId}-in`;
-    this.connections.update((current) =>
-      current.filter((c) => c.fInputId !== fInputId),
-    );
+    this.connections.update((current) => current.filter((c) => c.fInputId !== fInputId));
   }
 
   /**
@@ -387,16 +397,8 @@ export class CanvasBlocksService {
     const params = blockCatalog?.parameters ?? [];
     const hasBranch = params.some((p) => p.name === 'branch_to_block_name');
     const hasReference = params.some((p) => p.name === 'reference_block_name');
-    const hasResetBranchCount = params.some(
-      (p) => p.name === 'reset_branch_count_block_name',
-    );
-    return hasBranch
-      ? 'right'
-      : hasResetBranchCount
-        ? 'left'
-        : hasReference
-          ? 'left'
-          : 'right';
+    const hasResetBranchCount = params.some((p) => p.name === 'reset_branch_count_block_name');
+    return hasBranch ? 'right' : hasResetBranchCount ? 'left' : hasReference ? 'left' : 'right';
   }
 
   /**
@@ -440,11 +442,7 @@ export class CanvasBlocksService {
    * keep slot_module in sync. Bypassing leaves the model looking
    * stale to the next evaluate response.
    */
-  rebindModelSlot(
-    modelName: string,
-    newSlotIndex: number,
-    newNodeId: string,
-  ): void {
+  rebindModelSlot(modelName: string, newSlotIndex: number, newNodeId: string): void {
     const model = this.models[modelName];
     if (!model) {
       console.warn(`rebindModelSlot: no model named "${modelName}"`);
@@ -474,7 +472,6 @@ export class CanvasBlocksService {
     this.updateAndPrint();
   }
 
-
   addBlock(
     blockId: string,
     blockLabel: string,
@@ -498,14 +495,16 @@ export class CanvasBlocksService {
 
     // Search for block in catalog (case-insensitive)
     const blockData = this.findBlockInCatalog(blockLabel, catalogData);
-    const blockName = ((blockData?.parameters.find((p) => p.name === "trigger_block_name")?.default) ?? "No Default").toString();
+    const blockName = (
+      blockData?.parameters.find((p) => p.name === 'trigger_block_name')?.default ?? 'No Default'
+    ).toString();
 
     // ensure each block has a unique name
     const uniqueBlockName = this.getUniqueBlockName(blockName);
 
     if (blockData) {
-      if (blockData.parameters.some((p) => p.name === "trigger_block_name")) {
-        const index = blockData.parameters.findIndex((p) => p.name === "trigger_block_name");
+      if (blockData.parameters.some((p) => p.name === 'trigger_block_name')) {
+        const index = blockData.parameters.findIndex((p) => p.name === 'trigger_block_name');
         blockData.parameters[index].default = uniqueBlockName;
       }
     }
@@ -585,7 +584,8 @@ export class CanvasBlocksService {
       if (preComputedNames?.has(tmplBlock.templateBlockId)) {
         finalTriggerName = preComputedNames.get(tmplBlock.templateBlockId)!;
       } else {
-        const catalogDefaultName = (blockData.parameters.find((p) => p.name === 'trigger_block_name')?.default) ?? 'Block';
+        const catalogDefaultName =
+          blockData.parameters.find((p) => p.name === 'trigger_block_name')?.default ?? 'Block';
         finalTriggerName = this.getUniqueBlockName(catalogDefaultName.toString());
       }
 
@@ -638,16 +638,22 @@ export class CanvasBlocksService {
   }
 
   removeModel(modelId: string): void {
-    console.warn("Models before: ", this.models);
-    console.warn("Remove model:", modelId, this.models[modelId]);
+    console.warn('Models before: ', this.models);
+    console.warn('Remove model:', modelId, this.models[modelId]);
     for (const block of this.models[modelId]?.blocks ?? []) {
       // Remove visual components of the connections related to the blocks within this model.
-      this.connections.update((current) => current.filter((c) => !c.fInputId.startsWith(`${block.block_id}-in`) && !c.fOutputId.startsWith(`${block.block_id}-out`)));
+      this.connections.update((current) =>
+        current.filter(
+          (c) =>
+            !c.fInputId.startsWith(`${block.block_id}-in`) &&
+            !c.fOutputId.startsWith(`${block.block_id}-out`),
+        ),
+      );
     }
     delete this.models[modelId];
     this.sections.update((current) => current.filter((s) => s.modelName !== modelId));
     this.updateAndPrint();
-    console.warn("Models after: ", this.models);
+    console.warn('Models after: ', this.models);
   }
 
   // Remove block by nodeId from the model where it exists
@@ -670,7 +676,11 @@ export class CanvasBlocksService {
         if (removedBlockName) {
           for (const block of model.blocks) {
             for (const param of block.actual_parameters) {
-              if (param.name === 'branch_to_block_name' || param.name === 'reference_block_name' || param.name === 'reset_branch_count_block_name') {
+              if (
+                param.name === 'branch_to_block_name' ||
+                param.name === 'reference_block_name' ||
+                param.name === 'reset_branch_count_block_name'
+              ) {
                 if (param.value === removedBlockName) {
                   param.value = BLOCK_REFERENCE_UNKNOWN_VALUE;
                 }
@@ -804,11 +814,14 @@ export class CanvasBlocksService {
     this.logIpcDataFormat();
   }
 
-  private sendIpcDataToServer(ipcData: { request_type: string; additional_info: string; json_value: string }): void {
+  private sendIpcDataToServer(ipcData: {
+    request_type: string;
+    additional_info: string;
+    json_value: string;
+  }): void {
     try {
       this.websocketService.send(JSON.stringify(ipcData));
-      // if (DEBUG) 
-            console.log('=======IpcData sent to server successfully=======');
+      if (DEBUG) console.log('=======IpcData sent to server successfully=======');
     } catch (error) {
       console.error('Failed to send ipcData over websocket:', error);
     }
@@ -854,7 +867,6 @@ export class CanvasBlocksService {
   //   return {};
   // }
 
-
   private toBlockParameters(actualParameters: ActualParameter[]): Record<string, JsonValue> {
     return actualParameters.reduce((acc: Record<string, JsonValue>, param) => {
       // Send the raw value (including null for cleared fields) to the server.
@@ -899,9 +911,7 @@ export class CanvasBlocksService {
     if (!name) return null;
     for (const model of Object.values(this.models)) {
       const block = model.blocks.find((b) => {
-        const param = b.actual_parameters.find(
-          (p) => p.name === 'trigger_block_name',
-        );
+        const param = b.actual_parameters.find((p) => p.name === 'trigger_block_name');
         return param?.value != null && String(param.value) === name;
       });
       if (block) return block;
@@ -929,11 +939,7 @@ export class CanvasBlocksService {
    * survive a rename automatically. Only the underlying parameter values
    * need to be propagated.
    */
-  propagateBlockRename(
-    renamedBlockId: string,
-    oldName: string,
-    newName: string,
-  ): void {
+  propagateBlockRename(renamedBlockId: string, oldName: string, newName: string): void {
     if (!oldName || !newName || oldName === newName) return;
     const model = this.getModelForBlock(renamedBlockId);
     if (!model) return;
@@ -956,10 +962,7 @@ export class CanvasBlocksService {
    * excludes the block itself. For `reset_branch_count_block_name`, results
    * are further restricted to loop-counter blocks.
    */
-  getBlockReferenceOptionsForBlock(
-    blockId: string,
-    paramName: string,
-  ): string[] {
+  getBlockReferenceOptionsForBlock(blockId: string, paramName: string): string[] {
     const model = this.getModelForBlock(blockId);
     if (!model) return [];
 
@@ -969,9 +972,7 @@ export class CanvasBlocksService {
     for (const candidate of model.blocks) {
       if (candidate.block_id === blockId) continue;
       if (restrictToLoopCounter && candidate.type !== LOOP_COUNTER_BLOCK_TYPE) continue;
-      const nameParam = candidate.actual_parameters.find(
-        (p) => p.name === 'trigger_block_name',
-      );
+      const nameParam = candidate.actual_parameters.find((p) => p.name === 'trigger_block_name');
       const value = nameParam?.value;
       if (value != null && String(value) !== '') {
         names.push(String(value));
@@ -1001,7 +1002,16 @@ export class CanvasBlocksService {
   logIpcDataFormat(): void {
     const slot_channel_list = this.triggerFlowDataService.getSlotChannelList() || { slots: [] };
     // Build models object, omitting syntax, description, and shape from blocks
-    const filteredModels: Record<string, { trigger_model_name: string; slot_index: number; node_id: string; blocks: Record<string, unknown>[]; slot_module: Module | null }> = {};
+    const filteredModels: Record<
+      string,
+      {
+        trigger_model_name: string;
+        slot_index: number;
+        node_id: string;
+        blocks: Record<string, unknown>[];
+        slot_module: Module | null;
+      }
+    > = {};
 
     for (const [modelName, model] of Object.entries(this.models)) {
       filteredModels[modelName] = {
