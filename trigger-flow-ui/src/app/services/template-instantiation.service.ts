@@ -4,6 +4,10 @@ import { TriggerFlowDataService } from './triggerFlowDataService';
 import { FlowNode, FlowSection } from '../main-flow/canvas/canvas';
 import { EventListItem, ParameterValue } from '../models/triggerBlock';
 import { normalizeParameterValues } from '../models/blockParameterHelper';
+import { StatusMsg } from '../models/statusMsg';
+import { ModelResourceAllocationService } from './model-resource-allocation.service';
+import { StatusService } from './status-msg.service';
+import { StatusType } from '../models/interface';
 
 export interface TemplateInstantiationHelpers {
     createUniqueNodeId: () => string;
@@ -29,6 +33,8 @@ export interface TemplateInsertionTarget {
 export class TemplateInstantiationService {
     private canvasBlocksService = inject(CanvasBlocksService);
     private triggerFlowDataService = inject(TriggerFlowDataService);
+    private modelResourceAllocationService = inject(ModelResourceAllocationService);
+    private statusService = inject(StatusService);
 
     private get sections() {
         return this.canvasBlocksService.sections;
@@ -59,6 +65,18 @@ export class TemplateInstantiationService {
         const groups = template.blocks.filter((g) => g?.blocks?.length);
         if (groups.length === 0) {
             console.warn(`Template "${templateKey}" has no block groups`);
+            return;
+        }
+
+        // Pre-flight capacity check so the whole drop is rejected atomically
+        // instead of leaving orphan empty sections if a later group fails.
+        const neededNewModels = groups.length - 1;
+        const maxModelCount = this.modelResourceAllocationService.getMaxModels();
+        if (this.sections().length + neededNewModels > maxModelCount) {
+            this.statusService.show(new StatusMsg({
+                status_type: StatusType.Warning,
+                message: `Cannot insert template "${templateKey}": model limit of ${maxModelCount} would be exceeded.`,
+            }));
             return;
         }
 

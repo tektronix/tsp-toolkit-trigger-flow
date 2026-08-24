@@ -1,0 +1,33 @@
+.banner-display {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--vscode-editorWidget-border);
+  padding: 5px;
+  border-radius: 8px;
+  min-height: 25px;
+  position: relative;
+  background: var(--vscode-editor-background);
+}
+
+.banner-display.info {
+  color: var(--vscode-editorInfo-foreground);
+  background: var(--vscode-editor-background);
+}
+.banner-display.warning {
+  color: var(--vscode-editorWarning-foreground);
+  background: var(--vscode-editor-background);
+}
+.banner-display.error {
+  color: var(--vscode-editorError-foreground);
+  background: var(--vscode-editor-background);
+}
+
+.status-message {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 12px;
+  min-width: 0;
+  display: inline-block;
+}

@@ -15,6 +15,7 @@ import {
   ModelSettingsModal,
   ModelSettingsItem,
 } from './model-settings-modal/model-settings-modal';
+import { BannerDisplay } from '../custom-controls/banner-display/banner-display';
 
 @Component({
   selector: 'app-main-flow',
@@ -29,6 +30,7 @@ import {
     ModelModal,
     EditModelModal,
     ModelSettingsModal,
+    BannerDisplay
   ],
   templateUrl: './main-flow.html',
   styleUrl: './main-flow.scss',
