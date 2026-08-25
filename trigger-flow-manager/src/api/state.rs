@@ -191,9 +191,9 @@ impl TriggerFlowState {
     ///   `slot_channel_list`, recomputes model errors, and emits
     ///   `empty_system_config_error` with the reason in `additional_info`.
     ///
-    /// Models whose slot binding becomes valid again after a Systems update, are revalidated 
+    /// Models whose slot binding becomes valid again after a Systems update, are revalidated
     /// so that any blocks added while it was stale are checked and any block errors are shown in the UI.
-    /// When the model has invalid slot binding, any newly added blocks are not validated 
+    /// When the model has invalid slot binding, any newly added blocks are not validated
     /// until the binding becomes valid again.
     pub fn process_system_config(
         &mut self,
