@@ -1,7 +1,7 @@
 use crate::{
     api::{
         request::{RequestType, ResponseType},
-        slot_channel_list::{Slot, SlotChannelListUpdate},
+        slot_channel_list::{Slot, SlotChannelListUpdate, Systems},
         state::{StateType, TriggerFlowState},
     },
     debug::DEBUG,
@@ -28,6 +28,14 @@ impl RequestProcessor {
             catalog,
         }
     }
+    /// Entry point for the stdin `Systems` message. Wraps
+    /// `TriggerFlowState::process_system_config` with this processor's
+    /// `validation_chain` so a model that heals here (without an explicit rebind)
+    /// gets its blocks validated immediately instead of only on the next evaluate/recall.
+    pub fn handle_system_config(&self, state: &mut TriggerFlowState, systems: &Systems) -> String {
+        state.process_system_config(systems, self.catalog, &self.validation_chain)
+    }
+
     pub fn process_request(
         &self,
         request: RequestType,

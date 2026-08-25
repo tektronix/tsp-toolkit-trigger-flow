@@ -521,8 +521,10 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                         let mut triggerflow_state: tokio::sync::MutexGuard<'_, TriggerFlowState> =
                             app_state.trigger_flow_state.lock().await;
 
-                        let response =
-                            triggerflow_state.process_system_config(&msg, app_state.catalog);
+                        let response = {
+                            let processor = RequestProcessor::new(app_state.catalog);
+                            processor.handle_system_config(&mut triggerflow_state, &msg)
+                        };
 
                         let should_trigger_script = should_trigger_script(&response);
                         println!(

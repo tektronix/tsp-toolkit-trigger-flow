@@ -12,6 +12,7 @@ use crate::{
     },
     debug::DEBUG,
     model::trigger_model_block::TriggerModelBlock,
+    validator::ValidationChain,
     Catalog, IpcData,
 };
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -189,7 +190,18 @@ impl TriggerFlowState {
     /// - Invalid config (parse-fail or `!is_valid_config()`): resets
     ///   `slot_channel_list`, recomputes model errors, and emits
     ///   `empty_system_config_error` with the reason in `additional_info`.
-    pub fn process_system_config(&mut self, systems: &Systems, catalog: &Catalog) -> String {
+    ///
+    /// `validation_chain` runs after `reconcile_derived_state` on the success
+    /// path. Without it, a model that heals here (its `model_error` clears)
+    /// would carry blocks added while it was stale straight through to script generation
+    /// unvalidated: no evaluate/recall round-trip happens on this path, and
+    /// the validator chain is otherwise only invoked from there.
+    pub fn process_system_config(
+        &mut self,
+        systems: &Systems,
+        catalog: &Catalog,
+        validation_chain: &ValidationChain,
+    ) -> String {
         if DEBUG {
             println!(
                 "### process_system_config called with system_config: {:?}",
@@ -238,6 +250,18 @@ impl TriggerFlowState {
                 }
 
                 self.reconcile_derived_state(catalog);
+
+                // Validate now, not just on the next evaluate/recall, so a
+                // model that just recovered gets its blocks checked instead
+                // of silently carrying whatever was added while it was stale.
+                // Surfaced as a top-level "error" key (matching the
+                // evaluate/recall error shape) so `should_trigger_script`
+                // withholds script generation instead of running on an
+                // unvalidated state.
+                if let Err(error) = validation_chain.validate(self) {
+                    eprintln!("process_system_config: validation failed: {error}");
+                    return serde_json::json!({ "error": error.to_string() }).to_string();
+                }
 
                 let response = ResponseType::EvaluateResponse {
                     trigger_flow_state: self.clone(),
@@ -815,7 +839,11 @@ mod process_system_config_tests {
     use super::*;
     use crate::api::slot_channel_list::{SlotJson, SystemConfigJson, Systems};
     use crate::trigger_model_blocks::catalog::ScriptTemplate;
+    use crate::validator::{
+        catalog_validator::CatalogValidator, instr_validator::InstrumentValidator, ValidationChain,
+    };
     use std::collections::HashMap;
+    use std::sync::LazyLock;
 
     fn empty_catalog() -> Catalog {
         Catalog {
@@ -825,6 +853,16 @@ mod process_system_config_tests {
             templates: HashMap::new(),
             custom_types: HashMap::new(),
         }
+    }
+
+    // CatalogValidator requires a `&'static Catalog`; leak-free static
+    // mirrors production, where `RequestProcessor` always holds one.
+    static EMPTY_CATALOG: LazyLock<Catalog> = LazyLock::new(empty_catalog);
+
+    fn validation_chain() -> ValidationChain {
+        ValidationChain::new()
+            .add_validator(Box::new(CatalogValidator::new(&EMPTY_CATALOG)))
+            .add_validator(Box::new(InstrumentValidator::new()))
     }
 
     fn systems_active_mp5_with_module(module: &str) -> Systems {
@@ -902,8 +940,11 @@ mod process_system_config_tests {
             state_type: None,
         };
 
-        let response =
-            state.process_system_config(&systems_active_mp5_with_module("MSMU60-2"), &catalog);
+        let response = state.process_system_config(
+            &systems_active_mp5_with_module("MSMU60-2"),
+            &catalog,
+            &validation_chain(),
+        );
         let ipc = parse_ipc(&response);
 
         assert_eq!(ipc["request_type"], "evaluate_response");
@@ -921,7 +962,8 @@ mod process_system_config_tests {
             state_type: None,
         };
 
-        let response = state.process_system_config(&systems_no_active(), &catalog);
+        let response =
+            state.process_system_config(&systems_no_active(), &catalog, &validation_chain());
         let ipc = parse_ipc(&response);
 
         assert_eq!(ipc["request_type"], "empty_system_config_error");
@@ -954,7 +996,8 @@ mod process_system_config_tests {
             state_type: None,
         };
 
-        let response = state.process_system_config(&systems_non_mp5(), &catalog);
+        let response =
+            state.process_system_config(&systems_non_mp5(), &catalog, &validation_chain());
         let ipc = parse_ipc(&response);
 
         assert_eq!(ipc["request_type"], "empty_system_config_error");
@@ -983,15 +1026,22 @@ mod process_system_config_tests {
         let catalog = empty_catalog();
         let mut state = state_with_one_model(Some(Module::MSMU60_2));
         // Seed prior valid state so we take the in-session branch.
-        state.process_system_config(&systems_active_mp5_with_module("MSMU60-2"), &catalog);
+        state.process_system_config(
+            &systems_active_mp5_with_module("MSMU60-2"),
+            &catalog,
+            &validation_chain(),
+        );
         assert!(
             !state.models["tm1"].has_system_config_error(),
             "model should be healthy after matching init"
         );
 
         // Same module still installed: model stays healthy.
-        let response =
-            state.process_system_config(&systems_active_mp5_with_module("MSMU60-2"), &catalog);
+        let response = state.process_system_config(
+            &systems_active_mp5_with_module("MSMU60-2"),
+            &catalog,
+            &validation_chain(),
+        );
         let ipc = parse_ipc(&response);
         assert_eq!(ipc["request_type"], "evaluate_response");
         assert!(!state.models["tm1"].has_system_config_error());
@@ -1001,9 +1051,14 @@ mod process_system_config_tests {
     fn in_session_parse_fail_mass_stales_and_carries_state() {
         let catalog = empty_catalog();
         let mut state = state_with_one_model(Some(Module::MSMU60_2));
-        state.process_system_config(&systems_active_mp5_with_module("MSMU60-2"), &catalog);
+        state.process_system_config(
+            &systems_active_mp5_with_module("MSMU60-2"),
+            &catalog,
+            &validation_chain(),
+        );
 
-        let response = state.process_system_config(&systems_no_active(), &catalog);
+        let response =
+            state.process_system_config(&systems_no_active(), &catalog, &validation_chain());
         let ipc = parse_ipc(&response);
 
         assert_eq!(ipc["request_type"], "empty_system_config_error");
@@ -1039,9 +1094,14 @@ mod process_system_config_tests {
     fn in_session_invalid_config_mass_stales_and_carries_state() {
         let catalog = empty_catalog();
         let mut state = state_with_one_model(Some(Module::MSMU60_2));
-        state.process_system_config(&systems_active_mp5_with_module("MSMU60-2"), &catalog);
+        state.process_system_config(
+            &systems_active_mp5_with_module("MSMU60-2"),
+            &catalog,
+            &validation_chain(),
+        );
 
-        let response = state.process_system_config(&systems_non_mp5(), &catalog);
+        let response =
+            state.process_system_config(&systems_non_mp5(), &catalog, &validation_chain());
         let ipc = parse_ipc(&response);
 
         assert_eq!(ipc["request_type"], "empty_system_config_error");
@@ -1059,17 +1119,24 @@ mod process_system_config_tests {
     fn healed_after_reconfigure_clears_error() {
         let catalog = empty_catalog();
         let mut state = state_with_one_model(Some(Module::MSMU60_2));
-        state.process_system_config(&systems_active_mp5_with_module("MSMU60-2"), &catalog);
+        state.process_system_config(
+            &systems_active_mp5_with_module("MSMU60-2"),
+            &catalog,
+            &validation_chain(),
+        );
 
         // Break it: mid-session invalid config.
-        state.process_system_config(&systems_non_mp5(), &catalog);
+        state.process_system_config(&systems_non_mp5(), &catalog, &validation_chain());
         assert!(state.models["tm1"].has_system_config_error());
 
         // Reconfigure: valid MP5 with matching module. Note: state is now
         // fresh-init-shaped (empty list), so this goes through the fresh-init
         // path and the recall-completion catalog-attach branch fires.
-        let response =
-            state.process_system_config(&systems_active_mp5_with_module("MSMU60-2"), &catalog);
+        let response = state.process_system_config(
+            &systems_active_mp5_with_module("MSMU60-2"),
+            &catalog,
+            &validation_chain(),
+        );
         let ipc = parse_ipc(&response);
         assert_eq!(ipc["request_type"], "evaluate_response");
         assert!(!state.models["tm1"].has_system_config_error());
@@ -1084,8 +1151,11 @@ mod process_system_config_tests {
         assert!(state.slot_channel_list.slots.is_empty());
         assert!(state.catalog.is_none());
 
-        let response =
-            state.process_system_config(&systems_active_mp5_with_module("MSMU60-2"), &catalog);
+        let response = state.process_system_config(
+            &systems_active_mp5_with_module("MSMU60-2"),
+            &catalog,
+            &validation_chain(),
+        );
         let ipc = parse_ipc(&response);
         assert_eq!(ipc["request_type"], "evaluate_response");
         assert!(
@@ -1098,14 +1168,22 @@ mod process_system_config_tests {
     fn in_session_normal_update_clears_catalog() {
         let catalog = empty_catalog();
         let mut state = state_with_one_model(Some(Module::MSMU60_2));
-        state.process_system_config(&systems_active_mp5_with_module("MSMU60-2"), &catalog);
+        state.process_system_config(
+            &systems_active_mp5_with_module("MSMU60-2"),
+            &catalog,
+            &validation_chain(),
+        );
         assert!(state.catalog.is_some());
 
         // Now delete the seeded model so the next update doesn't look like
         // recall-completion (which would keep catalog attached).
         state.models.clear();
 
-        state.process_system_config(&systems_active_mp5_with_module("MSMU60-2"), &catalog);
+        state.process_system_config(
+            &systems_active_mp5_with_module("MSMU60-2"),
+            &catalog,
+            &validation_chain(),
+        );
         assert!(
             state.catalog.is_none(),
             "in-session update with no models must clear catalog"
