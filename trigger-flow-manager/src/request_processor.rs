@@ -1,8 +1,8 @@
 use crate::{
     api::{
         request::{RequestType, ResponseType},
-        slot_channel_list::{Slot, SlotChannelListUpdate},
-        state::TriggerFlowState,
+        slot_channel_list::{Slot, SlotChannelListUpdate, Systems},
+        state::{StateType, TriggerFlowState},
     },
     debug::DEBUG,
     validator::{
@@ -28,6 +28,14 @@ impl RequestProcessor {
             catalog,
         }
     }
+    /// Entry point for the stdin `Systems` message. Wraps
+    /// `TriggerFlowState::process_system_config` with this processor's
+    /// `validation_chain` so a model that heals here (without an explicit rebind)
+    /// gets its blocks validated immediately instead of only on the next evaluate/recall.
+    pub fn handle_system_config(&self, state: &mut TriggerFlowState, systems: &Systems) -> String {
+        state.process_system_config(systems, self.catalog, &self.validation_chain)
+    }
+
     pub fn process_request(
         &self,
         request: RequestType,
@@ -170,6 +178,7 @@ impl RequestProcessor {
             println!("###Catalog is {:?}", self.catalog.clone());
         }
         trigger_flow_state.catalog = Some(self.catalog.clone()); // Include catalog in recall response
+        trigger_flow_state.state_type = Some(StateType::Recall);
         let response = ResponseType::EvaluateResponse {
             trigger_flow_state: trigger_flow_state.clone(),
         };
@@ -233,6 +242,7 @@ mod recall_backfill_tests {
                 nodes: vec![],
             },
             models: IndexMap::new(),
+            state_type: None,
         };
         state.models.insert(
             "tm1".to_string(),

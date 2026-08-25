@@ -295,6 +295,13 @@ export function normalizeParameterValues(
         normalizedValues[param.name] = options[0];
       }
     } else if (isInvalid) {
+      // Module-constrained params (SMU/PSU) are clamped by Rust, which also
+      // emits the block_error note. Snapping here would hand Rust an
+      // already-valid value and suppress that error, so leave the stored
+      // value alone; callers flag it via the invalid-option marker.
+      if (param.constraints) {
+        continue;
+      }
       // Stored value exists but is not in the currently allowed set: snap
       // to the first option so the payload stays serializable. slot_index
       // never reaches this branch because reconcileSlotIndexOptions
