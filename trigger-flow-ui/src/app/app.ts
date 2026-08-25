@@ -33,9 +33,7 @@ export class App implements OnInit, OnDestroy {
     if (!list) return false;
     const local = (list.slots ?? []).some((s) => s.module !== 'Empty');
     if (local) return true;
-    return (list.nodes ?? []).some((n) =>
-      (n.slots ?? []).some((s) => s.module !== 'Empty'),
-    );
+    return (list.nodes ?? []).some((n) => (n.slots ?? []).some((s) => s.module !== 'Empty'));
   });
 
   /**
@@ -50,8 +48,7 @@ export class App implements OnInit, OnDestroy {
   constructor() {
     effect(() => {
       const hasHardware = this.hasValidHardware();
-      const hasModels =
-        Object.keys(this.triggerFlowDataService.models$()).length > 0;
+      const hasModels = Object.keys(this.triggerFlowDataService.models$()).length > 0;
       if (hasHardware || hasModels) {
         this.hasMainFlowMounted.set(true);
       }
@@ -62,9 +59,7 @@ export class App implements OnInit, OnDestroy {
    * Show main-flow after the first time either hardware or models
    * become available. Loading screen is the one-shot initial gate.
    */
-  protected readonly shouldShowMainFlow = computed<boolean>(() =>
-    this.hasMainFlowMounted(),
-  );
+  protected readonly shouldShowMainFlow = computed<boolean>(() => this.hasMainFlowMounted());
 
   ngOnInit(): void {
     this.webSocket.connect();
@@ -96,20 +91,23 @@ export class App implements OnInit, OnDestroy {
             const statePayload = new TriggerFlowStatePayload(data);
             this.triggerFlowDataService.updateStatePayload(statePayload);
             if (DEBUG) console.log(statePayload);
-            vscode.postMessage({ command: 'update_session' , payload: message});
+            vscode.postMessage({ command: 'update_session', payload: message });
           }
           break;
         }
         case 'Reset_session':
           this.triggerFlowDataService.resetState();
+          // The websocket session (and this component) is reused across
+          // sessions, so the sticky latch must be re-armed here or a new
+          // session with no hardware/models would keep showing the old
+          // session's main-flow instead of falling back to the loading gate.
+          this.hasMainFlowMounted.set(false);
+          console.log('angular app.ts: Reset_session received, state reset');
           vscode.postMessage({ command: 'get_initial_configuration' });
           break;
         // Handle other request types as needed
         case 'empty_system_config_error': {
-          console.warn(
-            'Received empty_system_config_error:',
-            ipcData.additional_info,
-          );
+          console.warn('Received empty_system_config_error:', ipcData.additional_info);
           const data = JSON.parse(ipcData.json_value);
           if (data.slot_channel_list && data.models) {
             const statePayload = new TriggerFlowStatePayload(data);
