@@ -191,11 +191,10 @@ impl TriggerFlowState {
     ///   `slot_channel_list`, recomputes model errors, and emits
     ///   `empty_system_config_error` with the reason in `additional_info`.
     ///
-    /// `validation_chain` runs after `reconcile_derived_state` on the success
-    /// path. Without it, a model that heals here (its `model_error` clears)
-    /// would carry blocks added while it was stale straight through to script generation
-    /// unvalidated: no evaluate/recall round-trip happens on this path, and
-    /// the validator chain is otherwise only invoked from there.
+    /// Models whose slot binding becomes valid again after a Systems update, are revalidated 
+    /// so that any blocks added while it was stale are checked and any block errors are shown in the UI.
+    /// When the model has invalid slot binding, any newly added blocks are not validated 
+    /// until the binding becomes valid again.
     pub fn process_system_config(
         &mut self,
         systems: &Systems,
