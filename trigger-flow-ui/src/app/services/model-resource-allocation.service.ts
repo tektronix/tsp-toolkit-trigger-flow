@@ -4,6 +4,9 @@ import { TriggerFlowDataService } from './triggerFlowDataService';
 import { Module, Slot, SlotChannelList } from '../models/slotChannelModel';
 import { CheckboxOption } from '../custom-controls/checkbox-group/checkbox-group';
 
+/** Every slot is built with exactly these channels, regardless of module. */
+const CHANNEL_INDICES = [1, 2];
+
 @Injectable({ providedIn: 'root' })
 export class ModelResourceAllocationService {
   private canvasBlocksService = inject(CanvasBlocksService);
@@ -14,13 +17,13 @@ export class ModelResourceAllocationService {
    * - All channels of the block's model's slot are listed.
    * - Channels already used by OTHER models on the same slot+node are disabled,
    *   so the user can see them but cannot select them in this block.
+   * - When the slot cannot be resolved (hardware removed mid-session), the
+   *   canonical channels are returned so the control still renders
+   *   the saved selection instead of collapsing to nothing.
    */
   getChannelOptionsForBlock(blockId: string): CheckboxOption[] {
     const models = this.canvasBlocksService.getModels();
     const slotChannelList = this.triggerFlowDataService.getSlotChannelList();
-    if (!slotChannelList) {
-      return [];
-    }
 
     // Find the model owning this block
     const ownerEntry = Object.entries(models).find(([, m]) =>
@@ -32,9 +35,11 @@ export class ModelResourceAllocationService {
 
     const [ownerName, ownerModel] = ownerEntry;
 
-    const slot = this.findSlot(ownerModel.slot_index, ownerModel.node_id, slotChannelList);
+    const slot = slotChannelList
+      ? this.findSlot(ownerModel.slot_index, ownerModel.node_id, slotChannelList)
+      : null;
     if (!slot) {
-      return [];
+      return this.unavailableChannelOptions();
     }
 
     // Collect channels already used by OTHER models on the same slot+node
@@ -61,6 +66,14 @@ export class ModelResourceAllocationService {
         disabled: usedByOthers.has(value),
       };
     });
+  }
+
+  private unavailableChannelOptions(): CheckboxOption[] {
+    return CHANNEL_INDICES.map((index) => ({
+      value: `${index}`,
+      label: `Channel ${index}`,
+      //disabled: true,
+    }));
   }
 
   private findSlot(slotId: number, nodeId: string, list: SlotChannelList): Slot | null {
