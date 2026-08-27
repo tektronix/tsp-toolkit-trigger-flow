@@ -44,6 +44,10 @@ export class SpecificEvent implements OnChanges {
   @Input() param!: ActualParameter;
   @Input() eventDefinition: EventDefinition | null = null;
   @Input() blockId: string | null = null;
+  /** Bumped on every `models$` / `slotChannelList$` emission. None of the other
+   * inputs change when a module is swapped in place, so this is the only
+   * signal that re-runs `ngOnChanges` and rebuilds the option lists. */
+  @Input() configVersion = 0;
   @Output() valueChange = new EventEmitter<void>();
 
   // Built once per input change so the template never re-resolves on each tick.

@@ -43,6 +43,7 @@ impl AppState {
                 catalog: None,
                 slot_channel_list: SlotChannelList::default(),
                 models: IndexMap::new(),
+                state_type: None,
             })),
             trigger_flow_tx: broadcast::channel(100).0,
             work_folder: Arc::new(Mutex::new(Option::None)),
@@ -520,8 +521,10 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                         let mut triggerflow_state: tokio::sync::MutexGuard<'_, TriggerFlowState> =
                             app_state.trigger_flow_state.lock().await;
 
-                        let response =
-                            triggerflow_state.process_system_config(&msg, app_state.catalog);
+                        let response = {
+                            let processor = RequestProcessor::new(app_state.catalog);
+                            processor.handle_system_config(&mut triggerflow_state, &msg)
+                        };
 
                         let should_trigger_script = should_trigger_script(&response);
                         println!(
@@ -553,7 +556,6 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                     }
                     StdinLine::SessionPath(msg) => {
                         // handle session
-                        println!("Received Session command from stdin: {:?}", msg);
                         let mut work_folder_guard = app_state_clone.work_folder.lock().await;
                         let value = msg; // msg is already a ScriptPath with both session and folder fields
                         let filename: String = format!("{}.tsp", value.session.clone());
@@ -581,7 +583,10 @@ pub async fn start(catalog_ref: &'static Catalog) -> anyhow::Result<()> {
                     StdinLine::SessionData(msg) => {
                         // handle session data
                         if DEBUG {
-                            println!("Received SessionData command from stdin: {:?}", msg);
+                            println!(
+                                "kic-trigger-flow-op:Received SessionData command from stdin: {:?}",
+                                msg
+                            );
                         }
                         // For demonstration, we just print the session data. You can add your own processing logic here.
                         match RequestType::try_from(&msg) {
