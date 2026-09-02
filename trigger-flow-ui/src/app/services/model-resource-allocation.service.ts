@@ -46,15 +46,14 @@ export class ModelResourceAllocationService {
     const usedByOthers = new Set<string>();
     for (const [name, model] of Object.entries(models)) {
       if (name === ownerName) continue;
+      if (this.hasSystemConfigError(model.model_error)) continue;
       if (model.slot_index !== ownerModel.slot_index) continue;
       if (model.node_id !== ownerModel.node_id) continue;
 
       for (const block of model.blocks) {
-        for (const param of block.actual_parameters) {
-          if (param.name === 'channel_list' && Array.isArray(param.value)) {
-            param.value.forEach((ch) => usedByOthers.add(`${ch}`));
-          }
-        }
+        this.getClaimedChannels(block.actual_parameters).forEach((channel) =>
+          usedByOthers.add(channel),
+        );
       }
     }
 
@@ -165,6 +164,27 @@ export class ModelResourceAllocationService {
     return localChannels + nodeChannels;
   }
 
+  /** Current physical channel capacity reported by the backend. */
+  getChannelUsage(): { used: number; total: number } {
+    const slotChannelList = this.triggerFlowDataService.slotChannelList$();
+    if (!slotChannelList) {
+      return { used: 0, total: 0 };
+    }
+
+    const slots = [
+      ...(slotChannelList.slots ?? []),
+      ...(slotChannelList.nodes ?? []).flatMap((node) => node.slots ?? []),
+    ].filter((slot) => slot.module !== 'Empty');
+
+    return {
+      used: slots.reduce(
+        (sum, slot) => sum + slot.channels.filter((channel) => channel.inUse).length,
+        0,
+      ),
+      total: slots.reduce((sum, slot) => sum + slot.channels.length, 0),
+    };
+  }
+
   /**
    * Channels claimed by models on a given slot, as a Set of "<channel>"
    * strings. Pass `excludeModelName` to skip a model's own reservations
@@ -179,13 +199,33 @@ export class ModelResourceAllocationService {
     const used = new Set<string>();
     for (const [name, model] of Object.entries(this.canvasBlocksService.getModels())) {
       if (excludeModelName && name === excludeModelName) continue;
+      if (this.hasSystemConfigError(model.model_error)) continue;
       if (model.node_id !== nodeId || model.slot_index !== slotIndex) continue;
       for (const block of model.blocks) {
-        const list = block.actual_parameters?.find((p) => p.name === 'channel_list')?.value;
-        if (Array.isArray(list)) list.forEach((c) => used.add(`${c}`));
+        this.getClaimedChannels(block.actual_parameters).forEach((channel) => used.add(channel));
       }
     }
     return used;
+  }
+
+  private getClaimedChannels(
+    parameters: { name: string; value: unknown }[],
+  ): Set<string> {
+    const claimed = new Set<string>();
+    for (const parameter of parameters) {
+      if (parameter.name === 'channel_index' && parameter.value != null) {
+        claimed.add(`${parameter.value}`);
+      } else if (parameter.name === 'channel_list' && Array.isArray(parameter.value)) {
+        parameter.value.forEach((channel) => claimed.add(`${channel}`));
+      }
+    }
+    return claimed;
+  }
+
+  private hasSystemConfigError(
+    errors: readonly [string, string][] | undefined,
+  ): boolean {
+    return errors?.some(([kind]) => kind === 'system_config') ?? false;
   }
 
   /**

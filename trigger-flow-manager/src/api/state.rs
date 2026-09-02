@@ -126,27 +126,33 @@ impl TriggerModelState {
         }
 
         match self.current_module(list) {
-            None => Some((
-                ModelErrorKind::SystemConfig,
-                format!(
-                    "Slot {} on '{}' is no longer available. Rebind to recover.",
-                    self.slot_index.0, self.node_id,
-                ),
-            )),
-            Some(Module::Empty) => Some((
-                ModelErrorKind::SystemConfig,
-                format!(
-                    "Slot {} on '{}' is empty. Rebind to recover.",
-                    self.slot_index.0, self.node_id,
-                ),
-            )),
-            Some(m) if m != expected => Some((
-                ModelErrorKind::ModuleChanged,
-                format!(
-                    "Module at slot {} changed from {:?} to {:?}. Some parameters may need adjustment.",
-                    self.slot_index.0, expected, m,
-                ),
-            )),
+            None => {
+                Some((
+                    ModelErrorKind::SystemConfig,
+                    format!(
+                        "Slot {} on '{}' is no longer available. Rebind to recover.",
+                        self.slot_index.0, self.node_id,
+                    ),
+                ))
+            },
+            Some(Module::Empty) => {
+                Some((
+                    ModelErrorKind::SystemConfig,
+                    format!(
+                        "Slot {} on '{}' is empty. Rebind to recover.",
+                        self.slot_index.0, self.node_id,
+                    ),
+                ))
+            },
+            Some(m) if m != expected => {
+                Some((
+                    ModelErrorKind::ModuleChanged,
+                    format!(
+                        "Module at slot {} changed from {:?} to {:?}. Some parameters may need adjustment.",
+                        self.slot_index.0, expected, m,
+                    ),
+                ))
+            },
             Some(_) => None,
         }
     }
@@ -235,14 +241,12 @@ impl TriggerFlowState {
                 if is_initial_state {
                     self.state_type = Some(StateType::Init);
                     self.catalog = Some(catalog.clone());
-
                     println!("### process_system_config: initial state created with catalog");
                 } else {
                     self.state_type = Some(StateType::Systems);
                     if self.catalog.is_some() {
                         self.catalog = None;
                     }
-
                     println!(
                     "### process_system_config: existing state updated without attaching catalog"
                 );
@@ -261,6 +265,7 @@ impl TriggerFlowState {
                     eprintln!("process_system_config: validation failed: {error}");
                     return serde_json::json!({ "error": error.to_string() }).to_string();
                 }
+                self.refresh_channel_usage();
 
                 let response = ResponseType::EvaluateResponse {
                     trigger_flow_state: self.clone(),
@@ -268,9 +273,7 @@ impl TriggerFlowState {
 
                 let json_value = match serde_json::to_string(&response) {
                     Ok(value) => value,
-                    Err(_) => {
-                        return "{\"error\":\"Response serialization failed\"}".to_string();
-                    }
+                    Err(_) => return "{\"error\":\"Response serialization failed\"}".to_string(),
                 };
 
                 let ipc = IpcData {
@@ -318,9 +321,17 @@ impl TriggerFlowState {
             .unwrap_or_else(|_| "{\"error\":\"Serialization failed\"}".to_string())
     }
 
-    pub fn is_channel_in_use(&self, slot_index: SlotIndex, channel_index: ChannelIndex) -> bool {
+    pub fn is_channel_in_use(
+        &self,
+        node_id: &str,
+        slot_index: SlotIndex,
+        channel_index: ChannelIndex,
+    ) -> bool {
         for model in self.models.values() {
-            if model.slot_index == slot_index {
+            if !model.has_system_config_error()
+                && model.node_id == node_id
+                && model.slot_index == slot_index
+            {
                 for block in &model.blocks {
                     let used_channels = block.get_used_channels();
                     if used_channels.contains(&channel_index.0) {
@@ -330,6 +341,17 @@ impl TriggerFlowState {
             }
         }
         false
+    }
+
+    /// Refresh derived channel flags once model diagnostics and validation
+    /// have settled. Blocking-stale models do not reserve current capacity;
+    /// module-change warnings still do.
+    pub fn refresh_channel_usage(&mut self) {
+        let refreshed = self
+            .slot_channel_list
+            .update_slot_channel_list(SlotChannelListUpdate::TriggerFlowState(self.clone()))
+            .unwrap_or_else(|_| self.slot_channel_list.clone());
+        self.slot_channel_list = refreshed;
     }
     pub fn reset(&mut self) {
         self.catalog = None;
@@ -1530,5 +1552,100 @@ mod clamp_module_constrained_params_tests {
             "expected Hardware entry to be dropped on heal, got: {:?}",
             errs
         );
+    }
+}
+
+#[cfg(test)]
+mod channel_usage_tests {
+    use super::*;
+    use crate::api::slot_channel_list::{Channel, Nodes};
+    use std::collections::HashMap;
+
+    fn channel(index: u8) -> Channel {
+        Channel {
+            channel_index: ChannelIndex(index),
+            in_use: false,
+        }
+    }
+
+    fn model(
+        name: &str,
+        node_id: &str,
+        channel_index: u8,
+        model_error: Vec<(ModelErrorKind, String)>,
+    ) -> TriggerModelState {
+        TriggerModelState {
+            model_name: name.to_string(),
+            slot_index: SlotIndex(1),
+            node_id: node_id.to_string(),
+            blocks: vec![TriggerModelBlock {
+                block_id: format!("{name}-block"),
+                block_type: "test".to_string(),
+                block_parameters: HashMap::from([(
+                    "channel_index".to_string(),
+                    serde_json::json!(channel_index),
+                )]),
+                incoming: None,
+                outgoing: None,
+                block_position: crate::model::trigger_model_block::BlockPosition { x: 0.0, y: 0.0 },
+                block_error: None,
+            }],
+            slot_module: Some(Module::MSMU60_2),
+            model_error,
+        }
+    }
+
+    #[test]
+    fn refresh_usage_keeps_warning_claims_but_releases_blocking_stale_claims() {
+        let mut state = TriggerFlowState {
+            catalog: None,
+            slot_channel_list: SlotChannelList {
+                localnode: "MP5103".to_string(),
+                slots: vec![Slot {
+                    slot_id: SlotIndex(1),
+                    module: Module::MSMU60_2,
+                    channels: vec![channel(1), channel(2)],
+                }],
+                nodes: vec![Nodes {
+                    node_id: "node[3]".to_string(),
+                    mainframe: "MP5103".to_string(),
+                    slots: Some(vec![Slot {
+                        slot_id: SlotIndex(1),
+                        module: Module::MSMU60_2,
+                        channels: vec![channel(1)],
+                    }]),
+                }],
+            },
+            models: IndexMap::new(),
+            state_type: None,
+        };
+        state.models.insert(
+            "healthy".to_string(),
+            model("healthy", "localnode", 1, vec![]),
+        );
+        state.models.insert(
+            "stale".to_string(),
+            model(
+                "stale",
+                "localnode",
+                2,
+                vec![(ModelErrorKind::SystemConfig, "slot missing".to_string())],
+            ),
+        );
+        state.models.insert(
+            "warning".to_string(),
+            model(
+                "warning",
+                "node[3]",
+                1,
+                vec![(ModelErrorKind::ModuleChanged, "module changed".to_string())],
+            ),
+        );
+
+        state.refresh_channel_usage();
+
+        assert!(state.slot_channel_list.slots[0].channels[0].in_use);
+        assert!(!state.slot_channel_list.slots[0].channels[1].in_use);
+        assert!(state.slot_channel_list.nodes[0].slots.as_ref().unwrap()[0].channels[0].in_use);
     }
 }

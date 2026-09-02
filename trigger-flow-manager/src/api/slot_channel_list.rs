@@ -210,7 +210,18 @@ impl SlotChannelList {
                 for slot in &mut self.slots {
                     for channel in &mut slot.channels {
                         channel.in_use = triggerflow_state
-                            .is_channel_in_use(slot.slot_id, channel.channel_index);
+                            .is_channel_in_use("localnode", slot.slot_id, channel.channel_index);
+                    }
+                }
+                for node in &mut self.nodes {
+                    for slot in node.slots.iter_mut().flatten() {
+                        for channel in &mut slot.channels {
+                            channel.in_use = triggerflow_state.is_channel_in_use(
+                                &node.node_id,
+                                slot.slot_id,
+                                channel.channel_index,
+                            );
+                        }
                     }
                 }
             }
