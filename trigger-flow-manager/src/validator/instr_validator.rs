@@ -5,8 +5,7 @@ use crate::{
 };
 use anyhow::Result;
 
-pub struct InstrumentValidator {
-}
+pub struct InstrumentValidator {}
 
 impl Default for InstrumentValidator {
     fn default() -> Self {

@@ -30,7 +30,10 @@ impl SlotChannelHashMap {
         channel: ChannelIndex,
         model: &str,
     ) -> Option<String> {
-        if let Some(existing_usage) = self.channel_usage_map.get(&(node_id.to_string(), slot, channel)) {
+        if let Some(existing_usage) =
+            self.channel_usage_map
+                .get(&(node_id.to_string(), slot, channel))
+        {
             if existing_usage.model_name != model {
                 return Some(format!(
                     "Channel conflict: Node '{}' Slot {:?} Channel {:?} already used by model '{}' block '{}'",
@@ -70,7 +73,13 @@ mod tests {
     #[test]
     fn detects_conflicts_on_the_same_node_slot_and_channel() {
         let mut usage = SlotChannelHashMap::new();
-        usage.add_usage("localnode", SlotIndex(1), ChannelIndex(1), "model-a", "block-a");
+        usage.add_usage(
+            "localnode",
+            SlotIndex(1),
+            ChannelIndex(1),
+            "model-a",
+            "block-a",
+        );
 
         assert!(usage
             .check_channel_conflict("localnode", SlotIndex(1), ChannelIndex(1), "model-b")
@@ -80,7 +89,13 @@ mod tests {
     #[test]
     fn permits_matching_slot_and_channel_on_different_nodes() {
         let mut usage = SlotChannelHashMap::new();
-        usage.add_usage("localnode", SlotIndex(1), ChannelIndex(1), "model-a", "block-a");
+        usage.add_usage(
+            "localnode",
+            SlotIndex(1),
+            ChannelIndex(1),
+            "model-a",
+            "block-a",
+        );
 
         assert!(usage
             .check_channel_conflict("node[3]", SlotIndex(1), ChannelIndex(1), "model-b")

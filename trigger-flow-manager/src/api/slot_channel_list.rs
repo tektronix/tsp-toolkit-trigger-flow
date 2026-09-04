@@ -209,8 +209,11 @@ impl SlotChannelList {
             SlotChannelListUpdate::TriggerFlowState(triggerflow_state) => {
                 for slot in &mut self.slots {
                     for channel in &mut slot.channels {
-                        channel.in_use = triggerflow_state
-                            .is_channel_in_use("localnode", slot.slot_id, channel.channel_index);
+                        channel.in_use = triggerflow_state.is_channel_in_use(
+                            "localnode",
+                            slot.slot_id,
+                            channel.channel_index,
+                        );
                     }
                 }
                 for node in &mut self.nodes {
