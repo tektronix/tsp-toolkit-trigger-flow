@@ -53,7 +53,9 @@
     <app-model-settings-modal
       [open]="showModelSettingsModal"
       [models]="modelSettingsList"
-      [maxModels]="modelSettingsMaxModels"
+      [usedChannels]="modelSettingsChannelUsage().used"
+      [totalChannels]="modelSettingsChannelUsage().total"
+      [canAddModel]="modelSettingsCanAdd()"
       (close)="closeModelSettings()"
       (addModel)="onAddModelFromSettings()"
       (deleteModel)="onDeleteModel($event)"

@@ -1,7 +1,7 @@
 use crate::{
     api::{
         request::{RequestType, ResponseType},
-        slot_channel_list::{Slot, SlotChannelListUpdate, Systems},
+        slot_channel_list::{Slot, Systems},
         state::{StateType, TriggerFlowState},
     },
     debug::DEBUG,
@@ -88,15 +88,6 @@ impl RequestProcessor {
         trigger_flow_state: &mut TriggerFlowState,
     ) -> Result<String> {
         println!("###handle_evaluate_request called");
-        //call process_system_config with update type triggerflowstate
-
-        let new_slot_channel_list = trigger_flow_state
-            .slot_channel_list
-            .update_slot_channel_list(SlotChannelListUpdate::TriggerFlowState(
-                trigger_flow_state.clone(),
-            ));
-        trigger_flow_state.slot_channel_list =
-            new_slot_channel_list.unwrap_or_else(|_| trigger_flow_state.slot_channel_list.clone());
 
         // Recompute against the updated list before validation.
         trigger_flow_state.reconcile_derived_state(self.catalog);
@@ -104,6 +95,7 @@ impl RequestProcessor {
         //evaluate models in state
         //validation chain validates the models first, then hashmap
         self.validation_chain.validate(trigger_flow_state)?;
+        trigger_flow_state.refresh_channel_usage();
 
         println!("###Creating ResponseType::EvaluateResponse with catalog");
         let response = ResponseType::EvaluateResponse {
@@ -158,22 +150,14 @@ impl RequestProcessor {
                 .map(|s| s.module);
         }
 
-        //call process_system_config with update type triggerflowstate
-
-        let new_slot_channel_list = trigger_flow_state
-            .slot_channel_list
-            .update_slot_channel_list(SlotChannelListUpdate::TriggerFlowState(
-                trigger_flow_state.clone(),
-            ));
-        trigger_flow_state.slot_channel_list =
-            new_slot_channel_list.unwrap_or_else(|_| trigger_flow_state.slot_channel_list.clone());
-
         // Recompute against the updated list before validation.
         trigger_flow_state.reconcile_derived_state(self.catalog);
 
         //evaluate models in state
         //validation chain validates the models first, then hashmap
         self.validation_chain.validate(trigger_flow_state)?;
+        trigger_flow_state.refresh_channel_usage();
+
         if DEBUG {
             println!("###Catalog is {:?}", self.catalog.clone());
         }

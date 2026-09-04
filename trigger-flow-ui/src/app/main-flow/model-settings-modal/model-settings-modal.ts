@@ -27,12 +27,13 @@ export class ModelSettingsModal {
 
   @Input() models: ModelSettingsItem[] = [];
 
-  // Should be derived from installed non-empty slots and their channel count.
-  @Input() maxModels = 0;
+  @Input() usedChannels = 0;
 
-  get isAddDisabled(): boolean {
-    return this.models.length >= this.maxModels;
-  }
+  @Input() totalChannels = 0;
+
+  @Input() canAddModel = false;
+
+  get isAddDisabled(): boolean { return !this.canAddModel; }
 
   @Output() close = new EventEmitter<void>();
 
