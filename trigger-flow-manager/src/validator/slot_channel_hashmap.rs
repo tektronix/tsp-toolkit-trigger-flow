@@ -7,7 +7,7 @@ pub struct ChannelUsage {
     pub block_id: String,
 }
 pub struct SlotChannelHashMap {
-    channel_usage_map: HashMap<(SlotIndex, ChannelIndex), ChannelUsage>,
+    channel_usage_map: HashMap<(String, SlotIndex, ChannelIndex), ChannelUsage>,
 }
 
 impl Default for SlotChannelHashMap {
@@ -25,15 +25,19 @@ impl SlotChannelHashMap {
 
     pub fn check_channel_conflict(
         &self,
+        node_id: &str,
         slot: SlotIndex,
         channel: ChannelIndex,
         model: &str,
     ) -> Option<String> {
-        if let Some(existing_usage) = self.channel_usage_map.get(&(slot, channel)) {
+        if let Some(existing_usage) =
+            self.channel_usage_map
+                .get(&(node_id.to_string(), slot, channel))
+        {
             if existing_usage.model_name != model {
                 return Some(format!(
-                    "Channel conflict: Slot {:?} Channel {:?} already used by model '{}' block '{}'",
-                    slot, channel, existing_usage.model_name, existing_usage.block_id
+                    "Channel conflict: Node '{}' Slot {:?} Channel {:?} already used by model '{}' block '{}'",
+                    node_id, slot, channel, existing_usage.model_name, existing_usage.block_id
                 ));
             }
         }
@@ -42,13 +46,14 @@ impl SlotChannelHashMap {
 
     pub fn add_usage(
         &mut self,
+        node_id: &str,
         slot: SlotIndex,
         channel: ChannelIndex,
         model: &str,
         block_id: &str,
     ) {
         self.channel_usage_map.insert(
-            (slot, channel),
+            (node_id.to_string(), slot, channel),
             ChannelUsage {
                 model_name: model.to_string(),
                 block_id: block_id.to_string(),
@@ -58,6 +63,43 @@ impl SlotChannelHashMap {
 
     pub fn clear(&mut self) {
         self.channel_usage_map.clear();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn detects_conflicts_on_the_same_node_slot_and_channel() {
+        let mut usage = SlotChannelHashMap::new();
+        usage.add_usage(
+            "localnode",
+            SlotIndex(1),
+            ChannelIndex(1),
+            "model-a",
+            "block-a",
+        );
+
+        assert!(usage
+            .check_channel_conflict("localnode", SlotIndex(1), ChannelIndex(1), "model-b")
+            .is_some());
+    }
+
+    #[test]
+    fn permits_matching_slot_and_channel_on_different_nodes() {
+        let mut usage = SlotChannelHashMap::new();
+        usage.add_usage(
+            "localnode",
+            SlotIndex(1),
+            ChannelIndex(1),
+            "model-a",
+            "block-a",
+        );
+
+        assert!(usage
+            .check_channel_conflict("node[3]", SlotIndex(1), ChannelIndex(1), "model-b")
+            .is_none());
     }
 }
 

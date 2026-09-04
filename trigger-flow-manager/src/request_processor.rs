@@ -1,8 +1,8 @@
 use crate::{
     api::{
         request::{RequestType, ResponseType},
-        slot_channel_list::{Slot, SlotChannelListUpdate},
-        state::TriggerFlowState,
+        slot_channel_list::{Slot, Systems},
+        state::{StateType, TriggerFlowState},
     },
     debug::DEBUG,
     validator::{
@@ -28,6 +28,14 @@ impl RequestProcessor {
             catalog,
         }
     }
+    /// Entry point for the stdin `Systems` message. Wraps
+    /// `TriggerFlowState::process_system_config` with this processor's
+    /// `validation_chain` so a model that heals here (without an explicit rebind)
+    /// gets its blocks validated immediately instead of only on the next evaluate/recall.
+    pub fn handle_system_config(&self, state: &mut TriggerFlowState, systems: &Systems) -> String {
+        state.process_system_config(systems, self.catalog, &self.validation_chain)
+    }
+
     pub fn process_request(
         &self,
         request: RequestType,
@@ -80,15 +88,6 @@ impl RequestProcessor {
         trigger_flow_state: &mut TriggerFlowState,
     ) -> Result<String> {
         println!("###handle_evaluate_request called");
-        //call process_system_config with update type triggerflowstate
-
-        let new_slot_channel_list = trigger_flow_state
-            .slot_channel_list
-            .update_slot_channel_list(SlotChannelListUpdate::TriggerFlowState(
-                trigger_flow_state.clone(),
-            ));
-        trigger_flow_state.slot_channel_list =
-            new_slot_channel_list.unwrap_or_else(|_| trigger_flow_state.slot_channel_list.clone());
 
         // Recompute against the updated list before validation.
         trigger_flow_state.reconcile_derived_state(self.catalog);
@@ -96,6 +95,7 @@ impl RequestProcessor {
         //evaluate models in state
         //validation chain validates the models first, then hashmap
         self.validation_chain.validate(trigger_flow_state)?;
+        trigger_flow_state.refresh_channel_usage();
 
         println!("###Creating ResponseType::EvaluateResponse with catalog");
         let response = ResponseType::EvaluateResponse {
@@ -150,26 +150,19 @@ impl RequestProcessor {
                 .map(|s| s.module);
         }
 
-        //call process_system_config with update type triggerflowstate
-
-        let new_slot_channel_list = trigger_flow_state
-            .slot_channel_list
-            .update_slot_channel_list(SlotChannelListUpdate::TriggerFlowState(
-                trigger_flow_state.clone(),
-            ));
-        trigger_flow_state.slot_channel_list =
-            new_slot_channel_list.unwrap_or_else(|_| trigger_flow_state.slot_channel_list.clone());
-
         // Recompute against the updated list before validation.
         trigger_flow_state.reconcile_derived_state(self.catalog);
 
         //evaluate models in state
         //validation chain validates the models first, then hashmap
         self.validation_chain.validate(trigger_flow_state)?;
+        trigger_flow_state.refresh_channel_usage();
+
         if DEBUG {
             println!("###Catalog is {:?}", self.catalog.clone());
         }
         trigger_flow_state.catalog = Some(self.catalog.clone()); // Include catalog in recall response
+        trigger_flow_state.state_type = Some(StateType::Recall);
         let response = ResponseType::EvaluateResponse {
             trigger_flow_state: trigger_flow_state.clone(),
         };
@@ -233,6 +226,7 @@ mod recall_backfill_tests {
                 nodes: vec![],
             },
             models: IndexMap::new(),
+            state_type: None,
         };
         state.models.insert(
             "tm1".to_string(),

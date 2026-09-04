@@ -15,6 +15,7 @@ import {
   ModelSettingsModal,
   ModelSettingsItem,
 } from './model-settings-modal/model-settings-modal';
+import { BannerDisplay } from '../custom-controls/banner-display/banner-display';
 
 @Component({
   selector: 'app-main-flow',
@@ -29,6 +30,7 @@ import {
     ModelModal,
     EditModelModal,
     ModelSettingsModal,
+    BannerDisplay
   ],
   templateUrl: './main-flow.html',
   styleUrl: './main-flow.scss',
@@ -48,7 +50,18 @@ export class MainFlow {
   showModelSettingsModal = false;
 
   modelSettingsList: ModelSettingsItem[] = [];
-  modelSettingsMaxModels = 0;
+
+  private readonly canvasBlocksService = inject(CanvasBlocksService);
+  private readonly modelResourceAllocationService = inject(ModelResourceAllocationService);
+  private readonly slotBindingHelper = inject(SlotBindingHelperService);
+  private readonly destroyRef = inject(DestroyRef);
+
+  /** Recomputes whenever recall or a hardware update changes channel usage. */
+  readonly modelSettingsChannelUsage = computed(() =>
+    this.modelResourceAllocationService.getChannelUsage(),
+  );
+
+  readonly modelSettingsCanAdd = computed(() => this.slotOptions().length > 0);
 
   // Edit Model modal state. Buffered locally so Cancel/X discards
   // without any server round-trip; OK routes through
@@ -112,11 +125,6 @@ export class MainFlow {
   );
 
   existingModelNames: string[] = [];
-
-  private readonly canvasBlocksService = inject(CanvasBlocksService);
-  private readonly modelResourceAllocationService = inject(ModelResourceAllocationService);
-  private readonly slotBindingHelper = inject(SlotBindingHelperService);
-  private readonly destroyRef = inject(DestroyRef);
 
   constructor() {
     // Auto-expand the parameters panel whenever a block becomes selected
@@ -286,8 +294,6 @@ export class MainFlow {
       nodeId: this.canvasBlocksService.getModelNodeId(section.modelName),
       slotIndex: this.canvasBlocksService.getModelSlotIndex(section.modelName),
     }));
-
-    this.modelSettingsMaxModels = this.modelResourceAllocationService.getMaxModels();
   }
 
   closeModelSettings(): void {
