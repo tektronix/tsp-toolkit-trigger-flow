@@ -1,0 +1,66 @@
+@if (open) {
+  <div class="template-modal-backdrop">
+    <section
+      #templatemodalRoot
+      class="template-modal"
+      role="dialog"
+      aria-modal="true"
+      [attr.aria-label]="'Template-modal'">
+      <header class="template-modal__header">
+        <h2>Template Model Selection</h2>
+        <button type="button" class="icon-btn" (click)="onDelete()" automationID="Button-Close-Template-Modal" title="Close">
+          <img class="icon-img" src="assets/shapes/Icons/X.svg" alt="Close" [attr.aria-label]="'Close-Template-Modal'"/>
+        </button>
+      </header>
+
+      <div class="template-modal__divider template-modal__divider--header"></div>
+
+      <p class="template-modal__message">
+          Template <b>{{ template?.name }}</b> contains multiple parts. Select a model for each part to continue.
+      </p>
+
+      <div class="template-modal__body">
+        <div class="template-modal__field">
+            @for (group of getTemplateGroups(template); track $index){
+                <!-- for each group, put dropdowns in columns fashion, options being the available sections or models in the state -->
+                <div class="template-modal__group">
+                    <app-dropdown
+                      [label]="'Template Part-' + ($index + 1)"
+                      [class.required]="true"
+                      [options]="getModelList()"
+                      [selected]="selectedModels[$index]"
+                      (selectedChange)="onModelSelectionChanged($index, $event)">
+                    </app-dropdown>
+                    <button
+                      type="button"
+                      class="add-model-btn"
+                      (click)="addModel.emit($index)"
+                      [attr.automationID]="'Button-Add-Model-Group-' + ($index + 1)"
+                      [attr.aria-label]="'Add-Model-Group-' + ($index + 1)"
+                      title="Create a new model for this template"
+                    >
+                      + New Model
+                    </button>
+                </div>
+            }
+        </div>
+
+        <!-- dedicated divider under header -->
+        <div class="template-modal__divider template-modal__divider--header"></div>
+
+        <div class="template-modal__footer-icons">
+        <button
+          [title]="createDisabledReason"
+          [attr.aria-label]="'Create-Model-Settings'"
+          class="action-btn"
+          [disabled]="disableCreate"
+          (click)="onCreate()"
+          automationID="Button-Create-Model-Settings"
+        >
+          Create
+        </button>
+        </div>
+      </div>
+    </section>
+  </div>
+}

@@ -1,0 +1,153 @@
+.template-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  // Below the New Model modal so it can stack on top of this one.
+  z-index: 1050;
+}
+
+.template-modal {
+  width: min(560px, calc(100vw - 32px));
+  background: var(--vscode-editor-background);
+  border-radius: 11px;
+  border: 1px solid var(--vscode-editorWidget-border);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.template-modal__header {
+  padding: 10px 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  /* removed border-bottom; divider element is used instead */
+}
+
+.template-modal__header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--vscode-editor-foreground);
+}
+
+.template-modal__divider {
+  height: 1px;
+  background: var(--vscode-editorWidget-border);
+//   margin-top: 2px;
+//   margin-bottom: 2px;
+}
+
+.template-modal__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.template-modal__footer-icons {
+  margin-top: auto;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 5px;
+}
+
+.icon-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: currentColor;
+  padding: 0;
+  border: none;
+}
+
+.icon-img {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.template-modal__body {
+  padding: 5px 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+//   min-height: 320px;
+}
+
+.template-modal__message {
+  margin: 0 10px 10px;
+  color: var(--vscode-descriptionForeground, var(--vscode-editor-foreground));
+  font-size: 12px;
+}
+
+.template-modal__field {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.template-modal__group {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.template-modal__group__dropdown{
+  margin-bottom: 0.5rem;
+}
+
+.add-model-btn {
+  align-self: flex-end;
+  border-radius: 13px;
+  background-color: transparent;
+  color: var(--vscode-editor-foreground);
+  border: thin solid var(--vscode-activityBarBadge-background);
+  padding: 3px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  margin-bottom: 0.5rem;
+}
+
+@media (max-width: 520px) {
+  .template-modal__field {
+    grid-template-columns: 1fr;
+  }
+}
+
+.template-modal__divider--header {
+  margin-top: 2px;
+  margin-bottom: 12px;
+}
+
+.action-btn {
+  border-radius: 13px;
+  background-color: transparent;
+  color: var(--vscode-editor-foreground);
+  border-color: var(--vscode-activityBarBadge-background);
+  border-style: solid;
+  border-width: thin;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  padding-left: 15px;
+  padding-right: 15px;
+  cursor: pointer;
+  position: relative;
+}
+
+.action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  border-color: #5a5a5a;
+  color: #7a7a7a;
+}
+
+

@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { CanvasBlocksService } from './canvas-blocks.service';
 import { TriggerFlowDataService } from './triggerFlowDataService';
 import { FlowNode, FlowSection } from '../main-flow/canvas/canvas';
-import { EventListItem, ParameterValue } from '../models/triggerBlock';
+    import { EventListItem, ITemplate, ParameterValue } from '../models/triggerBlock';
 import { normalizeParameterValues } from '../models/blockParameterHelper';
 import { StatusMsg } from '../models/statusMsg';
 import { ModelResourceAllocationService } from './model-resource-allocation.service';
@@ -27,6 +27,7 @@ export interface TemplateInsertionTarget {
      * blocks should be inserted. If omitted, blocks are appended.
      */
     insertionIndex?: number;
+    groupSelections?: string[];
 }
 
 @Injectable({ providedIn: 'root' })
@@ -62,7 +63,7 @@ export class TemplateInstantiationService {
             'reset_branch_count_block_name',
         ];
 
-        const groups = template.blocks.filter((g) => g?.blocks?.length);
+        const groups = this.getTemplateGroups(template);
         if (groups.length === 0) {
             console.warn(`Template "${templateKey}" has no block groups`);
             return;
@@ -242,6 +243,10 @@ export class TemplateInstantiationService {
         if (firstCreatedBlockIds.length > 0) {
             this.canvasBlocksService.selectBlock(firstCreatedBlockIds[0]);
         }
+    }
+
+    getTemplateGroups(template: ITemplate) {
+        return template.blocks.filter((g) => g?.blocks?.length);
     }
 
     private createSectionForTemplateGroup(reference: FlowSection): FlowSection {
