@@ -29,6 +29,7 @@
                       [class.required]="true"
                       [options]="getModelList()"
                       [selected]="selectedModels[$index]"
+                      [invalid]="isDuplicateSelection($index)"
                       (selectedChange)="onModelSelectionChanged($index, $event)">
                     </app-dropdown>
                     <button

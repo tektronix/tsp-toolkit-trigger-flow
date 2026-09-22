@@ -28,7 +28,7 @@ export interface TemplateModalValue {
   templateUrl: './template-modal.html',
   styleUrls: ['./template-modal.scss'],
 })
-export class TemplateModal {
+export class TemplateModal implements OnChanges {
 
   @Input() open = false;
   @Input() template: ITemplate | null = null;
@@ -61,6 +61,35 @@ export class TemplateModal {
     this.selectedModels[groupIndex] = modelName;
   }
 
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['open']?.currentValue || changes['template']) {
+      this.initSelectedModels();
+    }
+  }
+
+  /** Defaults each template part to a distinct model, one per available index. */
+  private initSelectedModels(): void {
+    const options = this.getModelList();
+    const groupCount = this.getTemplateGroups(this.template).length;
+    this.selectedModels = Array.from(
+      { length: groupCount },
+      (_, index) => options[index] ?? options[0] ?? '',
+    );
+  }
+
+  /** True when two or more template parts are set to the same model. */
+  isDuplicateSelection(groupIndex: number): boolean {
+    const value = this.selectedModels[groupIndex];
+    if (!value) {
+      return false;
+    }
+    return this.selectedModels.some((model, index) => index !== groupIndex && model === value);
+  }
+
+  private hasDuplicateSelections(): boolean {
+    return this.selectedModels.some((_, index) => this.isDuplicateSelection(index));
+  }
+
   onCreate(): void {
     const options = this.getModelList();
     const groupCount = this.getTemplateGroups(this.template).length;
@@ -78,11 +107,21 @@ export class TemplateModal {
   }
 
   get disableCreate(): boolean {
-    return this.getTemplateGroups(this.template).length === 0 || this.getModelList().length === 0;
+    return (
+      this.getTemplateGroups(this.template).length === 0 ||
+      this.getModelList().length === 0 ||
+      this.hasDuplicateSelections()
+    );
   }
 
   get createDisabledReason(): string {
-    return this.disableCreate ? 'No template part sections are available.' : '';
+    if (this.getTemplateGroups(this.template).length === 0) {
+      return 'No template part sections are available.';
+    }
+    if (this.hasDuplicateSelections()) {
+      return 'Each template part must be assigned a different model.';
+    }
+    return '';
   }
 
   onDelete(): void {
