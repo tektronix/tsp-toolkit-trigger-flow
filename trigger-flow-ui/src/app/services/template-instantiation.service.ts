@@ -4,10 +4,6 @@ import { TriggerFlowDataService } from './triggerFlowDataService';
 import { FlowNode, FlowSection } from '../main-flow/canvas/canvas';
     import { EventListItem, ITemplate, ParameterValue } from '../models/triggerBlock';
 import { normalizeParameterValues } from '../models/blockParameterHelper';
-import { StatusMsg } from '../models/statusMsg';
-import { ModelResourceAllocationService } from './model-resource-allocation.service';
-import { StatusService } from './status-msg.service';
-import { StatusType } from '../models/interface';
 
 export interface TemplateInstantiationHelpers {
     createUniqueNodeId: () => string;
@@ -23,10 +19,11 @@ export interface TemplateInstantiationHelpers {
 
 export interface TemplateInsertionTarget {
     /**
-     * Index into the starting section's nodes array where the first group's
+     * Index into the drop-target section's nodes array where the first group's
      * blocks should be inserted. If omitted, blocks are appended.
      */
     insertionIndex?: number;
+    /** Model name selected for each template group in the template modal. */
     groupSelections?: string[];
 }
 
@@ -34,8 +31,6 @@ export interface TemplateInsertionTarget {
 export class TemplateInstantiationService {
     private canvasBlocksService = inject(CanvasBlocksService);
     private triggerFlowDataService = inject(TriggerFlowDataService);
-    private modelResourceAllocationService = inject(ModelResourceAllocationService);
-    private statusService = inject(StatusService);
 
     private get sections() {
         return this.canvasBlocksService.sections;
@@ -69,46 +64,28 @@ export class TemplateInstantiationService {
             return;
         }
 
-        const startingPositionIndex = startingSection.positionIndex ?? this.sections().findIndex(
-            (section) => section.id === startingSection.id,
-        );
-        const immediateRightSection = this.sections()
-            .map((section, index) => ({
-                section,
-                positionIndex: section.positionIndex ?? index,
-            }))
-            .find(({ positionIndex }) => positionIndex > startingPositionIndex)?.section;
-
-        // Pre-flight capacity check so the whole drop is rejected atomically
-        // instead of leaving orphan empty sections if a later group fails.
-        const neededNewModels = groups.length > 1 && !immediateRightSection ? 1 : 0;
-        const maxModelCount = this.modelResourceAllocationService.getMaxModels();
-        if (this.sections().length + neededNewModels > maxModelCount) {
-            this.statusService.show(new StatusMsg({
-                status_type: StatusType.Warning,
-                message: `Cannot insert template "${templateKey}": model limit of ${maxModelCount} would be exceeded.`,
-            }));
-            return;
-        }
-
-        const targetSections: FlowSection[] = [startingSection];
+        let targetSections: FlowSection[];
         if (groups.length > 1) {
-            targetSections.push(
-                immediateRightSection ?? this.createSectionForTemplateGroup(startingSection),
-            );
-        }
+            // Multi-group templates are assigned by the modal; do not infer
+            // targets from canvas order because each group may use any model.
+            const selectedModelNames = insertionTarget?.groupSelections;
+            if (!selectedModelNames || selectedModelNames.length !== groups.length) {
+                console.warn(`Template "${templateKey}" is missing model selections`);
+                return;
+            }
 
-        // Newly created sections don't have a model yet, so reading
-        // slot/node via `section.modelName` returns 0 / '' fallbacks.
-        // Resolve the binding from the starting section's model once and
-        // reuse it for every group, so addBlocksFromTemplate seeds each
-        // new model with the same slot/node as the drop target.
-        const startingSectionSlot = this.canvasBlocksService.getModelSlotIndex(
-            startingSection.modelName,
-        );
-        const startingSectionNode = this.canvasBlocksService.getModelNodeId(
-            startingSection.modelName,
-        );
+            const selectedSections = selectedModelNames.map((modelName) =>
+                this.sections().find((section) => section.modelName === modelName),
+            );
+            if (selectedSections.some((section) => !section)) {
+                console.warn(`Template "${templateKey}" has an invalid model selection`);
+                return;
+            }
+
+            targetSections = selectedSections as FlowSection[];
+        } else {
+            targetSections = [startingSection];
+        }
 
         const startingSectionX = (startingSection.positionIndex ?? 0) * SECTION_WIDTH;
         const relativeDropX = dropRect.x - startingSectionX;
@@ -118,15 +95,10 @@ export class TemplateInstantiationService {
 
         groups.forEach((group, groupIndex) => {
             const section = targetSections[groupIndex];
-            // The first group binds to the drop-target section's existing
-            // model. The second group uses the immediate right section when
-            // available, or a new model that copies the drop-target binding.
-            const sectionSlot = groupIndex === 0
-                ? this.canvasBlocksService.getModelSlotIndex(section.modelName)
-                : startingSectionSlot;
-            const sectionNode = groupIndex === 0
-                ? this.canvasBlocksService.getModelNodeId(section.modelName)
-                : startingSectionNode;
+            // Resolve the selected model's binding independently so blocks do
+            // not inherit the slot/node of the section where the drop started.
+            const sectionSlot = this.canvasBlocksService.getModelSlotIndex(section.modelName);
+            const sectionNode = this.canvasBlocksService.getModelNodeId(section.modelName);
             const sectionOriginX = (section.positionIndex ?? groupIndex) * SECTION_WIDTH;
             const groupBaseX = sectionOriginX + relativeDropX;
 
@@ -213,8 +185,12 @@ export class TemplateInstantiationService {
                 current.map((item) => {
                     if (item.id !== section.id) return item;
                     const nodes = [...item.nodes];
+                    // The drop indicator belongs only to the original target
+                    // section; other selected sections receive their blocks at
+                    // the end of their existing node lists.
                     const insertAt =
-                        groupIndex === 0 && insertionTarget?.insertionIndex !== undefined
+                        groupIndex === 0 && section.id === startingSection.id &&
+                        insertionTarget?.insertionIndex !== undefined
                             ? Math.max(0, Math.min(insertionTarget.insertionIndex, nodes.length))
                             : nodes.length;
                     nodes.splice(insertAt, 0, ...newNodes);
@@ -247,34 +223,6 @@ export class TemplateInstantiationService {
 
     getTemplateGroups(template: ITemplate) {
         return template.blocks.filter((g) => g?.blocks?.length);
-    }
-
-    private createSectionForTemplateGroup(reference: FlowSection): FlowSection {
-        const existing = this.sections();
-        const sectionId = `group-${existing.length + 1}`;
-        const modelName = this.generateUniqueModelName(
-            `${reference.modelName}_` + `${existing.length + 1}`,
-        );
-        const nextPositionIndex =
-            existing.reduce((max, s) => Math.max(max, s.positionIndex ?? -1), -1) + 1;
-
-        const newSection: FlowSection = {
-            id: sectionId,
-            modelName,
-            nodes: [],
-            positionIndex: nextPositionIndex,
-        };
-
-        this.canvasBlocksService.sections.update((current) => [...current, newSection]);
-        return newSection;
-    }
-
-    private generateUniqueModelName(base: string): string {
-        const existing = new Set(this.sections().map((s) => s.modelName));
-        if (!existing.has(base)) return base;
-        let i = 2;
-        while (existing.has(`${base}${i}`)) i++;
-        return `${base}${i}`;
     }
 
     private initializeEventParameterDefaults(blockId: string, section: FlowSection): void {
