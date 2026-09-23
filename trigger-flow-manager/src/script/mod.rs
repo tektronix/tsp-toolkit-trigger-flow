@@ -4,9 +4,7 @@ use anyhow::Error;
 use handlebars::Handlebars;
 
 use crate::{
-    api::{slot_channel_list::Module, state::TriggerFlowState},
-    trigger_model_blocks::param_types::ParamTypeName,
-    Catalog,
+    api::state::TriggerFlowState, trigger_model_blocks::param_types::ParamTypeName, Catalog,
 };
 
 /// Sentinel value used by the UI to mark a `BlockReference` parameter that
@@ -468,6 +466,7 @@ slot[{{this.slot_index}}].trigger.model.create("{{this.trigger_model_name}}")
             catalog: None,
             slot_channel_list,
             models: IndexMap::new(),
+            state_type: None,
         };
 
         let Ok(actual) = Script::from_state(&catalog, &input) else {
@@ -519,6 +518,7 @@ slot[{{this.slot_index}}].trigger.model.create("{{this.trigger_model_name}}")
                     }],
                 },
             )]),
+            state_type: None,
         };
 
         eprintln!(
@@ -597,6 +597,7 @@ slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_blo
                     ],
                 },
             )]),
+            state_type: None,
         };
 
         let Ok(actual) = Script::from_state(&catalog, &input) else {
@@ -681,6 +682,7 @@ slot[1].trigger.model.addblock.measure("tm1", "tm1_measure_001", { 1 }, 5)
                     },
                 ),
             ]),
+            state_type: None,
         };
 
         let Ok(actual) = Script::from_state(&catalog, &input) else {
@@ -800,6 +802,7 @@ slot[2].trigger.model.addblock.measure("tm2", "tm2_measure_001", { 1 }, 5)
                     },
                 ),
             ]),
+            state_type: None,
         };
 
         let Ok(actual) = Script::from_state(&catalog, &input) else {
@@ -871,6 +874,7 @@ slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_blo
                     }],
                 },
             )]),
+            state_type: None,
         };
 
         let Ok(script) = Script::from_state(&catalog, &input) else {
@@ -931,6 +935,7 @@ slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_blo
                     }],
                 },
             )]),
+            state_type: None,
         };
 
         let Ok(script) = Script::from_state(&catalog, &input) else {
@@ -986,6 +991,7 @@ slot[1].trigger.model.addblock.branch.always("tm1", "tm1_always_001", "other_blo
                     }],
                 },
             )]),
+            state_type: None,
         };
         input.recompute_all_model_errors();
 

@@ -11,8 +11,8 @@
         MODELS
 
         <span class="model-count" [class.model-count-limit]="isAddDisabled" automationID="Label-Model-Count"
-          [attr.aria-label]="'Model-Count-' + models.length + '-of-' + maxModels">
-          {{ models.length }}/{{ maxModels }}
+          [attr.aria-label]="'Channel-Count-' + usedChannels + '-of-' + totalChannels">
+          CHANNELS: {{ usedChannels }}/{{ totalChannels }} USED
         </span>
       </div>
 

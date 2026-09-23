@@ -44,6 +44,7 @@
               [selectionMode]="getEventSelectionMode(param)"
               [modelNodeId]="selectedBlockNodeId"
               [modelSlotIndex]="selectedBlockSlotIndex"
+              [configVersion]="configVersion"
               (valueChange)="onParameterValueChange()"
             />
           } @else if (getControlType(param) === 'specific-event') {
@@ -53,6 +54,7 @@
               [param]="param"
               [eventDefinition]="getEventDefinition(param)"
               [blockId]="selectedBlockId"
+              [configVersion]="configVersion"
               (valueChange)="onParameterValueChange()"
               [attr.aria-label]="'event-' + param.name + '-dropdown'"
             />

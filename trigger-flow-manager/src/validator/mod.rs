@@ -142,6 +142,7 @@ mod stale_wipe_tests {
             catalog: None,
             slot_channel_list: list_with_local_slot(1, Module::MSMU60_2),
             models: map,
+            state_type: None,
         }
     }
 
