@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { CanvasBlocksService } from './canvas-blocks.service';
 import { TriggerFlowDataService } from './triggerFlowDataService';
 import { FlowNode, FlowSection } from '../main-flow/canvas/canvas';
-    import { EventListItem, ITemplate, ParameterValue } from '../models/triggerBlock';
+import { EventListItem, ITemplate, ParameterValue } from '../models/triggerBlock';
 import { normalizeParameterValues } from '../models/blockParameterHelper';
 
 export interface TemplateInstantiationHelpers {

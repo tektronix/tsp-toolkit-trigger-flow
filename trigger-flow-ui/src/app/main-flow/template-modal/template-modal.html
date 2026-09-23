@@ -16,7 +16,7 @@
       <div class="template-modal__divider template-modal__divider--header"></div>
 
       <p class="template-modal__message">
-          Template <b>{{ template?.name }}</b> contains multiple parts. Select a model for each part to continue.
+          The <b>{{ template?.name }}</b> template contains trigger models for multiple channels. Select a model for each channel to continue.
       </p>
 
       <div class="template-modal__body">
@@ -25,10 +25,11 @@
                 <!-- for each group, put dropdowns in columns fashion, options being the available sections or models in the state -->
                 <div class="template-modal__group">
                     <app-dropdown
-                      [label]="'Template Part-' + ($index + 1)"
+                      [label]="'Template Channel-' + ($index + 1)"
                       [class.required]="true"
                       [options]="getModelList()"
                       [selected]="selectedModels[$index]"
+                      [invalid]="isDuplicateSelection($index)"
                       (selectedChange)="onModelSelectionChanged($index, $event)">
                     </app-dropdown>
                     <button
