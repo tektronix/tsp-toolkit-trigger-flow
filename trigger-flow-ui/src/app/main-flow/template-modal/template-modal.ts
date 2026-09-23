@@ -1,14 +1,11 @@
 import {
   Component,
-  ElementRef,
   EventEmitter,
-  HostListener,
   inject,
   Input,
   OnChanges,
   Output,
   SimpleChanges,
-  ViewChild,
 } from '@angular/core';
 
 import { Dropdown } from '../../custom-controls/dropdown/dropdown';
@@ -59,6 +56,13 @@ export class TemplateModal implements OnChanges {
   /** Called by the parent once a model created from this modal is on the canvas. */
   setGroupSelection(groupIndex: number, modelName: string): void {
     this.selectedModels[groupIndex] = modelName;
+
+    const options = this.getModelList();
+    const groupCount = this.getTemplateGroups(this.template).length;
+    this.selectedModels = Array.from(
+      { length: groupCount },
+      (_, index) => this.selectedModels[index] || options[index] || options[0] || '',
+    );
   }
 
   ngOnChanges(changes: SimpleChanges): void {
