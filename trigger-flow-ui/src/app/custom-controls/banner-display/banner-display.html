@@ -1,0 +1,9 @@
+<div
+  class="banner-display"
+  [ngClass]="statusMsg.status_type.toString().toLowerCase()"
+  *ngIf="statusMsg"
+>
+  <span class="status-message" [title]="statusMsg.message">{{
+    statusMsg.message
+  }}</span>
+</div>

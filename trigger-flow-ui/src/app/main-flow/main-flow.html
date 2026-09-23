@@ -33,6 +33,7 @@
     </div>
   </aside>
   <main class="canvas-area">
+    <app-banner-display class="banner-display"></app-banner-display>
     <app-canvas (requestModelModal)="onRequestModelModal($event)"></app-canvas>
 
     <app-model-modal
@@ -52,7 +53,9 @@
     <app-model-settings-modal
       [open]="showModelSettingsModal"
       [models]="modelSettingsList"
-      [maxModels]="modelSettingsMaxModels"
+      [usedChannels]="modelSettingsChannelUsage().used"
+      [totalChannels]="modelSettingsChannelUsage().total"
+      [canAddModel]="modelSettingsCanAdd()"
       (close)="closeModelSettings()"
       (addModel)="onAddModelFromSettings()"
       (deleteModel)="onDeleteModel($event)"

@@ -89,18 +89,24 @@ export class EventBlockComponent implements OnChanges {
   @Input() selectionMode: 'single' | 'multi' = 'multi';
   @Input() modelNodeId = 'localnode';
   @Input() modelSlotIndex = 1;
+  /** Bumped on every `models$` / `slotChannelList$` emission. A module swap in
+   * the same slot leaves every other input identical, so this is the only
+   * signal that re-runs `ngOnChanges` and rebuilds the option lists. */
+  @Input() configVersion = 0;
   @Output() valueChange = new EventEmitter<void>();
 
   eventTypes: string[] = [];
-  private slotChannelList: SlotChannelList | null = null;
+
+  // Read live so a Systems payload is picked up without a re-selection.
+  private get slotChannelList(): SlotChannelList | null {
+    return this.triggerFlowDataService.getSlotChannelList();
+  }
 
   get isAddDisabled(): boolean {
     return this.selectedEvents.length >= this.MAX_EVENTS;
   }
 
   ngOnChanges() {
-    this.slotChannelList = this.triggerFlowDataService.getSlotChannelList();
-
     const availableEventTypes =
       this.triggerEvents && Object.keys(this.triggerEvents).length > 0
         ? Object.keys(this.triggerEvents)

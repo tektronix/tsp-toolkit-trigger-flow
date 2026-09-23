@@ -4,6 +4,10 @@ import { TriggerFlowDataService } from './triggerFlowDataService';
 import { FlowNode, FlowSection } from '../main-flow/canvas/canvas';
 import { EventListItem, ParameterValue } from '../models/triggerBlock';
 import { normalizeParameterValues } from '../models/blockParameterHelper';
+import { StatusMsg } from '../models/statusMsg';
+import { ModelResourceAllocationService } from './model-resource-allocation.service';
+import { StatusService } from './status-msg.service';
+import { StatusType } from '../models/interface';
 
 export interface TemplateInstantiationHelpers {
     createUniqueNodeId: () => string;
@@ -29,6 +33,8 @@ export interface TemplateInsertionTarget {
 export class TemplateInstantiationService {
     private canvasBlocksService = inject(CanvasBlocksService);
     private triggerFlowDataService = inject(TriggerFlowDataService);
+    private modelResourceAllocationService = inject(ModelResourceAllocationService);
+    private statusService = inject(StatusService);
 
     private get sections() {
         return this.canvasBlocksService.sections;
@@ -62,9 +68,33 @@ export class TemplateInstantiationService {
             return;
         }
 
+        const startingPositionIndex = startingSection.positionIndex ?? this.sections().findIndex(
+            (section) => section.id === startingSection.id,
+        );
+        const immediateRightSection = this.sections()
+            .map((section, index) => ({
+                section,
+                positionIndex: section.positionIndex ?? index,
+            }))
+            .find(({ positionIndex }) => positionIndex > startingPositionIndex)?.section;
+
+        // Pre-flight capacity check so the whole drop is rejected atomically
+        // instead of leaving orphan empty sections if a later group fails.
+        const neededNewModels = groups.length > 1 && !immediateRightSection ? 1 : 0;
+        const maxModelCount = this.modelResourceAllocationService.getMaxModels();
+        if (this.sections().length + neededNewModels > maxModelCount) {
+            this.statusService.show(new StatusMsg({
+                status_type: StatusType.Warning,
+                message: `Cannot insert template "${templateKey}": model limit of ${maxModelCount} would be exceeded.`,
+            }));
+            return;
+        }
+
         const targetSections: FlowSection[] = [startingSection];
-        for (let i = 1; i < groups.length; i++) {
-            targetSections.push(this.createSectionForTemplateGroup(startingSection));
+        if (groups.length > 1) {
+            targetSections.push(
+                immediateRightSection ?? this.createSectionForTemplateGroup(startingSection),
+            );
         }
 
         // Newly created sections don't have a model yet, so reading
@@ -87,12 +117,9 @@ export class TemplateInstantiationService {
 
         groups.forEach((group, groupIndex) => {
             const section = targetSections[groupIndex];
-            // First group binds to the drop-target section's existing
-            // model; every subsequent group binds a freshly created model
-            // that copies the drop-target's slot/node so multi-model
-            // templates produce valid `${node_id}.slot[${slot_index}]`
-            // bindings out of the gate. The user can rebind via the Edit
-            // Model modal afterward.
+            // The first group binds to the drop-target section's existing
+            // model. The second group uses the immediate right section when
+            // available, or a new model that copies the drop-target binding.
             const sectionSlot = groupIndex === 0
                 ? this.canvasBlocksService.getModelSlotIndex(section.modelName)
                 : startingSectionSlot;

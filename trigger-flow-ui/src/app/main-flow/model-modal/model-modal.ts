@@ -24,6 +24,7 @@ export interface ModelModalValue {
 
 export interface ModelSlotOption {
   label: string; // e.g. localnode.slot[1], node2.slot[3]
+  displayLabel: string;
   slot: number;
   nodeId: string;
 }
@@ -62,16 +63,16 @@ export class ModelModal implements OnChanges {
   }
 
   get slotOptionsAsString(): string[] {
-    return this.slotOptions.map((o) => o.label);
+    return this.slotOptions.map((o) => o.displayLabel ?? o.label);
   }
 
   get slotValue(): string {
     const found = this.slotOptions.find((o) => o.slot === this.slot && o.nodeId === this.nodeId);
-    return found?.label ?? this.slotOptions[0]?.label ?? '';
+    return found?.displayLabel ?? found?.label ?? this.slotOptions[0]?.displayLabel ?? this.slotOptions[0]?.label ?? '';
   }
 
   set slotValue(label: string) {
-    const selected = this.slotOptions.find((o) => o.label === label);
+    const selected = this.slotOptions.find((o) => (o.displayLabel ?? o.label) === label);
     if (selected) {
       this.slot = selected.slot;
       this.nodeId = selected.nodeId;

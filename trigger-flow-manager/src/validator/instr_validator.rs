@@ -5,9 +5,7 @@ use crate::{
 };
 use anyhow::Result;
 
-pub struct InstrumentValidator {
-    slot_channel_hashmap: SlotChannelHashMap,
-}
+pub struct InstrumentValidator {}
 
 impl Default for InstrumentValidator {
     fn default() -> Self {
@@ -17,9 +15,7 @@ impl Default for InstrumentValidator {
 
 impl InstrumentValidator {
     pub fn new() -> Self {
-        Self {
-            slot_channel_hashmap: SlotChannelHashMap::new(),
-        }
+        Self {}
     }
 
     fn extract_channels(&self, block: &mut TriggerModelBlock) -> Vec<ChannelIndex> {
@@ -33,7 +29,7 @@ impl InstrumentValidator {
 
 impl Validator for InstrumentValidator {
     fn validate(&self, trigger_state: &mut TriggerFlowState) -> Result<()> {
-        let mut validator = SlotChannelHashMap::new();
+        let mut channel_usage = SlotChannelHashMap::new();
         for model in trigger_state.models.values_mut() {
             // Skip models whose binding is broken (SystemConfig error kind).
             // Their saved channel assignments must not be re-validated
@@ -45,7 +41,8 @@ impl Validator for InstrumentValidator {
                 let channels = self.extract_channels(block);
 
                 for channel in channels {
-                    if let Some(conflict) = self.slot_channel_hashmap.check_channel_conflict(
+                    if let Some(conflict) = channel_usage.check_channel_conflict(
+                        &model.node_id,
                         model.slot_index,
                         channel,
                         &model.model_name,
@@ -56,7 +53,8 @@ impl Validator for InstrumentValidator {
                         block.block_error.as_mut().unwrap().push((true, conflict));
                     } else {
                         // No conflict, register usage
-                        validator.add_usage(
+                        channel_usage.add_usage(
+                            &model.node_id,
                             model.slot_index,
                             channel,
                             model.model_name.as_str(),

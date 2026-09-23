@@ -35,6 +35,7 @@ export class SlotBindingHelperService {
       if (slot.module !== 'Empty') {
         options.push({
           label: `localnode.slot[${slot.slotId}]`,
+          displayLabel: `localnode.slot[${slot.slotId}] (${slot.module})`,
           slot: slot.slotId,
           nodeId: 'localnode',
         });
@@ -46,6 +47,7 @@ export class SlotBindingHelperService {
         if (slot.module !== 'Empty') {
           options.push({
             label: `${node.nodeId}.slot[${slot.slotId}]`,
+            displayLabel: `${node.nodeId}.slot[${slot.slotId}] (${slot.module})`,
             slot: slot.slotId,
             nodeId: node.nodeId,
           });
