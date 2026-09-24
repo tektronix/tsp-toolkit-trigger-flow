@@ -99,8 +99,8 @@ export class TemplateInstantiationService {
             // not inherit the slot/node of the section where the drop started.
             const sectionSlot = this.canvasBlocksService.getModelSlotIndex(section.modelName);
             const sectionNode = this.canvasBlocksService.getModelNodeId(section.modelName);
-            const sectionOriginX = (section.positionIndex ?? groupIndex) * SECTION_WIDTH;
-            const groupBaseX = sectionOriginX + relativeDropX;
+            
+            const groupBaseX = relativeDropX;
 
             const runtimeBlockIds: string[] = [];
             const positions: Array<{ x: number; y: number }> = [];
