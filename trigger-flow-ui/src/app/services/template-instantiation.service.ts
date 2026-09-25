@@ -4,6 +4,10 @@ import { TriggerFlowDataService } from './triggerFlowDataService';
 import { FlowNode, FlowSection } from '../main-flow/canvas/canvas';
 import { EventListItem, ITemplate, ParameterValue } from '../models/triggerBlock';
 import { normalizeParameterValues } from '../models/blockParameterHelper';
+import { StatusMsg } from '../models/statusMsg';
+import { ModelResourceAllocationService } from './model-resource-allocation.service';
+import { StatusService } from './status-msg.service';
+import { StatusType } from '../models/interface';
 
 export interface TemplateInstantiationHelpers {
     createUniqueNodeId: () => string;
@@ -31,6 +35,8 @@ export interface TemplateInsertionTarget {
 export class TemplateInstantiationService {
     private canvasBlocksService = inject(CanvasBlocksService);
     private triggerFlowDataService = inject(TriggerFlowDataService);
+    private modelResourceAllocationService = inject(ModelResourceAllocationService);
+    private statusService = inject(StatusService);
 
     private get sections() {
         return this.canvasBlocksService.sections;
