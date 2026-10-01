@@ -45,6 +45,8 @@ export class App implements OnInit, OnDestroy {
    */
   private readonly hasMainFlowMounted = signal<boolean>(false);
 
+  private hasCreatedSession = false;
+
   constructor() {
     effect(() => {
       const hasHardware = this.hasValidHardware();
@@ -91,7 +93,12 @@ export class App implements OnInit, OnDestroy {
             const statePayload = new TriggerFlowStatePayload(data);
             this.triggerFlowDataService.updateStatePayload(statePayload);
             if (DEBUG) console.log(statePayload);
-            vscode.postMessage({ command: 'update_session', payload: message });
+            if (!this.hasCreatedSession) {
+              this.hasCreatedSession = true;
+              vscode.postMessage({ command: 'create_new_session', payload: message });
+            } else {
+              vscode.postMessage({ command: 'update_session', payload: message });
+            }
           }
           break;
         }
@@ -102,6 +109,7 @@ export class App implements OnInit, OnDestroy {
           // session with no hardware/models would keep showing the old
           // session's main-flow instead of falling back to the loading gate.
           this.hasMainFlowMounted.set(false);
+          this.hasCreatedSession = false;
           console.log('angular app.ts: Reset_session received, state reset');
           vscode.postMessage({ command: 'get_initial_configuration' });
           break;
