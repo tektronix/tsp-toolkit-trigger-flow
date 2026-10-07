@@ -17,7 +17,7 @@
           class="radio-group-input"
           [name]="name"
           [value]="normalized.value"
-          [attr.aria-label]="automationID"
+          [attr.aria-label]="disabled || !!normalized.disabled ? automationID + '-Disabled' : automationID"
           [checked]="selectedValue === normalized.value"
           [disabled]="disabled || !!normalized.disabled"
           (change)="onRadioChange($event)"
