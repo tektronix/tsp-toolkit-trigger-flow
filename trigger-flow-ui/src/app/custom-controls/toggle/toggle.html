@@ -8,9 +8,10 @@
       type="button"
       class="toggle-switch"
       role="switch"
-      [attr.aria-label]="automationID"
+      [attr.aria-label]="disabled ? automationID + '-Disabled' : automationID"
+      [attr.automationID]="disabled ? automationID + '-Disabled' : automationID"
       [attr.aria-checked]="isOn"
-      [class.on]="isOn"
+      [class.on]="isOn" 
       [disabled]="disabled"
       (click)="toggleOption(isOn ? offOption?.value : onOption?.value)"
     >

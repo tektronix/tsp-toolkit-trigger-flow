@@ -8,7 +8,8 @@
       [value]="value"
       [checked]="checked"
       [disabled]="disabled"
-      [attr.aria-label]="automationID"
+      [attr.aria-label]="disabled ? automationID + '-Disabled' : automationID"
+      [attr.automationID]="disabled ? automationID + '-Disabled' : automationID"
       (change)="onRadioChange()"
       (blur)="onBlur()"
     />

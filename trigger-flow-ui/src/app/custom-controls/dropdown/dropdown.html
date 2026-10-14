@@ -1,7 +1,8 @@
 <div class="dropdown" [class.invalid]="invalid">
   <label for="dropdown">{{ label }}</label>
   <select
-    [attr.aria-label]="label + ' dropdown'"
+    [attr.aria-label]="disabled?label + ' dropdown-Disabled' : label + ' dropdown'"
+    [attr.automationID]="disabled ? automationID + '-Disabled' : automationID"
     [value]="selected"
     (change)="onSelectionChanged($event)"
     [disabled]="disabled"
