@@ -30,6 +30,7 @@
                       [options]="getModelList()"
                       [selected]="selectedModels[$index]"
                       [invalid]="isDuplicateSelection($index)"
+                      [automationID]="'dropdown-template-channel-' + ($index + 1)"
                       (selectedChange)="onModelSelectionChanged($index, $event)">
                     </app-dropdown>
                     <button
