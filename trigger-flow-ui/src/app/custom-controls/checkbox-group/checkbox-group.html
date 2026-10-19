@@ -8,7 +8,8 @@
         <input
           type="checkbox"
           class="checkbox-group-input"
-          [attr.aria-label]="automationID"
+          [attr.aria-label]="automationID ? automationID + '-' + option.value + (disabled || option.disabled ? '-Disabled' : '') : null"
+          [attr.automationID]="automationID ? automationID + '-' + option.value + (disabled || option.disabled ? '-Disabled' : '') : null"
           [checked]="isChecked(option.value)"
           [disabled]="disabled || option.disabled"
           (change)="onCheckboxChange($event, option.value)"
