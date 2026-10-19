@@ -56,7 +56,6 @@
               [blockId]="selectedBlockId"
               [configVersion]="configVersion"
               (valueChange)="onParameterValueChange()"
-              [attr.aria-label]="'event-' + param.name + '-dropdown'"
             />
           } @else if (getControlType(param) === 'radio') {
             <app-radio-group
@@ -77,7 +76,7 @@
               [(ngModel)]="param.value"
               [invalid]="isBlockReferenceUnset(param)"
               (selectedChange)="onParameterValueChange()"
-              [attr.automationID]="'input-' + param.name"
+              [automationID]="'input-' + param.name"
             />
           } @else if (getControlType(param) === 'select') {
             <app-dropdown
@@ -86,6 +85,7 @@
               [options]="getSelectOptions(param)"
               [(ngModel)]="param.value"
               (selectedChange)="onParameterValueChange()"
+              [automationID]="'param-' + param.name"
             />
           } @else if (getControlType(param) === 'channel-list') {
             <app-checkbox-group
@@ -117,14 +117,14 @@
                   [options]="getSourceOutputStateChannelOptions()"
                   [selected]="getSourceOutputChannel(param)"
                   (selectedChange)="onSourceOutputChannelChange(param, $event)"
-                  [attr.automationID]="param.name + '-channel dropdown'"
+                  [automationID]="param.name + '-channel dropdown'"
                 />
                 <app-dropdown
                   [class.required]="param.required"
                   label="State"
                   [options]="getSourceOutputStateValueOptions()"
                   [selected]="getSourceOutputStateValue(param)"
-                  [attr.automationID]="param.name + '-state dropdown'"
+                  [automationID]="param.name + '-state dropdown'"
                   (selectedChange)="onSourceOutputStateValueChange(param, $event)"
                 />
               </div>
@@ -139,7 +139,7 @@
               [(ngModel)]="param.value"
               [disabled]="param.name === 'delay_time' && isDelayListEnabled()"
               (inputChange)="onParameterValueChange()"
-              [attr.automationID]="'input-' + param.name"
+              [automationID]="'input-' + param.name"
             />
             @if (hasDelayListConfig()) {
               <div class="delay-list-row">
@@ -180,7 +180,7 @@
               [rows]="5"
               [maxLength]="31"
               (inputChange)="onParameterValueChange()"
-              [attr.automationID]="param.name + '-notes'"
+              [automationID]="param.name + '-notes'"
             />
           } @else if (getControlType(param) === 'text') {
             <app-textbox
@@ -188,7 +188,7 @@
               [label]="getParameterDisplayName(param)"
               [(ngModel)]="param.value"
               (inputChange)="onParameterValueChange()"
-              [attr.automationID]="'input-' + param.name"
+              [automationID]="'input-' + param.name"
             />
           }
         }
@@ -199,7 +199,7 @@
         [rows]="5"
         [(ngModel)]="blockNotes"
         (inputChange)="onBlockNotesChange()"
-        [attr.automationID]="'block-notes'"
+        [automationID]="'block-notes'"
       />
 
     <app-delay-list-modal
