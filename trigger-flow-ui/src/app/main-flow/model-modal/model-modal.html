@@ -72,7 +72,7 @@
         <div class="tf-modal__footer-icons">
         <button
           [title]="createDisabledReason"
-          [attr.aria-label]="'Create-Model-Settings'"
+          [attr.aria-label]="disableCreate ? 'Create-Model-Settings-Disabled' : 'Create-Model-Settings'"
           class="action-btn"
           [disabled]="disableCreate"
           (click)="onCreate()"
