@@ -104,6 +104,7 @@ mod stale_wipe_tests {
             outgoing: None,
             block_position: BlockPosition { x: 0.0, y: 0.0 },
             block_error: Some(vec![(true, msg.to_string())]),
+            notes: String::new(),
         }
     }
 
