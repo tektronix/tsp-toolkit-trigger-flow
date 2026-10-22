@@ -47,7 +47,7 @@
             type="button"
             class="action-btn"
             [title]="saveDisabledReason"
-            [attr.aria-label]="'Save-Edit-Model'"
+            [attr.aria-label]="disableSave ? 'Save-Edit-Model-Disabled' : 'Save-Edit-Model'"
             [disabled]="disableSave"
             (click)="onSave()"
             automationID="Button-Save-Edit-Model">
