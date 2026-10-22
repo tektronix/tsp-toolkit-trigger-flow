@@ -349,8 +349,13 @@ export class Canvas implements AfterViewInit {
           hasAnyError = true;
         }
 
-        for (const message of messages) {
-          blockLines.push(`${block.block_id} - ${message}`);
+        if (hasError) {
+          const configuredName = block.block_parameters['trigger_block_name'];
+          const blockName =
+            typeof configuredName === 'string' && configuredName.trim()
+              ? configuredName.trim()
+              : block.block_id;
+          blockLines.push(`- ${blockName}`);
         }
 
         blockIndex[block.block_id] = {
@@ -362,7 +367,9 @@ export class Canvas implements AfterViewInit {
       // Model errors first; blank line separator only when both sides present.
       const tooltipParts: string[] = [];
       if (modelLines.length > 0) tooltipParts.push(modelLines.join('\n'));
-      if (blockLines.length > 0) tooltipParts.push(blockLines.join('\n'));
+      if (blockLines.length > 0) {
+        tooltipParts.push(['The following blocks have errors:', ...blockLines].join('\n'));
+      }
       const tooltip =
         tooltipParts.length > 0
           ? tooltipParts.join('\n\n')
