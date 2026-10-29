@@ -51,6 +51,7 @@ export interface ITriggerModelBlock {
   outgoing?: string | null;
   block_position: IBlockPosition;
   block_error?: BlockErrorEntry[] | null;
+  notes: string;
 }
 
 export interface IBlockPosition {
@@ -113,6 +114,7 @@ export class TriggerModelBlock {
   outgoing: string | null;
   block_position: BlockPosition;
   block_error: BlockErrorEntry[] | null;
+  notes: string;
 
   constructor(data: ITriggerModelBlock) {
     this.block_id = data.block_id;
@@ -122,6 +124,7 @@ export class TriggerModelBlock {
     this.outgoing = data.outgoing ?? null;
     this.block_position = new BlockPosition(data.block_position);
     this.block_error = data.block_error ?? null;
+    this.notes = data.notes ?? '';
   }
 }
 
