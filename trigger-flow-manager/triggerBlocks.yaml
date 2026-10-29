@@ -436,6 +436,41 @@ blocks:
       The source action bias block sets the source output level to the bias
       level set before the start of the trigger model.
     shape: conditional
+  source action pulse set:
+    parameters:
+      - name: trigger_block_name
+        type: string
+        required: true
+        default: Source Action Pulse Set
+      - name: channel_list
+        type: ChannelList
+        required: true
+    syntax: >-
+      slot[{{slot_index}}].trigger.model.addblock.source.action.pulseset("{{trigger_model_name}}",
+      "{{trigger_block_name}}",
+      { {{#each channel_list}}{{this}}{{#unless @last}}, {{/unless}}{{/each}} })
+    description: >-
+      The source action pulse set block sets the source output pulse to the value at
+      the present index in the list of sweep values without advancing the index.
+    shape: conditional
+  source action pulse step:
+    parameters:
+      - name: trigger_block_name
+        type: string
+        required: true
+        default: Source Action Pulse Step
+      - name: channel_list
+        type: ChannelList
+        required: true
+    syntax: >-
+      slot[{{slot_index}}].trigger.model.addblock.source.action.pulsestep("{{trigger_model_name}}",
+      "{{trigger_block_name}}",
+      { {{#each channel_list}}{{this}}{{#unless @last}}, {{/unless}}{{/each}} })
+    description: >-
+      The source action pulse step block advances the index in the list of sweep values
+      for the specified channel(s) and then sets the source pulse value to the value at
+      that index.
+    shape: conditional
   source action set:
     parameters:
       - name: trigger_block_name
