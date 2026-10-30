@@ -44,6 +44,8 @@ export class PaletteDataService {
     { type: 'Action', svgPath: 'assets/shapes/palette/Action/Action-SourceActionSkip.svg', catalogLabel: 'source action skip' },
     { type: 'Action', svgPath: 'assets/shapes/palette/Action/Action-SourceActionStep.svg', catalogLabel: 'source action step' },
     { type: 'Action', svgPath: 'assets/shapes/palette/Action/Action-SourceActionSet.svg', catalogLabel: 'source action set' },
+    { type: 'Action', svgPath: 'assets/shapes/palette/Action/Action-SourceActionPulseStep.svg', catalogLabel: 'source action pulse step' },
+    { type: 'Action', svgPath: 'assets/shapes/palette/Action/Action-SourceActionPulseSet.svg', catalogLabel: 'source action pulse set' },
     { type: 'Action', svgPath: 'assets/shapes/palette/Action/Action-SourceOutput.svg', catalogLabel: 'source output' },
 
     // Branch blocks
