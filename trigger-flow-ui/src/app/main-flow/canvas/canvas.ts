@@ -28,7 +28,7 @@ import {
   FDragStartedEvent,
 } from '@foblex/flow';
 import { ModelModalValue } from '../model-modal/model-modal';
-import { EventListItem } from '../../models/triggerBlock';
+import { EventListItem, ITemplate } from '../../models/triggerBlock';
 import { DEBUG } from '../../debug';
 
 // Generate all groups that might have toggle-able visibility
@@ -129,6 +129,10 @@ interface ModelModalRequest {
   suggestedName: string;
   suggestedSlot: number;
   notes: string;
+}
+
+interface TemplateModalRequest {
+  template: ITemplate;
 }
 
 interface InsertionIndicator {
@@ -255,6 +259,7 @@ export class Canvas implements AfterViewInit {
   // Raised to parent (MainFlow) when first block is dropped and
   // a model must be created before node insertion can continue.
   @Output() requestModelModal = new EventEmitter<ModelModalRequest>();
+  @Output() requestTemplateModal = new EventEmitter<TemplateModalRequest>();
 
   // Stores the first dropped-node event temporarily until modal closes.
   private pendingCreateNodeEvent: FlowCanvasEvent | null = null;
@@ -344,8 +349,13 @@ export class Canvas implements AfterViewInit {
           hasAnyError = true;
         }
 
-        for (const message of messages) {
-          blockLines.push(`${block.block_id} - ${message}`);
+        if (hasError) {
+          const configuredName = block.block_parameters['trigger_block_name'];
+          const blockName =
+            typeof configuredName === 'string' && configuredName.trim()
+              ? configuredName.trim()
+              : block.block_id;
+          blockLines.push(`- ${blockName}`);
         }
 
         blockIndex[block.block_id] = {
@@ -357,7 +367,9 @@ export class Canvas implements AfterViewInit {
       // Model errors first; blank line separator only when both sides present.
       const tooltipParts: string[] = [];
       if (modelLines.length > 0) tooltipParts.push(modelLines.join('\n'));
-      if (blockLines.length > 0) tooltipParts.push(blockLines.join('\n'));
+      if (blockLines.length > 0) {
+        tooltipParts.push(['The following blocks have errors:', ...blockLines].join('\n'));
+      }
       const tooltip =
         tooltipParts.length > 0
           ? tooltipParts.join('\n\n')
@@ -382,6 +394,17 @@ export class Canvas implements AfterViewInit {
     }
     if (!event.data || !event.data.type || !event.rect) return;
 
+    if (event.data.isTemplate && event.data.catalogLabel) {
+      const template = this.triggerFlowDataService.catalog$()?.templates?.[event.data.catalogLabel];
+      const hasMultipleGroups =
+        template && this.templateInstantiationService.getTemplateGroups(template).length > 1;
+      if (hasMultipleGroups) {
+        this.pendingCreateNodeEvent = event;
+        this.requestTemplateModal.emit({ template });
+        return;
+      }
+    }
+
     // first block + no model => ask parent to open modal
     if (this.sections().length === 0) {
       this.pendingCreateNodeEvent = event;
@@ -398,6 +421,34 @@ export class Canvas implements AfterViewInit {
   }
 
   createModelAndContinue(result: ModelModalValue): void {
+    const { sectionId } = this.createSectionAndModel(result);
+
+    // Resume deferred first-drop node creation into this new section.
+    if (this.pendingCreateNodeEvent) {
+      const pending = this.pendingCreateNodeEvent;
+      this.pendingCreateNodeEvent = null;
+      this.createNodeInSection(pending, sectionId);
+    }
+
+    // Defer focus until after the new section's layout has rendered, so
+    // sectionLayouts() reflects the just-added section.
+    queueMicrotask(() => this.focusSection(sectionId));
+  }
+
+  /**
+   * Creates a model without resuming a deferred drop, so a template drop that
+   * is waiting on the template modal stays queued. Returns the new model name.
+   */
+  createModelWithoutContinuing(result: ModelModalValue): string {
+    const { sectionId, modelName } = this.createSectionAndModel(result);
+    queueMicrotask(() => this.focusSection(sectionId));
+    return modelName;
+  }
+
+  private createSectionAndModel(result: ModelModalValue): {
+    sectionId: string;
+    modelName: string;
+  } {
     const sectionId = `group-${this.groupCounter}`;
     const modelName = result.name.trim() || `Model${this.groupCounter}`;
     this.groupCounter++;
@@ -418,16 +469,15 @@ export class Canvas implements AfterViewInit {
     this.canvasBlocksService.sections.update((current) => [...current, newSection]);
     this.canvasBlocksService.newModel(modelName, result.slot, result.nodeId);
 
-    // Resume deferred first-drop node creation into this new section.
-    if (this.pendingCreateNodeEvent) {
-      const pending = this.pendingCreateNodeEvent;
-      this.pendingCreateNodeEvent = null;
-      this.createNodeInSection(pending, sectionId);
-    }
+    return { sectionId, modelName };
+  }
 
-    // Defer focus until after the new section's layout has rendered, so
-    // sectionLayouts() reflects the just-added section.
-    queueMicrotask(() => this.focusSection(sectionId));
+  continueTemplateDrop(selections: string[]): void {
+    const pending = this.pendingCreateNodeEvent;
+    this.pendingCreateNodeEvent = null;
+    if (!pending) return;
+
+    this.createNodeInSection(pending, undefined, selections);
   }
 
   /**
@@ -559,7 +609,11 @@ export class Canvas implements AfterViewInit {
     this.pendingCreateNodeEvent = null;
   }
 
-  private createNodeInSection(event: FlowCanvasEvent, forcedSectionId?: string): void {
+  private createNodeInSection(
+    event: FlowCanvasEvent,
+    forcedSectionId?: string,
+    templateSelections?: string[],
+  ): void {
     if (!event.data || !event.rect) return;
 
     // forcedSectionId is used by first-drop flow to place node into
@@ -572,6 +626,16 @@ export class Canvas implements AfterViewInit {
       const indicator = this.insertionIndicator();
       const insertionIndex =
         indicator && indicator.sectionId === targetSectionId ? indicator.position : undefined;
+
+      if (templateSelections === undefined) {
+        const template = this.triggerFlowDataService.catalog$()?.templates?.[event.data.catalogLabel];
+        if (template && this.templateInstantiationService.getTemplateGroups(template).length > 1) {
+          this.pendingCreateNodeEvent = event;
+          this.requestTemplateModal.emit({ template });
+          return;
+        }
+      }
+
       this.templateInstantiationService.instantiateTemplate(
         event.data.catalogLabel,
         event.rect,
@@ -582,7 +646,7 @@ export class Canvas implements AfterViewInit {
           changeSVGPath: (path) => this.changeSVGPath(path),
           scheduleSectionReflow: (sectionId) => this.scheduleSectionReflow(sectionId),
         },
-        { insertionIndex },
+        { insertionIndex, groupSelections: templateSelections },
       );
       this.insertionIndicator.set(null);
       return;

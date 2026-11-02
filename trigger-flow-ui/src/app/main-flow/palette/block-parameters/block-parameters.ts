@@ -483,10 +483,8 @@ export class BlockParameters {
       return;
     }
 
-    // Persist notes on the selected block object so each block keeps its own notes.
-    // No backend sync needed here — notes are UI-only annotations and are not
-    // part of the IPC payload sent to the Rust back-end for script generation.
     canvasBlock.notes = this.blockNotes;
+    this.canvasBlocksService.updateAndPrint();
   }
 
   shouldShowInUI(param: ActualParameter): boolean {
