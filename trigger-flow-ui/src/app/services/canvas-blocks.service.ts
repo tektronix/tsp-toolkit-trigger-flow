@@ -135,6 +135,7 @@ export class CanvasBlocksService {
         if (!canvasBlock) continue;
 
         canvasBlock.block_error = serverBlock.block_error ?? null;
+        canvasBlock.notes = serverBlock.notes ?? '';
         for (const param of canvasBlock.actual_parameters) {
           if (Object.prototype.hasOwnProperty.call(serverBlock.block_parameters, param.name)) {
             param.value = serverBlock.block_parameters[param.name] as ParameterValue;
@@ -252,7 +253,7 @@ export class CanvasBlocksService {
               }
               return actual;
             }),
-            notes: '',
+            notes: item.notes ?? '',
           };
           return canvasBlock;
         })
@@ -1028,6 +1029,7 @@ export class CanvasBlocksService {
             incoming: block.incoming,
             outgoing: block.outgoing,
             block_error: block.block_error,
+            notes: block.notes,
           };
         }),
       };

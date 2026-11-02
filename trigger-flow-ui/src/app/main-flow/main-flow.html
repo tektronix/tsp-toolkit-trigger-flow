@@ -34,7 +34,10 @@
   </aside>
   <main class="canvas-area">
     <app-banner-display class="banner-display"></app-banner-display>
-    <app-canvas (requestModelModal)="onRequestModelModal($event)"></app-canvas>
+    <app-canvas
+      (requestModelModal)="onRequestModelModal($event)"
+      (requestTemplateModal)="onRequestTemplateModal($event)">
+    </app-canvas>
 
     <app-model-modal
       [open]="showModelModal"
@@ -72,6 +75,14 @@
       (save)="onEditModelSave($event)"
       (closed)="onEditModelCancel()">
     </app-edit-model-modal>
+
+    <app-template-modal
+      [open]="showTemplateModal"
+      [template]="pendingTemplate"
+      (confirmed)="onTemplateModalConfirm($event)"
+      (addModel)="onTemplateModalAddModel($event)"
+      (cancelled)="onTemplateModalCancel()">
+    </app-template-modal>
   </main>
   <aside
     class="parameters-sidebar"

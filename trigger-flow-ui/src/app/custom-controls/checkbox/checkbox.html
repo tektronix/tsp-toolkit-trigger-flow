@@ -3,7 +3,8 @@
     <input
       type="checkbox"
       class="checkbox-input"
-      [attr.aria-label]="automationID"
+      [attr.aria-label]="disabled? automationID+' Disabled' : automationID"
+      [attr.automationID]="disabled? automationID+' Disabled' : automationID"
       [checked]="checked"
       (change)="onCheckboxChange($event)"
       (blur)="onBlur()"

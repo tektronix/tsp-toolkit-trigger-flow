@@ -1,7 +1,8 @@
 <div class="textbox">
   <label for="input">{{ label }}</label>
   <input
-    [attr.aria-label]="automationID"
+    [attr.aria-label]="disabled ? automationID + '-Disabled' : automationID"
+    [attr.automationID]="disabled ? automationID + '-Disabled' : automationID"
     type="text"
     [value]="value"
     (input)="onInputChange($event)"

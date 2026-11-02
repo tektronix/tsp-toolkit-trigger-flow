@@ -16,7 +16,8 @@ import {
   ModelSettingsItem,
 } from './model-settings-modal/model-settings-modal';
 import { BannerDisplay } from '../custom-controls/banner-display/banner-display';
-
+import { TemplateModal } from './template-modal/template-modal';
+import { ITemplate } from '../models/triggerBlock';
 @Component({
   selector: 'app-main-flow',
   standalone: true,
@@ -30,13 +31,15 @@ import { BannerDisplay } from '../custom-controls/banner-display/banner-display'
     ModelModal,
     EditModelModal,
     ModelSettingsModal,
-    BannerDisplay
+    BannerDisplay,
+    TemplateModal
   ],
   templateUrl: './main-flow.html',
   styleUrl: './main-flow.scss',
 })
 export class MainFlow {
   @ViewChild(Canvas) private canvas?: Canvas;
+  @ViewChild(TemplateModal) private templateModal?: TemplateModal;
 
   sidebarCollapsed = false;
   parametersCollapsed = false;
@@ -48,6 +51,10 @@ export class MainFlow {
   modelNotes = '';
 
   showModelSettingsModal = false;
+  showTemplateModal = false;
+  pendingTemplate: ITemplate | null = null;
+  // Set while the model modal is creating a model for a template group.
+  private templateModelGroupIndex: number | null = null;
 
   modelSettingsList: ModelSettingsItem[] = [];
 
@@ -139,7 +146,7 @@ export class MainFlow {
 
     effect(() => {
       this.canvasBlocksService.sections();
-      if (this.showModelModal) {
+      if (this.showModelModal && this.templateModelGroupIndex === null) {
         this.canvas?.discardPendingCreateNode();
         this.showModelModal = false;
       }
@@ -223,6 +230,24 @@ export class MainFlow {
     this.showModelModal = true;
   }
 
+  onRequestTemplateModal(req: { template: ITemplate }): void {
+    this.pendingTemplate = req.template;
+    this.showTemplateModal = true;
+  }
+
+  /** Opens the model modal on top of the template modal for the given group. */
+  onTemplateModalAddModel(groupIndex: number): void {
+    this.templateModelGroupIndex = groupIndex;
+
+    this.initModelSelection();
+    this.refreshExistingModelNames();
+
+    this.modelName = this.generateUniqueModelName('MyTriggerModel');
+    this.modelNotes = '';
+
+    this.showModelModal = true;
+  }
+
   private refreshExistingModelNames(): void {
     const sections = this.canvas?.getSections() ?? [];
 
@@ -243,6 +268,18 @@ export class MainFlow {
     this.modelNodeId = value.nodeId;
     this.modelNotes = value.notes;
 
+    const templateGroupIndex = this.templateModelGroupIndex;
+    if (templateGroupIndex !== null) {
+      this.templateModelGroupIndex = null;
+      this.showModelModal = false;
+
+      const createdModelName = this.canvas?.createModelWithoutContinuing(value);
+      if (createdModelName) {
+        this.templateModal?.setGroupSelection(templateGroupIndex, createdModelName);
+      }
+      return;
+    }
+
     this.canvas?.createModelAndContinue(value);
     this.showModelModal = false;
   }
@@ -250,6 +287,13 @@ export class MainFlow {
   // Trash action from modal:
   // Cancels pending block creation in Canvas.
   onModelModalDelete(): void {
+    if (this.templateModelGroupIndex !== null) {
+      // Keep the template drop queued; only the model creation was cancelled.
+      this.templateModelGroupIndex = null;
+      this.showModelModal = false;
+      return;
+    }
+
     this.canvas?.discardPendingCreateNode();
     this.showModelModal = false;
   }
@@ -350,6 +394,17 @@ export class MainFlow {
 
   onEditModelCancel(): void {
     this.showEditModelModal = false;
+  }
+
+  onTemplateModalConfirm(selections: string[]): void {
+    this.showTemplateModal = false;
+    this.canvas?.continueTemplateDrop(selections);
+  }
+
+  onTemplateModalCancel(): void {
+    this.showTemplateModal = false;
+    this.templateModelGroupIndex = null;
+    this.canvas?.discardPendingCreateNode();
   }
 
   openScript(): void {

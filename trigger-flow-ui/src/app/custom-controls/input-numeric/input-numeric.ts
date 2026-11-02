@@ -77,6 +77,12 @@ export class InputNumeric implements ControlValueAccessor, OnInit {
   onInputChange(event: Event): void {
     const inputElement = event.target as HTMLInputElement;
     const previousValue = this.displayValue;
+
+    if (inputElement.validity.badInput) {
+      inputElement.value = previousValue;
+      return;
+    }
+
     const rawValue = this.stripUnitSuffix(inputElement.value);
 
     // An empty field is a valid "no value" state.
