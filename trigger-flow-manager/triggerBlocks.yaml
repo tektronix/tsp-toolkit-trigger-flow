@@ -84,8 +84,7 @@ script_template:
     slot[{{this.slot_index}}].trigger.model.delete("{{this.trigger_model_name}}")
     slot[{{this.slot_index}}].trigger.model.create("{{this.trigger_model_name}}")
     {{#each this.blocks}}
-    {{> (lookup this "type") this.block_parameters slot_index=../slot_index node_id=../node_id trigger_model_name=../trigger_model_name}}
-
+    {{> (lookup this "type") this.block_parameters slot_index=../slot_index node_id=../node_id trigger_model_name=../trigger_model_name}}{{#if this.notes}} -- {{this.notes}}{{/if}}
     {{/each}}
     -- IMPORTANT: Don't forget to set up the trigger model by configuring any config lists,
     --            sweeps, reading buffers, etc. that would be used by the trigger model
@@ -213,7 +212,7 @@ blocks:
       - name: config_list_name
         type: string
         required: true
-    syntax: |
+    syntax: |-
       -- NOTE: The configuration list must be defined before the trigger model uses this block.
       slot[{{slot_index}}].trigger.model.addblock.configlist.next("{{trigger_model_name}}", "{{trigger_block_name}}", {{channel_index}}, "{{config_list_name}}")
     description: >-
@@ -233,7 +232,7 @@ blocks:
       - name: config_list_name
         type: string
         required: true
-    syntax: |
+    syntax: |-
       -- The configuration list must be defined before the trigger model uses this block.
       slot[{{slot_index}}].trigger.model.addblock.configlist.prev("{{trigger_model_name}}", "{{trigger_block_name}}", {{channel_index}}, "{{config_list_name}}")
     description: >-
@@ -257,7 +256,7 @@ blocks:
         type: number
         required: false
         default: 1
-    syntax: |
+    syntax: |-
       -- The configuration list must be defined before the trigger model uses this block.
       slot[{{slot_index}}].trigger.model.addblock.configlist.recall("{{trigger_model_name}}", "{{trigger_block_name}}", {{channel_index}}, "{{config_list_name}}"{{#if recall_index}}, {{recall_index}}{{/if}})
     description: >-
@@ -284,7 +283,7 @@ blocks:
         required: false
         label: List
         description: "When enabled, delay values are sourced from a Config List rather than a fixed delay time value. Opens a modal to configure per-step values."
-    syntax: >
+    syntax: >-
       slot[{{slot_index}}].trigger.model.addblock.delay.constant(
       "{{trigger_model_name}}",
       "{{trigger_block_name}}",
