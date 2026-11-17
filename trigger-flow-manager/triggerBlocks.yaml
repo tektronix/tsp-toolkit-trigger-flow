@@ -84,7 +84,7 @@ script_template:
     slot[{{this.slot_index}}].trigger.model.delete("{{this.trigger_model_name}}")
     slot[{{this.slot_index}}].trigger.model.create("{{this.trigger_model_name}}")
     {{#each this.blocks}}
-    {{> (lookup this "type") this.block_parameters slot_index=../slot_index node_id=../node_id trigger_model_name=../trigger_model_name}}{{#if this.notes}} -- {{this.notes}}{{/if}}
+    {{block_notes this.notes}}{{> (lookup this "type") this.block_parameters slot_index=../slot_index node_id=../node_id trigger_model_name=../trigger_model_name}}
     {{/each}}
     -- IMPORTANT: Don't forget to set up the trigger model by configuring any config lists,
     --            sweeps, reading buffers, etc. that would be used by the trigger model

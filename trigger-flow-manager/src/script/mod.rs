@@ -139,6 +139,25 @@ impl Script {
             ),
         );
 
+        hb.register_helper(
+            "block_notes",
+            Box::new(
+                |helper: &handlebars::Helper,
+                 _: &Handlebars,
+                 _: &handlebars::Context,
+                 _: &mut handlebars::RenderContext,
+                 output: &mut dyn handlebars::Output|
+                 -> handlebars::HelperResult {
+                    let notes = helper
+                        .param(0)
+                        .and_then(|param| param.value().as_str())
+                        .unwrap_or("");
+                    output.write(&render_block_notes(notes))?;
+                    Ok(())
+                },
+            ),
+        );
+
         // render preamble
         let preamble = hb
             .render("preamble", state)
@@ -214,6 +233,37 @@ impl Script {
     }
 }
 
+fn render_block_notes(notes: &str) -> String {
+    let mut rendered = String::new();
+    if notes.trim().is_empty() {
+        return rendered;
+    }
+    for line in notes.trim().lines() {
+        let mut column = 3;
+        rendered.push_str("--");
+        for word in line.split_whitespace() {
+            let width = word.chars().count();
+            if column > 3 && column + 1 + width > 80 {
+                rendered.push_str("\n--");
+                column = 3;
+            } else if column > 3 {
+                column += 1;
+            }
+            rendered.push(' ');
+            for character in word.chars() {
+                if column == 80 {
+                    rendered.push_str("\n-- ");
+                    column = 3;
+                }
+                rendered.push(character);
+                column += 1;
+            }
+        }
+        rendered.push('\n');
+    }
+    rendered
+}
+
 impl Display for Script {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -265,6 +315,80 @@ pub(crate) mod script_tests {
     use indexmap::IndexMap;
 
     use crate::script::Script;
+
+    #[test]
+    fn block_notes_wrap_long_words() {
+        let notes = "x".repeat(160);
+        let rendered = super::render_block_notes(&notes);
+        assert!(rendered.lines().all(|line| line.chars().count() <= 80));
+        assert_eq!(rendered.lines().count(), 3);
+        assert_eq!(
+            rendered
+                .lines()
+                .map(|line| line.strip_prefix("-- ").unwrap())
+                .collect::<String>(),
+            notes
+        );
+    }
+
+    #[test]
+    fn block_notes_wrap_and_preserve_comment_prefixes() {
+        let notes = format!("{}last\r\n\r\nprint('still a comment')", "word ".repeat(16));
+        let rendered = super::render_block_notes(&notes);
+        assert_eq!(
+            rendered,
+            format!(
+                "-- {}\n-- word last\n--\n-- print('still a comment')\n",
+                vec!["word"; 15].join(" ")
+            )
+        );
+        assert!(rendered.lines().all(|line| line.chars().count() <= 80));
+        assert!(rendered.lines().all(|line| line.trim_end() == line));
+        assert_eq!(super::render_block_notes(" \r\n\t"), "");
+        assert_eq!(super::render_block_notes("hello"), "-- hello\n");
+    }
+
+    #[test]
+    fn block_notes_render_above_code_using_catalog_template() {
+        let mut catalog = catalog();
+        let production_catalog: Catalog =
+            serde_saphyr::from_str(include_str!("../../triggerBlocks.yaml")).unwrap();
+        catalog.script_template = production_catalog.script_template;
+        let state = TriggerFlowState {
+            catalog: None,
+            slot_channel_list: slot_channel_list(),
+            models: IndexMap::from([(
+                "tm1".to_string(),
+                TriggerModelState {
+                    slot_module: Some(Module::MPSU50_2ST),
+                    model_error: vec![],
+                    model_name: "tm1".to_string(),
+                    slot_index: SlotIndex(1),
+                    node_id: "localnode".to_string(),
+                    blocks: vec![TriggerModelBlock {
+                        block_type: "always".to_string(),
+                        block_parameters: HashMap::from([
+                            ("trigger_block_name".to_string(), "branch".into()),
+                            ("branch_to_block_name".to_string(), "target".into()),
+                        ]),
+                        incoming: None,
+                        outgoing: None,
+                        block_position: BlockPosition { x: 0.0, y: 0.0 },
+                        block_id: "branch".to_string(),
+                        block_error: None,
+                        notes: "First line\nSecond line".to_string(),
+                    }],
+                },
+            )]),
+            state_type: None,
+        };
+        let script = Script::from_state(&catalog, &state).unwrap();
+        assert!(script.contents.contains("-- First line\n-- Second line\nslot[1].trigger.model.addblock.branch.always(\"tm1\", \"branch\", \"target\")"));
+        assert_eq!(
+            state.models["tm1"].blocks[0].notes,
+            "First line\nSecond line"
+        );
+    }
 
     fn catalog() -> Catalog {
         let blocks: HashMap<String, BlockDefinition> = HashMap::from([
