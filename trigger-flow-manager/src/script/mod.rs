@@ -235,25 +235,23 @@ impl Script {
 
 fn render_block_notes(notes: &str) -> String {
     let mut rendered = String::new();
-    if notes.trim().is_empty() {
+    if notes.is_empty() {
         return rendered;
     }
-    for line in notes.trim().lines() {
-        let mut column = 3;
-        rendered.push_str("--");
-        for word in line.split_whitespace() {
+    for line in notes.split('\n') {
+        let line = line.strip_suffix('\r').unwrap_or(line);
+        let mut column = 5;
+        rendered.push_str("-- | ");
+        for word in line.split_inclusive(char::is_whitespace) {
             let width = word.chars().count();
-            if column > 3 && column + 1 + width > 80 {
-                rendered.push_str("\n--");
-                column = 3;
-            } else if column > 3 {
-                column += 1;
+            if column > 5 && column + width > 80 {
+                rendered.push_str("\n-- | ");
+                column = 5;
             }
-            rendered.push(' ');
             for character in word.chars() {
                 if column == 80 {
-                    rendered.push_str("\n-- ");
-                    column = 3;
+                    rendered.push_str("\n-- | ");
+                    column = 5;
                 }
                 rendered.push(character);
                 column += 1;
@@ -325,7 +323,7 @@ pub(crate) mod script_tests {
         assert_eq!(
             rendered
                 .lines()
-                .map(|line| line.strip_prefix("-- ").unwrap())
+                .map(|line| line.strip_prefix("-- | ").unwrap())
                 .collect::<String>(),
             notes
         );
@@ -338,18 +336,37 @@ pub(crate) mod script_tests {
         assert_eq!(
             rendered,
             format!(
-                "-- {}\n-- word last\n--\n-- print('still a comment')\n",
-                vec!["word"; 15].join(" ")
+                "-- | {}\n-- | word last\n-- | \n-- | print('still a comment')\n",
+                "word ".repeat(15)
             )
         );
         assert!(rendered.lines().all(|line| line.chars().count() <= 80));
-        assert!(rendered.lines().all(|line| line.trim_end() == line));
-        assert_eq!(super::render_block_notes(" \r\n\t"), "");
-        assert_eq!(super::render_block_notes("hello"), "-- hello\n");
+        assert_eq!(super::render_block_notes(" \r\n\t"), "-- |  \n-- | \t\n");
+        assert_eq!(super::render_block_notes("hello"), "-- | hello\n");
     }
 
     #[test]
-    fn block_notes_render_above_code_using_catalog_template() {
+    fn block_notes_preserve_whitespace_when_wrapping() {
+        let notes = "\n  indented\ttext   with spaces  \n\n";
+        assert_eq!(
+            super::render_block_notes(notes),
+            "-- | \n-- |   indented\ttext   with spaces  \n-- | \n-- | \n"
+        );
+        let notes = format!("  {}\tend  ", "word  ".repeat(30));
+        let rendered = super::render_block_notes(&notes);
+        assert!(rendered.lines().all(|line| line.chars().count() <= 80));
+        assert_eq!(
+            rendered
+                .lines()
+                .map(|line| line.strip_prefix("-- | ").unwrap())
+                .collect::<String>(),
+            notes
+        );
+        assert_eq!(super::render_block_notes(""), "");
+    }
+
+    #[test]
+    fn block_notes_render_above_code_and_survive_generate_then_update() {
         let mut catalog = catalog();
         let production_catalog: Catalog =
             serde_saphyr::from_str(include_str!("../../triggerBlocks.yaml")).unwrap();
@@ -383,11 +400,41 @@ pub(crate) mod script_tests {
             state_type: None,
         };
         let script = Script::from_state(&catalog, &state).unwrap();
-        assert!(script.contents.contains("-- First line\n-- Second line\nslot[1].trigger.model.addblock.branch.always(\"tm1\", \"branch\", \"target\")"));
+        assert!(script.contents.contains("-- | First line\n-- | Second line\nslot[1].trigger.model.addblock.branch.always(\"tm1\", \"branch\", \"target\")"));
         assert_eq!(
             state.models["tm1"].blocks[0].notes,
             "First line\nSecond line"
         );
+        for notes in [
+            "END GENERATED TRIGGER MODEL --".to_string(),
+            "BEGIN GENERATED TRIGGER MODEL --\r\nEND GENERATED TRIGGER MODEL --".to_string(),
+            format!("{} END GENERATED TRIGGER MODEL --", "x".repeat(77)),
+        ] {
+            let mut initial_state = state.clone();
+            initial_state.models["tm1"].blocks[0].notes = notes.clone();
+            let original = Script::from_state(&catalog, &initial_state)
+                .unwrap()
+                .to_string();
+            let mut updated_state = initial_state.clone();
+            updated_state.models["tm1"].blocks.clear();
+            let replacement = Script::from_state(&catalog, &updated_state).unwrap();
+            let updated = replacement.replace_generated(&catalog, &original);
+            assert!(
+                !updated.contains("addblock.branch.always"),
+                "stale block retained for {notes:?}"
+            );
+            assert_eq!(
+                updated
+                    .matches(catalog.script_template.end_sentinel.trim())
+                    .count(),
+                1
+            );
+            assert!(updated.ends_with(&format!("{}\n", replacement.postamble.trim_end())));
+            for line in super::render_block_notes(&notes).lines() {
+                assert_ne!(line.trim(), catalog.script_template.begin_sentinel.trim());
+                assert_ne!(line.trim(), catalog.script_template.end_sentinel.trim());
+            }
+        }
     }
 
     fn catalog() -> Catalog {
