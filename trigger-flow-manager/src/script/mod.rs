@@ -139,6 +139,25 @@ impl Script {
             ),
         );
 
+        hb.register_helper(
+            "block_notes",
+            Box::new(
+                |helper: &handlebars::Helper,
+                 _: &Handlebars,
+                 _: &handlebars::Context,
+                 _: &mut handlebars::RenderContext,
+                 output: &mut dyn handlebars::Output|
+                 -> handlebars::HelperResult {
+                    let notes = helper
+                        .param(0)
+                        .and_then(|param| param.value().as_str())
+                        .unwrap_or("");
+                    output.write(&render_block_notes(notes))?;
+                    Ok(())
+                },
+            ),
+        );
+
         // render preamble
         let preamble = hb
             .render("preamble", state)
@@ -214,6 +233,35 @@ impl Script {
     }
 }
 
+fn render_block_notes(notes: &str) -> String {
+    let mut rendered = String::new();
+    if notes.is_empty() {
+        return rendered;
+    }
+    for line in notes.split('\n') {
+        let line = line.strip_suffix('\r').unwrap_or(line);
+        let mut column = 5;
+        rendered.push_str("-- ");
+        for word in line.split_inclusive(char::is_whitespace) {
+            let width = word.chars().count();
+            if column > 5 && column + width > 80 {
+                rendered.push_str("\n-- ");
+                column = 5;
+            }
+            for character in word.chars() {
+                if column == 80 {
+                    rendered.push_str("\n-- ");
+                    column = 5;
+                }
+                rendered.push(character);
+                column += 1;
+            }
+        }
+        rendered.push('\n');
+    }
+    rendered
+}
+
 impl Display for Script {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -265,6 +313,129 @@ pub(crate) mod script_tests {
     use indexmap::IndexMap;
 
     use crate::script::Script;
+
+    #[test]
+    fn block_notes_wrap_long_words() {
+        let notes = "x".repeat(160);
+        let rendered = super::render_block_notes(&notes);
+        assert!(rendered.lines().all(|line| line.chars().count() <= 80));
+        assert_eq!(rendered.lines().count(), 3);
+        assert_eq!(
+            rendered
+                .lines()
+                .map(|line| line.strip_prefix("-- ").unwrap())
+                .collect::<String>(),
+            notes
+        );
+    }
+
+    #[test]
+    fn block_notes_wrap_and_preserve_comment_prefixes() {
+        let notes = format!("{}last\r\n\r\nprint('still a comment')", "word ".repeat(16));
+        let rendered = super::render_block_notes(&notes);
+        assert_eq!(
+            rendered,
+            format!(
+                "-- {}\n-- word last\n-- \n-- print('still a comment')\n",
+                "word ".repeat(15)
+            )
+        );
+        assert!(rendered.lines().all(|line| line.chars().count() <= 80));
+        assert_eq!(super::render_block_notes(" \r\n\t"), "--  \n-- \t\n");
+        assert_eq!(super::render_block_notes("hello"), "-- hello\n");
+    }
+
+    #[test]
+    fn block_notes_preserve_whitespace_when_wrapping() {
+        let notes = "\n  indented\ttext   with spaces  \n\n";
+        assert_eq!(
+            super::render_block_notes(notes),
+            "-- \n--   indented\ttext   with spaces  \n-- \n-- \n"
+        );
+        let notes = format!("  {}\tend  ", "word  ".repeat(30));
+        let rendered = super::render_block_notes(&notes);
+        assert!(rendered.lines().all(|line| line.chars().count() <= 80));
+        assert_eq!(
+            rendered
+                .lines()
+                .map(|line| line.strip_prefix("-- ").unwrap())
+                .collect::<String>(),
+            notes
+        );
+        assert_eq!(super::render_block_notes(""), "");
+    }
+
+    #[test]
+    fn block_notes_render_above_code_and_survive_generate_then_update() {
+        let mut catalog = catalog();
+        let production_catalog: Catalog =
+            serde_saphyr::from_str(include_str!("../../triggerBlocks.yaml")).unwrap();
+        catalog.script_template = production_catalog.script_template;
+        let state = TriggerFlowState {
+            catalog: None,
+            slot_channel_list: slot_channel_list(),
+            models: IndexMap::from([(
+                "tm1".to_string(),
+                TriggerModelState {
+                    slot_module: Some(Module::MPSU50_2ST),
+                    model_error: vec![],
+                    model_name: "tm1".to_string(),
+                    slot_index: SlotIndex(1),
+                    node_id: "localnode".to_string(),
+                    blocks: vec![TriggerModelBlock {
+                        block_type: "always".to_string(),
+                        block_parameters: HashMap::from([
+                            ("trigger_block_name".to_string(), "branch".into()),
+                            ("branch_to_block_name".to_string(), "target".into()),
+                        ]),
+                        incoming: None,
+                        outgoing: None,
+                        block_position: BlockPosition { x: 0.0, y: 0.0 },
+                        block_id: "branch".to_string(),
+                        block_error: None,
+                        notes: "First line\nSecond line".to_string(),
+                    }],
+                },
+            )]),
+            state_type: None,
+        };
+        let script = Script::from_state(&catalog, &state).unwrap();
+        assert!(script.contents.contains("-- First line\n-- Second line\nslot[1].trigger.model.addblock.branch.always(\"tm1\", \"branch\", \"target\")"));
+        assert_eq!(
+            state.models["tm1"].blocks[0].notes,
+            "First line\nSecond line"
+        );
+        for notes in [
+            "END GENERATED TRIGGER MODEL --".to_string(),
+            "BEGIN GENERATED TRIGGER MODEL --\r\nEND GENERATED TRIGGER MODEL --".to_string(),
+            format!("{} END GENERATED TRIGGER MODEL --", "x".repeat(77)),
+        ] {
+            let mut initial_state = state.clone();
+            initial_state.models["tm1"].blocks[0].notes = notes.clone();
+            let original = Script::from_state(&catalog, &initial_state)
+                .unwrap()
+                .to_string();
+            let mut updated_state = initial_state.clone();
+            updated_state.models["tm1"].blocks.clear();
+            let replacement = Script::from_state(&catalog, &updated_state).unwrap();
+            let updated = replacement.replace_generated(&catalog, &original);
+            assert!(
+                !updated.contains("addblock.branch.always"),
+                "stale block retained for {notes:?}"
+            );
+            assert_eq!(
+                updated
+                    .matches(catalog.script_template.end_sentinel.trim())
+                    .count(),
+                1
+            );
+            assert!(updated.ends_with(&format!("{}\n", replacement.postamble.trim_end())));
+            for line in super::render_block_notes(&notes).lines() {
+                assert_ne!(line.trim(), catalog.script_template.begin_sentinel.trim());
+                assert_ne!(line.trim(), catalog.script_template.end_sentinel.trim());
+            }
+        }
+    }
 
     fn catalog() -> Catalog {
         let blocks: HashMap<String, BlockDefinition> = HashMap::from([
