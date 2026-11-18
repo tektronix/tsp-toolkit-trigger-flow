@@ -323,7 +323,7 @@ pub(crate) mod script_tests {
         assert_eq!(
             rendered
                 .lines()
-                .map(|line| line.strip_prefix("-- | ").unwrap())
+                .map(|line| line.strip_prefix("-- ").unwrap())
                 .collect::<String>(),
             notes
         );
@@ -336,13 +336,13 @@ pub(crate) mod script_tests {
         assert_eq!(
             rendered,
             format!(
-                "-- | {}\n-- | word last\n-- | \n-- | print('still a comment')\n",
+                "-- {}\n-- word last\n-- \n-- print('still a comment')\n",
                 "word ".repeat(15)
             )
         );
         assert!(rendered.lines().all(|line| line.chars().count() <= 80));
-        assert_eq!(super::render_block_notes(" \r\n\t"), "-- |  \n-- | \t\n");
-        assert_eq!(super::render_block_notes("hello"), "-- | hello\n");
+        assert_eq!(super::render_block_notes(" \r\n\t"), "--  \n-- \t\n");
+        assert_eq!(super::render_block_notes("hello"), "-- hello\n");
     }
 
     #[test]
@@ -350,7 +350,7 @@ pub(crate) mod script_tests {
         let notes = "\n  indented\ttext   with spaces  \n\n";
         assert_eq!(
             super::render_block_notes(notes),
-            "-- | \n-- |   indented\ttext   with spaces  \n-- | \n-- | \n"
+            "-- \n--   indented\ttext   with spaces  \n-- \n-- \n"
         );
         let notes = format!("  {}\tend  ", "word  ".repeat(30));
         let rendered = super::render_block_notes(&notes);
@@ -358,7 +358,7 @@ pub(crate) mod script_tests {
         assert_eq!(
             rendered
                 .lines()
-                .map(|line| line.strip_prefix("-- | ").unwrap())
+                .map(|line| line.strip_prefix("-- ").unwrap())
                 .collect::<String>(),
             notes
         );
@@ -400,7 +400,7 @@ pub(crate) mod script_tests {
             state_type: None,
         };
         let script = Script::from_state(&catalog, &state).unwrap();
-        assert!(script.contents.contains("-- | First line\n-- | Second line\nslot[1].trigger.model.addblock.branch.always(\"tm1\", \"branch\", \"target\")"));
+        assert!(script.contents.contains("-- First line\n-- Second line\nslot[1].trigger.model.addblock.branch.always(\"tm1\", \"branch\", \"target\")"));
         assert_eq!(
             state.models["tm1"].blocks[0].notes,
             "First line\nSecond line"
