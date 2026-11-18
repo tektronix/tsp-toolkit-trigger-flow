@@ -32,6 +32,41 @@ pub struct TriggerModelBlock {
     pub outgoing: Option<String>,
     pub block_position: BlockPosition,
     pub block_error: Option<Vec<(bool, String)>>,
+    #[serde(default)]
+    pub notes: String,
+}
+
+#[cfg(test)]
+mod notes_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn block_payload() -> serde_json::Value {
+        json!({
+            "block_id": "node-1",
+            "type": "notify",
+            "block_parameters": {},
+            "block_position": { "x": 0.0, "y": 0.0 },
+            "block_error": null
+        })
+    }
+
+    #[test]
+    fn notes_survive_serialization_round_trip() {
+        let mut payload = block_payload();
+        payload["notes"] = json!("First line\nSecond line");
+        let block: TriggerModelBlock = serde_json::from_value(payload).unwrap();
+        let saved = serde_json::to_value(&block).unwrap();
+        assert_eq!(saved["notes"], "First line\nSecond line");
+        let recalled: TriggerModelBlock = serde_json::from_value(saved).unwrap();
+        assert_eq!(recalled.notes, block.notes);
+    }
+
+    #[test]
+    fn legacy_blocks_default_to_empty_notes() {
+        let block: TriggerModelBlock = serde_json::from_value(block_payload()).unwrap();
+        assert!(block.notes.is_empty());
+    }
 }
 
 impl TriggerModelBlock {

@@ -1320,6 +1320,7 @@ mod clamp_module_constrained_params_tests {
             outgoing: None,
             block_position: BlockPosition { x: 0.0, y: 0.0 },
             block_error: None,
+            notes: "this is a test block".to_string(),
         }
     }
 
@@ -1589,6 +1590,7 @@ mod channel_usage_tests {
                 outgoing: None,
                 block_position: crate::model::trigger_model_block::BlockPosition { x: 0.0, y: 0.0 },
                 block_error: None,
+                notes: "this is a test block".to_string(),
             }],
             slot_module: Some(Module::MSMU60_2),
             model_error,
