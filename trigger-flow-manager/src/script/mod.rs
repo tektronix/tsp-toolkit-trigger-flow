@@ -241,16 +241,16 @@ fn render_block_notes(notes: &str) -> String {
     for line in notes.split('\n') {
         let line = line.strip_suffix('\r').unwrap_or(line);
         let mut column = 5;
-        rendered.push_str("-- | ");
+        rendered.push_str("-- ");
         for word in line.split_inclusive(char::is_whitespace) {
             let width = word.chars().count();
             if column > 5 && column + width > 80 {
-                rendered.push_str("\n-- | ");
+                rendered.push_str("\n-- ");
                 column = 5;
             }
             for character in word.chars() {
                 if column == 80 {
-                    rendered.push_str("\n-- | ");
+                    rendered.push_str("\n-- ");
                     column = 5;
                 }
                 rendered.push(character);
