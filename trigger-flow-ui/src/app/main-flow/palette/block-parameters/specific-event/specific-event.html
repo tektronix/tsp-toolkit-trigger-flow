@@ -12,7 +12,7 @@
               [invalidOption]="p.invalidOption"
               [(ngModel)]="p.selected"
               (selectedChange)="onChange(p.name, $event)"
-              [attr.aria-label]="'dropdown-' + p.name"
+              [automationID]="'dropdown-' + p.name"
             />
           </div>
         }
