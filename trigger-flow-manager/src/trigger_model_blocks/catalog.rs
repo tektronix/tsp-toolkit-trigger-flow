@@ -198,40 +198,23 @@ impl Parameter {
 
         // 3. Range check (for numbers). Out-of-range values are clamped to the
         // limit and the stored parameter is rewritten so the rendered script
-        // never contains a value outside the catalog-declared range.
+        // never contains a value outside the catalog-declared range. A corrected
+        // value is valid, so clamping does not add a validation error.
         if let Some(range) = &self.range {
             if let Some(num) = value.and_then(|v| v.as_f64()) {
                 let min = range.min.as_ref().and_then(|v| v.as_f64());
                 let max = range.max.as_ref().and_then(|v| v.as_f64());
 
-                let (clamped_to, limit_value, message) = if let Some(min) = min.filter(|m| num < *m)
-                {
-                    (
-                        Some("min"),
-                        range.min.clone(),
-                        format!(
-                            "Parameter '{}' value {} below min {}; clamped to {}",
-                            self.name, num, min, min
-                        ),
-                    )
-                } else if let Some(max) = max.filter(|m| num > *m) {
-                    (
-                        Some("max"),
-                        range.max.clone(),
-                        format!(
-                            "Parameter '{}' value {} above max {}; clamped to {}",
-                            self.name, num, max, max
-                        ),
-                    )
+                let limit_value = if min.is_some_and(|min| num < min) {
+                    range.min.clone()
+                } else if max.is_some_and(|max| num > max) {
+                    range.max.clone()
                 } else {
-                    (None, None, String::new())
+                    None
                 };
 
-                if clamped_to.is_some() {
-                    if let Some(limit) = limit_value {
-                        block.block_parameters.insert(self.name.clone(), limit);
-                    }
-                    block.add_error(message);
+                if let Some(limit) = limit_value {
+                    block.block_parameters.insert(self.name.clone(), limit);
                 }
             }
         }
@@ -659,5 +642,75 @@ impl Parameter {
             .as_ref()
             .map(|opts| opts.iter().map(|o| o.label.as_str()).collect())
             .unwrap_or_default()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn constant_delay_block(delay_time: Value) -> TriggerModelBlock {
+        serde_json::from_value(json!({
+            "block_id": "delay-1",
+            "type": "constant delay",
+            "block_parameters": {
+                "trigger_block_name": "Constant Delay",
+                "delay_time": delay_time
+            },
+            "block_position": { "x": 0.0, "y": 0.0 }
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn scalar_delay_clamping_keeps_effective_value_valid() {
+        let catalog = Catalog::from_yaml(include_str!("../../triggerBlocks.yaml")).unwrap();
+        let definition = catalog.get_block("constant delay").unwrap();
+
+        for (input, expected) in [
+            (0.0, 0.000001),
+            (-1.0, 0.000001),
+            (1000001.0, 1000000.0),
+            (0.000001, 0.000001),
+            (1000000.0, 1000000.0),
+            (0.5, 0.5),
+        ] {
+            let mut block = constant_delay_block(json!(input));
+
+            definition.validate(&mut block, &catalog).unwrap();
+
+            assert_eq!(
+                block.block_parameters["delay_time"].as_f64(),
+                Some(expected),
+                "unexpected effective value for {input}",
+            );
+            assert!(
+                block.block_error.is_none(),
+                "valid effective value for {input} must not produce an error: {:?}",
+                block.block_error,
+            );
+        }
+    }
+
+    #[test]
+    fn scalar_delay_clamping_does_not_hide_required_errors() {
+        let catalog = Catalog::from_yaml(include_str!("../../triggerBlocks.yaml")).unwrap();
+        let definition = catalog.get_block("constant delay").unwrap();
+        let mut block = constant_delay_block(json!(0));
+        block
+            .block_parameters
+            .insert("trigger_block_name".to_string(), json!(""));
+
+        definition.validate(&mut block, &catalog).unwrap();
+
+        assert_eq!(block.block_parameters["delay_time"], json!(0.000001));
+        assert_eq!(
+            block.block_error,
+            Some(vec![(
+                true,
+                "Parameter 'trigger_block_name' is required".to_string()
+            )]),
+        );
     }
 }
